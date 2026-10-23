@@ -33,6 +33,60 @@ def tap_label(labels, timeout=60):
     raise RuntimeError('Missing gallery control: ' + repr(labels))
 
 
+def select_seeded_media(timeout=60):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        root = hierarchy()
+        for node in root.iter('node'):
+            label = node.get('text', '') + ' ' + node.get('content-desc', '')
+            if node.get('package') == startup.package:
+                continue
+            if ('magicai-picker' in label or node.get('resource-id', '').endswith(('/icon_thumbnail', '/thumbnail'))):
+                bounds = [int(value) for value in re.findall(r'\d+', node.get('bounds', ''))]
+                if len(bounds) == 4:
+                    startup.adb('shell', 'input', 'tap', str((bounds[0]+bounds[2])//2), str((bounds[1]+bounds[3])//2))
+                    return
+        time.sleep(1)
+    startup.snapshot('media-picker-missing-seed')
+    raise RuntimeError('System picker did not expose the seeded media')
+
+
+def check_additional_media(mode):
+    marker = mode.upper() + '_PROBE_PASSED:'
+    if mode == 'video':
+        dart = (Path(__file__).resolve().parents[2]/'test/android_studio_probe.dart').read_text()
+        encoded = re.search(r"const studioProbeVideoBase64\s*=\s*'([^']+)'", dart).group(1)
+        seed = startup.output/'magicai-picker-video.mp4'
+        seed.write_bytes(base64.b64decode(encoded, validate=True))
+        startup.adb('push', str(seed), '/sdcard/Download/magicai-picker-video.mp4')
+        startup.adb('shell', 'am', 'broadcast', '-a', 'android.intent.action.MEDIA_SCANNER_SCAN_FILE', '-d', 'file:///sdcard/Download/magicai-picker-video.mp4')
+    startup.adb('logcat', '-c')
+    startup.adb('shell', 'am', 'force-stop', startup.package)
+    startup.adb('shell', 'am', 'start', '-W', '-n', startup.package+'/'+startup.package+'.MainActivity', '--es', 'route', '/'+mode+'-regression')
+    try:
+        tap_label(['Add reference image' if mode == 'creative' else 'Upload video'])
+        select_seeded_media()
+        if mode == 'video':
+            tap_label(['Remove video'])
+            # Verify removal is real and choose again before uploading.
+            tap_label(['Upload video'])
+            select_seeded_media()
+            tap_label(['Generate'])
+        deadline = time.monotonic()+60
+        while time.monotonic() < deadline:
+            logs = startup.adb('logcat', '-d', '-s', 'flutter').decode(errors='replace')
+            if 'STUDIO_PROBE_FAILED:' in logs:
+                raise RuntimeError(mode+' multipart verification failed')
+            if marker in logs:
+                startup.snapshot(mode+'-native-upload-verified')
+                print('PASS: '+mode+' native gallery selection and exact multipart bytes (fixture transport)', flush=True)
+                return
+            time.sleep(1)
+        raise RuntimeError(mode+' attachment verification timed out')
+    finally:
+        (startup.output/(mode+'-runtime.log')).write_bytes(startup.adb('logcat', '-d', '-v', 'threadtime', '-s', 'flutter', 'AndroidRuntime', 'ImagePicker'))
+
+
 def main():
     startup.output.mkdir(exist_ok=True)
     image = startup.output / 'magicai-picker-reference.png'
@@ -88,3 +142,5 @@ def main():
 
 if __name__=='__main__':
     main()
+    check_additional_media('creative')
+    check_additional_media('video')

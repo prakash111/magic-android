@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/mobile_api.dart';
+import '../services/image_attachment_picker.dart';
 import '../services/native_extension_service.dart';
 import '../services/social_post_service.dart';
 import 'native_module_screen.dart' show NativeModuleScreen, NativeSchemaForm;
@@ -1121,16 +1122,18 @@ class _CampaignComposerState extends State<_CampaignComposer> {
 
   Future<void> _imagePicker() async {
     try {
-      final file = await SecureStore.invokeMapMethod<String, dynamic>(
-        'pickImage',
+      final file = await ImageAttachmentPicker().pick(
+        moduleId: 'marketing_campaign',
+        field: 'upload_image',
+        maxBytes: 10 * 1024 * 1024,
       );
       if (file != null) {
         await _run(
           'upload_image',
           files: {
             'upload_image': {
-              'name': file['name'],
-              'bytes': base64Encode((file['bytes'] as List).cast<int>()),
+              'name': file.name,
+              'bytes': base64Encode(file.bytes),
             },
           },
         );

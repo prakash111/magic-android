@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+
+import 'image_attachment_picker.dart';
+
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -317,7 +320,7 @@ class MobileApi {
                       body?['operation'] == 'list') ||
                   (path == '/native/extension' &&
                       body?['operation'] == 'load') ||
-                  (path == '/native/workflow' &&
+                  (const ['/native/workflow', '/native/media'].contains(path) &&
                       [
                         'describe',
                         'history',
@@ -356,6 +359,10 @@ class MobileApi {
   }
 
   Future<String> uploadImage(List<int> bytes, String name) async {
+    final mime = ImageAttachmentPicker.imageMimeType(bytes);
+    if (bytes.isEmpty || mime == null) {
+      throw const ApiFailure('Choose a valid JPEG, PNG or WebP image.');
+    }
     if (bytes.length > 10 * 1024 * 1024) {
       throw const ApiFailure('Choose an image no larger than 10 MB.');
     }
@@ -366,7 +373,12 @@ class MobileApi {
     upload.headers.addAll(await headers());
     upload.headers.remove('Content-Type');
     upload.files.add(
-      http.MultipartFile.fromBytes('image', bytes, filename: name),
+      http.MultipartFile.fromBytes(
+        'image',
+        bytes,
+        filename: name,
+        contentType: http.MediaType.parse(mime),
+      ),
     );
     try {
       final response = await http.Response.fromStream(

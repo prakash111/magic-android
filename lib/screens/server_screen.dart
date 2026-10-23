@@ -12,7 +12,6 @@ import '../widgets/ai_model_selector.dart';
 import '../theme/app_colors.dart';
 
 import '../services/mobile_api.dart';
-import '../theme/app_theme.dart';
 import '../theme/design.dart';
 import '../services/chat_service.dart';
 import 'workspace_screen.dart';
@@ -1304,10 +1303,14 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
                       ),
                       const SizedBox(height: 12),
                     ],
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 12,
                       children: [
-                        Expanded(
+                        SizedBox(
+                          width: constraints.maxWidth < 500
+                              ? constraints.maxWidth - 24
+                              : (constraints.maxWidth - 34) / 2,
                           child: DropdownButtonFormField<String>(
                             isExpanded: true,
                             key: ValueKey('persona-$_persona'),
@@ -1343,12 +1346,17 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
                                             item['sub_description']
                                                 .toString()
                                                 .isNotEmpty)
-                                          Text(
-                                            item['sub_description'].toString(),
-                                            style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .hintColor,
-                                              fontSize: 10,
+                                          Flexible(
+                                            child: Text(
+                                              item['sub_description']
+                                                  .toString(),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: Theme.of(context)
+                                                    .hintColor,
+                                                fontSize: 10,
+                                              ),
                                             ),
                                           ),
                                       ],
@@ -1365,8 +1373,10 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
                                   }),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
+                        SizedBox(
+                          width: constraints.maxWidth < 500
+                              ? constraints.maxWidth - 24
+                              : (constraints.maxWidth - 34) / 2,
                           child: AiModelSelector(
                             models: _models,
                             selected: _model,
@@ -1578,7 +1588,9 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: AppTheme.borderDark),
+                        border: Border.all(
+                          color: Theme.of(context).dividerColor,
+                        ),
                       ),
                       child: Row(
                         children: [

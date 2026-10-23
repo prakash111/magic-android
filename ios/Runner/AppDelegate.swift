@@ -1,3 +1,4 @@
+import AVKit
 import Photos
 import Flutter
 import UIKit
@@ -62,7 +63,9 @@ import UniformTypeIdentifiers
       case "pickFile", "pickImage":
         guard self.fileResult == nil else { result(FlutterError(code: "busy", message: "A file picker is already open", details: nil)); return }
         self.fileResult = result
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: call.method == "pickImage" ? [.image] : [.pdf, .commaSeparatedText, .spreadsheet, .data], asCopy: true)
+        let accept = args["accept"] as? String ?? ""
+        let types: [UTType] = call.method == "pickImage" || accept == "image/*" ? [.image] : accept == "video/*" ? [.movie, .video] : [.pdf, .commaSeparatedText, .spreadsheet, .data]
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: true)
         picker.delegate = self
         let root = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap { $0.windows }.first { $0.isKeyWindow }?.rootViewController
         guard let root = root else { self.fileResult = nil; result(FlutterError(code: "picker", message: "Unable to open file picker", details: nil)); return }
@@ -70,7 +73,12 @@ import UniformTypeIdentifiers
       case "clearWebSession": result(nil)
       case "previewMedia":
         guard let value = args["url"] as? String, let url = URL(string: value), url.scheme == "https", url.host?.isEmpty == false, url.user == nil else { result(FlutterError(code: "url", message: "Invalid address", details: nil)); return }
-        UIApplication.shared.open(url, options: [:]) { opened in result(opened ? nil : FlutterError(code: "browser", message: "Unable to open media", details: nil)) }
+        let root = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap { $0.windows }.first { $0.isKeyWindow }?.rootViewController
+        guard let root = root else { result(FlutterError(code: "media", message: "Unable to open video preview", details: nil)); return }
+        let player = AVPlayerViewController()
+        player.player = AVPlayer(url: url)
+        root.present(player, animated: true) { player.player?.play() }
+        result(nil)
       case "contactAction":
         let scheme = args["scheme"] as? String ?? ""
         let value = args["value"] as? String ?? ""

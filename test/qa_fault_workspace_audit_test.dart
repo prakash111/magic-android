@@ -70,6 +70,7 @@ void main() {
     return;
   }
   TestWidgetsFlutterBinding.ensureInitialized();
+  Directory(outputPath).createSync(recursive: true);
   final catalog = jsonDecode(File(catalogPath).readAsStringSync()) as Map;
   final results = <Map<String, dynamic>>[];
   for (final raw in catalog['modules'] as List) {

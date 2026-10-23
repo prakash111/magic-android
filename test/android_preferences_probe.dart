@@ -17,6 +17,12 @@ Future<void> main() async {
       '/studio-regression') {
     runApp(AndroidStudioProbe());
   } else if (WidgetsBinding.instance.platformDispatcher.defaultRouteName ==
+      '/creative-regression') {
+    runApp(AndroidStudioProbe(mode: 'creative'));
+  } else if (WidgetsBinding.instance.platformDispatcher.defaultRouteName ==
+      '/video-regression') {
+    runApp(AndroidStudioProbe(mode: 'video'));
+  } else if (WidgetsBinding.instance.platformDispatcher.defaultRouteName ==
       '/ui-regression') {
     final mode = await StorageService.getThemeMode();
     runApp(

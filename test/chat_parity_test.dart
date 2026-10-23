@@ -30,6 +30,55 @@ const options = {
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  for (final theme in [AppTheme.darkTheme, AppTheme.lightTheme]) {
+    testWidgets(
+      'chat selectors fit long live persona metadata on small ${theme.brightness.name} screens',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 800);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final api = nativeApi(
+          (path, _) async => path.startsWith('/chat/options')
+              ? {
+                  'personas': [
+                    {
+                      'id': 0,
+                      'name': 'Customer relationship management assistant',
+                      'sub_description': 'Default conversational agent with customer relationship tools and image generation',
+                      'type': 'text',
+                    },
+                  ],
+                  'models': [
+                    {
+                      'id': 'gpt-4o',
+                      'title':
+                          'A long configured model name from the live provider',
+                    },
+                  ],
+                }
+              : {'data': []},
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(1.3)),
+              child: child!,
+            ),
+            home: Scaffold(body: ServerChatScreen(api: api)),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Customer relationship management assistant'),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   test('parses resource envelopes and rejects malformed chat data', () {
     expect(
       ChatService.records({
@@ -376,7 +425,11 @@ void main() {
         if (path == '/chat/conversations') return chats;
         if (path == '/chat/conversations/101/messages') return [];
         if (path == '/chat/conversations/102') {
-          return {'success': true, 'message': 'Chat session deleted', 'id': 102};
+          return {
+            'success': true,
+            'message': 'Chat session deleted',
+            'id': 102,
+          };
         }
         return [];
       });
@@ -418,77 +471,80 @@ void main() {
     },
   );
 
-  testWidgets(
-    'clears all conversations at once and shows empty state',
-    (tester) async {
-      final calls = <String>[];
-      final chats = [
-        {
-          'id': 201,
-          'title': 'Session 201',
-          'type': 'assistant',
-          'created_at': '2026-10-20T10:00:00Z',
-        },
-        {
-          'id': 202,
-          'title': 'Session 202',
-          'type': 'voice',
-          'created_at': '2026-10-20T11:00:00Z',
-        },
-      ];
-      final api = nativeApi((path, body) async {
-        calls.add(path);
-        if (path.startsWith('/chat/options')) return options;
-        if (path == '/chat/conversations') return chats;
-        if (path == '/chat/conversations/clear-all') {
-          return {'success': true, 'message': 'All conversation history cleared', 'count': 2};
-        }
-        return [];
-      });
+  testWidgets('clears all conversations at once and shows empty state', (
+    tester,
+  ) async {
+    final calls = <String>[];
+    final chats = [
+      {
+        'id': 201,
+        'title': 'Session 201',
+        'type': 'assistant',
+        'created_at': '2026-10-20T10:00:00Z',
+      },
+      {
+        'id': 202,
+        'title': 'Session 202',
+        'type': 'voice',
+        'created_at': '2026-10-20T11:00:00Z',
+      },
+    ];
+    final api = nativeApi((path, body) async {
+      calls.add(path);
+      if (path.startsWith('/chat/options')) return options;
+      if (path == '/chat/conversations') return chats;
+      if (path == '/chat/conversations/clear-all') {
+        return {
+          'success': true,
+          'message': 'All conversation history cleared',
+          'count': 2,
+        };
+      }
+      return [];
+    });
 
-      await tester.pumpWidget(app(ServerChatScreen(api: api)));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(app(ServerChatScreen(api: api)));
+    await tester.pumpAndSettle();
 
-      // Open conversation history modal
-      await tester.tap(find.text('Conversation history'));
-      await tester.pumpAndSettle();
+    // Open conversation history modal
+    await tester.tap(find.text('Conversation history'));
+    await tester.pumpAndSettle();
 
-      // Clear All button is present in header
-      final clearAllBtn = find.byKey(const ValueKey('clear-all-button'));
-      expect(clearAllBtn, findsOneWidget);
+    // Clear All button is present in header
+    final clearAllBtn = find.byKey(const ValueKey('clear-all-button'));
+    expect(clearAllBtn, findsOneWidget);
 
-      await tester.tap(clearAllBtn);
-      await tester.pumpAndSettle();
+    await tester.tap(clearAllBtn);
+    await tester.pumpAndSettle();
 
-      // Verify confirmation dialog
-      expect(find.text('Clear All Conversations'), findsOneWidget);
-      expect(
-        find.text('Clear all conversations? This action cannot be undone.'),
-        findsOneWidget,
-      );
+    // Verify confirmation dialog
+    expect(find.text('Clear All Conversations'), findsOneWidget);
+    expect(
+      find.text('Clear all conversations? This action cannot be undone.'),
+      findsOneWidget,
+    );
 
-      // Confirm Clear All
-      await tester.tap(find.widgetWithText(FilledButton, 'Clear All'));
-      await tester.pumpAndSettle();
+    // Confirm Clear All
+    await tester.tap(find.widgetWithText(FilledButton, 'Clear All'));
+    await tester.pumpAndSettle();
 
-      // Verify bulk delete API called
-      expect(calls, contains('/chat/conversations/clear-all'));
-      // Verify chat view resets
-      expect(find.text('How can I help today?'), findsOneWidget);
+    // Verify bulk delete API called
+    expect(calls, contains('/chat/conversations/clear-all'));
+    // Verify chat view resets
+    expect(find.text('How can I help today?'), findsOneWidget);
 
-      // Open conversation history again - verify empty state
-      await tester.tap(find.text('Conversation history'));
-      await tester.pumpAndSettle();
+    // Open conversation history again - verify empty state
+    await tester.tap(find.text('Conversation history'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('No conversation history yet'), findsOneWidget);
-      expect(find.widgetWithText(OutlinedButton, '+ New Chat'), findsOneWidget);
+    expect(find.text('No conversation history yet'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, '+ New Chat'), findsOneWidget);
 
-      // Tapping + New Chat closes modal
-      await tester.tap(find.widgetWithText(OutlinedButton, '+ New Chat'));
-      await tester.pumpAndSettle();
+    // Tapping + New Chat closes modal
+    await tester.tap(find.widgetWithText(OutlinedButton, '+ New Chat'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Conversation History'), findsNothing);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.text('Conversation History'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

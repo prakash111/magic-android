@@ -161,14 +161,40 @@ class MainActivity : FlutterActivity() {
                         imageResult = result
                         fileLimit = if (call.method == "pickFile") 50 * 1024 * 1024 else 10 * 1024 * 1024
                         startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                            type = if (call.method == "pickFile" && call.argument<String>("accept") == "video/*") "video/*" else "image/*"
+                            val accepted = call.argument<String>("accept") ?: if (call.method == "pickImage") "image/*" else "*/*"
+                            val types = accepted.split(',').map { it.trim() }.filter { it.matches(Regex("[a-zA-Z0-9.+-]+/[a-zA-Z0-9.*+-]+")) }
+                            type = if (types.size == 1) types.first() else "*/*"
+                            if (types.size > 1) putExtra(Intent.EXTRA_MIME_TYPES, types.toTypedArray())
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             addCategory(Intent.CATEGORY_OPENABLE)
                         }, imageRequestCode)
                     }
                     "previewMedia" -> {
                         val url = Uri.parse(call.argument<String>("url") ?: "")
                         require(url.scheme == "https" && !url.host.isNullOrBlank() && url.userInfo == null)
-                        startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(url, "video/*"))
+                        val dialog = android.app.Dialog(this)
+                        val layout = android.widget.LinearLayout(this).apply {
+                            orientation = android.widget.LinearLayout.VERTICAL
+                            setBackgroundColor(android.graphics.Color.BLACK)
+                        }
+                        val close = android.widget.Button(this).apply { text = "Close preview"; setOnClickListener { dialog.dismiss() } }
+                        val video = android.widget.VideoView(this)
+                        val controls = android.widget.MediaController(this)
+                        controls.setAnchorView(video)
+                        video.setMediaController(controls)
+                        layout.addView(video, android.widget.LinearLayout.LayoutParams(-1, 0, 1f))
+                        layout.addView(close, android.widget.LinearLayout.LayoutParams(-1, -2))
+                        dialog.setContentView(layout)
+                        dialog.setOnDismissListener { video.stopPlayback() }
+                        video.setOnErrorListener { _, _, _ ->
+                            android.widget.Toast.makeText(this, "Unable to play this video. Refresh the result and retry.", android.widget.Toast.LENGTH_LONG).show()
+                            dialog.dismiss()
+                            true
+                        }
+                        video.setOnPreparedListener { video.start() }
+                        dialog.show()
+                        dialog.window?.setLayout(-1, -1)
+                        video.setVideoURI(url)
                         result.success(null)
                     }
                     "openUrl" -> {
@@ -305,24 +331,35 @@ class MainActivity : FlutterActivity() {
         val result = imageResult ?: return
         imageResult = null
         if (resultCode != Activity.RESULT_OK || data?.data == null) { result.success(null); return }
-        try {
-            val uri = data.data!!
-            val buffer = ByteArrayOutputStream()
-            contentResolver.openInputStream(uri)!!.use { input ->
-                val bytes = ByteArray(16384)
-                while (true) {
-                    val count = input.read(bytes)
-                    if (count < 0) break
-                    require(buffer.size() + count <= fileLimit)
-                    buffer.write(bytes, 0, count)
+        val uri = data.data!!
+        val limit = fileLimit
+        Thread {
+            try {
+                var name: String? = null
+                contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) name = cursor.getString(0)
                 }
+                val mime = contentResolver.getType(uri) ?: "application/octet-stream"
+                val buffer = ByteArrayOutputStream()
+                contentResolver.openInputStream(uri)?.use { input ->
+                    val bytes = ByteArray(16384)
+                    while (true) {
+                        val count = input.read(bytes)
+                        if (count < 0) break
+                        require(buffer.size() + count <= limit)
+                        buffer.write(bytes, 0, count)
+                    }
+                } ?: error("Unable to read file")
+                require(buffer.size() > 0)
+                val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) ?: "bin"
+                val safeName = name?.substringAfterLast('/')?.substringAfterLast('\\')?.replace(Regex("[\\r\\n\"]"), "_")?.takeIf { it.isNotBlank() } ?: "selected-file.$extension"
+                mainHandler.post { result.success(mapOf("bytes" to buffer.toByteArray(), "name" to safeName, "mimeType" to mime)) }
+            } catch (_: SecurityException) {
+                mainHandler.post { result.error("file_access", "Access to this file expired. Choose it again from this device.", null) }
+            } catch (_: Exception) {
+                mainHandler.post { result.error("file_error", "Choose a readable file no larger than ${limit / (1024 * 1024)} MB.", null) }
             }
-            val mime = contentResolver.getType(uri)
-            val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mime ?: "image/jpeg") ?: "bin"
-            result.success(mapOf("bytes" to buffer.toByteArray(), "name" to "attachment.$extension"))
-        } catch (exception: Exception) {
-            result.error("file_error", "Choose a file no larger than ${fileLimit / (1024 * 1024)} MB.", null)
-        }
+        }.start()
     }
 
 }

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 
 import 'mobile_api.dart';
+import 'image_attachment_picker.dart';
 
 class SocialPostPage {
   final List<Map<String, dynamic>> posts;
@@ -115,14 +116,23 @@ class SocialPostService {
 
   Future<String> upload(List<int> bytes, String name, String mediaType) async {
     if (mediaType == 'image') return api.uploadImage(bytes, name);
-    if (mediaType != 'video' || bytes.length > 50 * 1024 * 1024) {
+    final mime = ImageAttachmentPicker.videoMimeType(bytes);
+    if (mediaType != 'video' ||
+        mime == null ||
+        bytes.isEmpty ||
+        bytes.length > 50 * 1024 * 1024) {
       throw const ApiFailure('Choose a video no larger than 50 MB.');
     }
     final request =
         http.MultipartRequest('POST', api.uri('/social-media/attachments'))
           ..headers.addAll(await api.headers())
           ..files.add(
-            http.MultipartFile.fromBytes('video', bytes, filename: name),
+            http.MultipartFile.fromBytes(
+              'video',
+              bytes,
+              filename: name,
+              contentType: http.MediaType.parse(mime),
+            ),
           );
     request.headers.remove('Content-Type');
     try {

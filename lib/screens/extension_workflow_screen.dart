@@ -18,11 +18,13 @@ class ExtensionWorkflowScreen extends StatefulWidget {
   final Map<String, dynamic> module;
   final MobileApi api;
   final ImageAttachmentPicker? imagePicker;
+  final String endpoint;
   const ExtensionWorkflowScreen({
     super.key,
     required this.module,
     required this.api,
     this.imagePicker,
+    this.endpoint = '/native/workflow',
   });
   @override
   State<ExtensionWorkflowScreen> createState() =>
@@ -34,6 +36,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
   late final _service = ExtensionWorkflowService(
     widget.api,
     '${widget.module['id']}',
+    endpoint: widget.endpoint,
   );
   final _form = GlobalKey<FormState>();
   final _values = <String, dynamic>{};
@@ -41,7 +44,10 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
   Map<String, dynamic>? _definition;
   List<Map> _history = [];
   Timer? _poll;
-  String? _error, _requestId;
+  String? _error, _requestId, _workflowId, _workflowStatus;
+  List<Map> _previews = [];
+  final _renderIds = <String, String>{};
+  DateTime? _pollStarted;
   int _promptRevision = 0;
   bool _busy = false, _refreshing = false, _active = true;
 
@@ -80,32 +86,44 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
     }
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool reset = false}) async {
     try {
-      final data = await _service.describe().timeout(
-        const Duration(seconds: 25),
-        onTimeout: () =>
-            throw const ApiFailure('Unable to load this tool. Please retry.'),
-      );
+      final data = await _service
+          .describe(inputs: {'tool': ?_values['tool']})
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw const ApiFailure(
+              'Unable to load this tool. Please retry.',
+            ),
+          );
       if (!mounted) return;
-      for (final field in (data['fields'] as List).whereType<Map>()) {
+      if (reset) {
+        _values.clear();
+        _files.clear();
+        _requestId = null;
+        _promptRevision++;
+      }
+      for (final field in (data['fields'] as List? ?? []).whereType<Map>()) {
+        if (field['value'] != null) {
+          _values.putIfAbsent('${field['name']}', () => '${field['value']}');
+        }
         if (field['type'] == 'select' &&
-            (field['options'] as List).isNotEmpty) {
+            (field['options'] as List? ?? []).isNotEmpty) {
           _values.putIfAbsent(
             '${field['name']}',
             () => '${field['value'] ?? field['options'][0]['value']}',
           );
         }
       }
-      final hasImages = (data['fields'] as List).whereType<Map>().any(
-        (field) => field['accept'] == 'image/*',
+      final hasImages = (data['fields'] as List? ?? []).whereType<Map>().any(
+        (field) => const ['image/*', 'video/*'].contains(field['accept']),
       );
       final recovered = hasImages
           ? await ImageAttachmentPicker.takeRecovered('${widget.module['id']}')
           : null;
       if (!mounted) return;
       if (recovered != null) {
-        final field = (data['fields'] as List)
+        final field = (data['fields'] as List? ?? [])
             .whereType<Map>()
             .where((field) => field['name'] == recovered.$1)
             .firstOrNull;
@@ -116,33 +134,52 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
         }
       }
       setState(() {
+        _acceptProgress(data);
         _definition = data;
-        _history = (data['data'] as List).whereType<Map>().toList();
+        _history = (data['data'] as List? ?? []).whereType<Map>().toList();
         _error = null;
       });
       _schedule();
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (reset && mounted) {
+        setState(() => _busy = false);
+        _schedule();
+      }
     }
   }
 
-  bool get _hasPending => _history.any(
-    (row) =>
-        [
-          'pending',
-          'processing',
-          'running',
-          'queued',
-          'in_progress',
-          'uploading',
-          'rendering',
-        ].contains('${row['status']}'.toLowerCase()) ||
-        ['pending', 'processing'].contains(row['export']?['status']),
-  );
+  bool get _hasPending =>
+      _workflowStatus == 'processing' ||
+      _workflowStatus == 'rendering' ||
+      _history.any(
+        (row) =>
+            [
+              'pending',
+              'created',
+              'in_queue',
+              'processing',
+              'running',
+              'queued',
+              'in_progress',
+              'uploading',
+              'rendering',
+            ].contains('${row['status']}'.toLowerCase()) ||
+            ['pending', 'processing'].contains(row['export']?['status']),
+      );
 
   void _schedule() {
     _poll?.cancel();
     if (_active && mounted && _hasPending && !_busy) {
+      _pollStarted ??= DateTime.now();
+      if (DateTime.now().difference(_pollStarted!) >
+          const Duration(minutes: 10)) {
+        setState(
+          () => _error = 'This job is still processing. Automatic updates paused; tap Refresh to check progress.',
+        );
+        return;
+      }
       _poll = Timer(const Duration(seconds: 8), () => _refresh(poll: true));
     }
   }
@@ -151,10 +188,14 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
     if (_refreshing || _busy) return;
     _refreshing = true;
     try {
-      final data = await _service.history(refresh: true);
+      final data = await _service.history(
+        refresh: true,
+        workflowId: _workflowId,
+      );
       if (mounted) {
         setState(() {
-          _history = (data['data'] as List).whereType<Map>().toList();
+          _acceptProgress(data);
+          _history = (data['data'] as List? ?? []).whereType<Map>().toList();
           _error = null;
         });
       }
@@ -175,11 +216,14 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
   Future<void> _pick(Map field) async {
     try {
       WorkflowFile? file;
-      if ('${field['accept']}'.startsWith('image/')) {
+      if (const ['image/*', 'video/*'].contains(field['accept'])) {
         file = await (widget.imagePicker ?? ImageAttachmentPicker()).pick(
           moduleId: '${widget.module['id']}',
           field: '${field['name']}',
-          maxBytes: field['max_bytes'] as int? ?? 5 * 1024 * 1024,
+          maxBytes:
+              field['max_bytes'] as int? ??
+              (field['accept'] == 'video/*' ? 50 : 5) * 1024 * 1024,
+          video: field['accept'] == 'video/*',
         );
       } else {
         final result = await SecureStore.invokeMapMethod<String, dynamic>(
@@ -221,8 +265,10 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
           : await _service.export(exportProject, _requestId!);
       if (!mounted) return;
       setState(() {
-        _history = (result['data'] as List).whereType<Map>().toList();
+        _acceptProgress(result);
+        _history = (result['data'] as List? ?? []).whereType<Map>().toList();
         _requestId = null;
+        _pollStarted = DateTime.now();
       });
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('${result['message']}')));
@@ -236,18 +282,138 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
     }
   }
 
+  void _acceptProgress(Map data) {
+    if (data['workflow_id'] is String) _workflowId = data['workflow_id'];
+    if (data['workflow_status'] is String) {
+      _workflowStatus = data['workflow_status'];
+    }
+    if (data['previews'] is List) {
+      _previews = (data['previews'] as List).whereType<Map>().toList();
+    }
+  }
+
+  Future<void> _renderPreview(Map preview) async {
+    if (_busy || _workflowId == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Render this video?'),
+        content: const Text(
+          'Rendering uses the video credits configured for your plan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Render'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final id = '${preview['id']}';
+      final result = await _service.render(
+        _workflowId!,
+        id,
+        _renderIds.putIfAbsent('$_workflowId:$id', _uuid),
+      );
+      if (!mounted) return;
+      setState(() {
+        _acceptProgress(result);
+        _history = (result['data'] as List? ?? []).whereType<Map>().toList();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${result['message'] ?? 'Render submitted'}')),
+      );
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+        _schedule();
+      }
+    }
+  }
+
+  List<Widget> _videoProgress() {
+    if (_workflowStatus == null) return [];
+    return [
+      const SizedBox(height: 16),
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(switch (_workflowStatus) {
+                'processing' => 'Creating video previews',
+                'ready' => 'Choose a preview to render',
+                'rendering' => 'Your video is rendering',
+                'completed' => 'Your video is ready',
+                _ => 'The provider could not finish this video. Check your URL and provider settings.',
+              }, style: Theme.of(context).textTheme.titleMedium),
+              if (_workflowStatus == 'processing' ||
+                  _workflowStatus == 'rendering') ...[
+                const SizedBox(height: 12),
+                const LinearProgressIndicator(),
+                TextButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () {
+                          _pollStarted = DateTime.now();
+                          _refresh();
+                        },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Refresh progress'),
+                ),
+              ],
+              for (final preview in _previews)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: IconButton(
+                    tooltip: 'Play preview',
+                    onPressed: preview['output_url'] == null
+                        ? null
+                        : () => _preview({...preview, 'media_type': 'video'}),
+                    icon: const Icon(Icons.play_circle_outline),
+                  ),
+                  title: Text('${preview['title'] ?? 'Video preview'}'),
+                  trailing: FilledButton(
+                    onPressed: _busy || _workflowStatus != 'ready'
+                        ? null
+                        : () => _renderPreview(preview),
+                    child: const Text('Render'),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
   Uri? _output(String value) {
+    if (value.trim().isEmpty) return null;
     final url = widget.api.origin.resolve(value);
     return url.scheme == 'https' && url.userInfo.isEmpty ? url : null;
   }
 
   Future<void> _preview(Map item) async {
     final url = _output('${item['output_url'] ?? ''}');
-    if (url == null) return;
-    if (RegExp(
-      r'\.(mp4|mov|webm)(\?|$)',
-      caseSensitive: false,
-    ).hasMatch(url.toString())) {
+    if (url == null || '${item['output_url'] ?? ''}'.isEmpty) return;
+    if (item['media_type'] == 'video' ||
+        RegExp(
+          r'\.(mp4|mov|webm)(\?|$)',
+          caseSensitive: false,
+        ).hasMatch(url.toString())) {
       try {
         await SecureStore.invokeMethod<void>('previewMedia', {
           'url': url.toString(),
@@ -335,7 +501,11 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
   bool get _studio =>
       '${widget.module['id']}'.contains('photo') ||
       '${widget.module['id']}'.contains('fashion') ||
-      _definition?['view'] == 'wardrobe';
+      const [
+        'wardrobe',
+        'image_editor',
+        'smart_edit',
+      ].contains(_definition?['view']);
 
   Widget _attachment(String name, Map field) {
     final file = _files[name]!;
@@ -346,17 +516,23 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Image.memory(
-                Uint8List.fromList(file.bytes),
-                width: 72,
-                height: 72,
-                fit: BoxFit.cover,
-                errorBuilder: (_, e, s) => const SizedBox(
-                  width: 72,
-                  height: 72,
-                  child: Icon(Icons.broken_image_outlined),
-                ),
-              ),
+              child: file.mimeType?.startsWith('video/') == true
+                  ? const SizedBox(
+                      width: 72,
+                      height: 72,
+                      child: Icon(Icons.video_file_outlined, size: 36),
+                    )
+                  : Image.memory(
+                      Uint8List.fromList(file.bytes),
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, e, s) => const SizedBox(
+                        width: 72,
+                        height: 72,
+                        child: Icon(Icons.broken_image_outlined),
+                      ),
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -372,12 +548,16 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
               ),
             ),
             IconButton(
-              tooltip: 'Replace photo',
+              tooltip: field['accept'] == 'video/*'
+                  ? 'Replace video'
+                  : 'Replace photo',
               onPressed: _busy ? null : () => _pick(field),
               icon: const Icon(Icons.swap_horiz),
             ),
             IconButton(
-              tooltip: 'Remove photo',
+              tooltip: field['accept'] == 'video/*'
+                  ? 'Remove video'
+                  : 'Remove photo',
               onPressed: _busy
                   ? null
                   : () => setState(() {
@@ -552,6 +732,9 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
         'processing',
         'pending',
         'queued',
+        'created',
+        'in_queue',
+        'in_progress',
       ].contains('${item['status']}'.toLowerCase());
       return Card(
         clipBehavior: Clip.antiAlias,
@@ -586,7 +769,9 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     Text(
-                      '${item['status']}',
+                      '${item['error_message'] ?? item['status']}',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -640,7 +825,9 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
       final result = await _service.delete(item['id'] as int, _uuid());
       if (mounted) {
         setState(
-          () => _history = (result['data'] as List).whereType<Map>().toList(),
+          () => _history = (result['data'] as List? ?? [])
+              .whereType<Map>()
+              .toList(),
         );
       }
     } catch (error) {
@@ -745,8 +932,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
           builder: (state) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_files[name] != null &&
-                  '${field['accept']}'.startsWith('image/'))
+              if (_files[name] != null)
                 _attachment(name, field)
               else
                 OutlinedButton.icon(
@@ -793,6 +979,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                     }
                     _requestId = null;
                   });
+                  if (field['reload'] == true) _load(reset: true);
                 },
           validator: (value) => required && value == null ? 'Required' : null,
         ),
@@ -857,8 +1044,13 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
           initialValue: _values[name]?.toString(),
           enabled: !_busy,
           decoration: InputDecoration(labelText: label),
-          minLines: name == 'prompt' ? 3 : 1,
-          maxLines: name == 'prompt' ? 5 : 1,
+          keyboardType: field['type'] == 'url'
+              ? TextInputType.url
+              : field['type'] == 'number'
+              ? TextInputType.number
+              : TextInputType.multiline,
+          minLines: name == 'prompt' || field['type'] == 'textarea' ? 3 : 1,
+          maxLines: name == 'prompt' || field['type'] == 'textarea' ? 5 : 1,
           onChanged: (value) {
             _values[name] = value;
             _requestId = null;
@@ -889,7 +1081,12 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
               content: Text(_error!),
               actions: [
                 TextButton(
-                  onPressed: _busy ? null : _refresh,
+                  onPressed: _busy
+                      ? null
+                      : () {
+                          _pollStarted = DateTime.now();
+                          _refresh();
+                        },
                   child: const Text('Refresh'),
                 ),
               ],
@@ -920,6 +1117,21 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                               ),
                             ),
                           ),
+                        ),
+                      ),
+                    ),
+                  if (_definition!['notice'] is String &&
+                      '${_definition!['notice']}'.isNotEmpty)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.settings_outlined),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text('${_definition!['notice']}')),
+                          ],
                         ),
                       ),
                     ),
@@ -987,11 +1199,12 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                                 onPressed: _busy ? null : _submit,
                                 icon: const Icon(Icons.auto_awesome),
                                 label: Text(
-                                  _definition!['visual'] == null
-                                      ? (_definition!['view'] == 'wardrobe'
-                                            ? 'Upload garment'
-                                            : 'Generate')
-                                      : 'Create project',
+                                  _definition!['generate_label']?.toString() ??
+                                      (_definition!['visual'] == null
+                                          ? (_definition!['view'] == 'wardrobe'
+                                                ? 'Upload garment'
+                                                : 'Generate')
+                                          : 'Create project'),
                                 ),
                               ),
                             ],
@@ -999,6 +1212,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                         ),
                       ),
                     ),
+                  ..._videoProgress(),
                   const SizedBox(height: 24),
                   Text(
                     'Recent work',
@@ -1049,6 +1263,15 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                                     )
                                   : null,
                             ),
+                            if (_definition!['can_delete'] == true)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: IconButton(
+                                  tooltip: 'Delete item',
+                                  onPressed: _busy ? null : () => _delete(item),
+                                  icon: const Icon(Icons.delete_outline),
+                                ),
+                              ),
                             if (item['export'] is Map)
                               Padding(
                                 padding: const EdgeInsets.all(12),

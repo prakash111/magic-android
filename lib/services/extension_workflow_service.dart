@@ -42,12 +42,29 @@ class WorkflowFile {
 
 class ExtensionWorkflowService {
   final MobileApi api;
-  final String moduleId;
-  ExtensionWorkflowService(this.api, this.moduleId);
+  final String moduleId, endpoint;
+  ExtensionWorkflowService(
+    this.api,
+    this.moduleId, {
+    this.endpoint = '/native/workflow',
+  });
 
-  Future<Map<String, dynamic>> describe() => _call('describe');
-  Future<Map<String, dynamic>> history({bool refresh = false}) =>
-      _call(refresh ? 'status' : 'history');
+  Future<Map<String, dynamic>> describe({
+    Map<String, dynamic> inputs = const {},
+  }) => _call('describe', {'inputs': inputs});
+  Future<Map<String, dynamic>> history({
+    bool refresh = false,
+    String? workflowId,
+  }) => _call(refresh ? 'status' : 'history', {'workflow_id': ?workflowId});
+  Future<Map<String, dynamic>> render(
+    String workflowId,
+    String previewId,
+    String requestId,
+  ) => _call('render', {
+    'workflow_id': workflowId,
+    'preview_id': previewId,
+    'request_id': requestId,
+  });
 
   Future<Map<String, dynamic>> generate(
     Map<String, dynamic> inputs,
@@ -57,7 +74,7 @@ class ExtensionWorkflowService {
     if (files.isEmpty) {
       return _call('generate', {'inputs': inputs, 'request_id': requestId});
     }
-    final request = http.MultipartRequest('POST', api.uri('/native/workflow'))
+    final request = http.MultipartRequest('POST', api.uri(endpoint))
       ..headers.addAll(await api.headers())
       ..fields.addAll({
         'module_id': moduleId,
@@ -101,7 +118,7 @@ class ExtensionWorkflowService {
     Map<String, dynamic> values = const {},
   ]) async {
     final data = await api.request(
-      '/native/workflow',
+      endpoint,
       method: 'POST',
       body: {'module_id': moduleId, 'operation': operation, ...values},
     );

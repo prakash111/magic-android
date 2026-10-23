@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'mobile_api.dart';
+import 'image_attachment_picker.dart';
 import 'social_post_service.dart';
 
 class NativeExtensionService {
@@ -48,6 +49,10 @@ class NativeExtensionService {
       }
       for (final entry in files.entries) {
         final bytes = base64Decode('${entry.value['bytes']}');
+        final mime = ImageAttachmentPicker.imageMimeType(bytes);
+        if (mime == null || bytes.isEmpty) {
+          throw const ApiFailure('Choose a valid JPEG, PNG or WebP image.');
+        }
         if (bytes.length > 10 * 1024 * 1024) {
           throw const ApiFailure('Choose an image no larger than 10 MB.');
         }
@@ -56,6 +61,7 @@ class NativeExtensionService {
             'uploads[${entry.key}]',
             bytes,
             filename: '${entry.value['name']}',
+            contentType: http.MediaType.parse(mime),
           ),
         );
       }

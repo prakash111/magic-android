@@ -32,6 +32,7 @@ extension type _Input(JSObject _) implements JSObject {
   external set type(JSString value);
   external set accept(JSString value);
   external set onchange(JSFunction fn);
+  external set oncancel(JSFunction fn);
   external JSArray<_File>? get files;
   external void click();
 }
@@ -161,6 +162,9 @@ class PlatformBridge {
             'bytes': bytes.toDart.asUint8List(),
           }),
         );
+      }).toJS;
+      input.oncancel = (() {
+        if (!completer.isCompleted) completer.complete(null);
       }).toJS;
       input.click();
       result = await completer.future;

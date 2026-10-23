@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../services/mobile_api.dart';
+import '../services/image_attachment_picker.dart';
 import '../theme/app_theme.dart';
 import '../theme/design.dart';
 import '../services/workspace_catalog.dart';
@@ -37,9 +39,12 @@ class NativeModuleRegistry {
       'ugc_studio' ||
       'ugc_creator' => NativeExtensionScreen(module: module, api: client),
       'chat_tools' => NativeChatToolsScreen(module: module, api: client),
-      'extension_workflow' => ExtensionWorkflowScreen(
+      'native_media' || 'extension_workflow' => ExtensionWorkflowScreen(
         module: module,
         api: client,
+        endpoint: module['route_type'] == 'native_media'
+            ? '/native/media'
+            : '/native/workflow',
       ),
       'visual_tool' => NativeVisualEditor(
         api: client,
@@ -558,16 +563,40 @@ class _NativeSchemaFormState extends State<NativeSchemaForm> {
     }
   }
 
-  Future<void> _pick(String name) async {
+  Future<void> _pick(Map field) async {
+    final name = '${field['name']}';
+    final accept = '${field['accept'] ?? 'image/*'}';
     try {
-      final data = await SecureStore.invokeMapMethod<String, dynamic>(
-        'pickImage',
+      if (accept != 'image/*' && accept != 'video/*') {
+        final file = await SecureStore.invokeMapMethod<String, dynamic>(
+          'pickFile',
+          {'accept': accept},
+        );
+        if (file != null && mounted) {
+          final bytes = (file['bytes'] as List).cast<int>();
+          if (bytes.isEmpty || bytes.length > 10 * 1024 * 1024) {
+            throw const ApiFailure(
+              'Choose a readable file no larger than 10 MB.',
+            );
+          }
+          setState(() {
+            _files[name] = {'name': file['name'], 'bytes': base64Encode(bytes)};
+            _error = null;
+          });
+        }
+        return;
+      }
+      final data = await ImageAttachmentPicker().pick(
+        moduleId: 'schema',
+        field: name,
+        video: accept == 'video/*',
+        maxBytes: 10 * 1024 * 1024,
       );
       if (data != null && mounted) {
         setState(
           () => _files[name] = {
-            'name': data['name'],
-            'bytes': base64Encode((data['bytes'] as List).cast<int>()),
+            'name': data.name,
+            'bytes': base64Encode(data.bytes),
           },
         );
       }
@@ -591,14 +620,64 @@ class _NativeSchemaFormState extends State<NativeSchemaForm> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 14),
                 child: switch (field['type']) {
-                  'file' => OutlinedButton.icon(
-                    onPressed: widget.busy
-                        ? null
-                        : () => _pick('${field['name']}'),
-                    icon: const Icon(Icons.attach_file),
-                    label: Text(
-                      _files[field['name']]?['name']?.toString() ??
-                          '${field['label']}',
+                  'file' => FormField<void>(
+                    validator: (_) =>
+                        field['required'] == true &&
+                            !_files.containsKey(field['name'])
+                        ? 'Choose ${field['label']}'
+                        : null,
+                    builder: (state) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_files[field['name']] != null)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: '${field['accept']}'.startsWith('image/')
+                                ? Image.memory(
+                                    Uint8List.fromList(
+                                      base64Decode(
+                                        _files[field['name']]['bytes'],
+                                      ),
+                                    ),
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, e, s) =>
+                                        const Icon(Icons.image_outlined),
+                                  )
+                                : const Icon(Icons.attach_file),
+                            title: Text(
+                              '${_files[field['name']]['name']}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: IconButton(
+                              tooltip: 'Remove attachment',
+                              onPressed: widget.busy
+                                  ? null
+                                  : () => setState(
+                                      () => _files.remove(field['name']),
+                                    ),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ),
+                        OutlinedButton.icon(
+                          onPressed: widget.busy ? null : () => _pick(field),
+                          icon: const Icon(Icons.attach_file),
+                          label: Text(
+                            _files.containsKey(field['name'])
+                                ? 'Replace ${field['label']}'
+                                : '${field['label']}',
+                          ),
+                        ),
+                        if (state.hasError)
+                          Text(
+                            state.errorText!,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   'select' => DropdownButtonFormField<String>(

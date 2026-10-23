@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../services/mobile_api.dart';
+import '../services/image_attachment_picker.dart';
 import '../widgets/ai_model_selector.dart';
 import '../services/image_generation_service.dart';
 
 class NativeCreativeScreen extends StatefulWidget {
   final MobileApi api;
-  const NativeCreativeScreen({super.key, required this.api});
+  final ImageAttachmentPicker? imagePicker;
+  const NativeCreativeScreen({super.key, required this.api, this.imagePicker});
   @override
   State<NativeCreativeScreen> createState() => _NativeCreativeScreenState();
 }
@@ -131,14 +133,13 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
       _error = null;
     });
     try {
-      final image = await SecureStore.invokeMapMethod<String, dynamic>(
-        'pickImage',
+      final image = await (widget.imagePicker ?? ImageAttachmentPicker()).pick(
+        moduleId: 'web:creative_suite',
+        field: 'reference_image',
+        maxBytes: 10 * 1024 * 1024,
       );
       if (image == null) return;
-      final url = await widget.api.uploadImage(
-        (image['bytes'] as List).cast<int>(),
-        '${image['name']}',
-      );
+      final url = await widget.api.uploadImage(image.bytes, image.name);
       if (mounted) {
         setState(() {
           _layers.add({

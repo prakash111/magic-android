@@ -31,6 +31,28 @@ class StudioFixtureTests(unittest.TestCase):
         self.assertEqual((depth, colour, interlace), (8, 6, 0))
         self.assertEqual(len(zlib.decompress(compressed)), height*(1+width*4))
 
+    def test_video_fixture_is_a_real_faststart_mp4_and_all_attachment_checks_are_retained(self):
+        root = Path(__file__).resolve().parents[2]
+        dart = (root/'test/android_studio_probe.dart').read_text()
+        encoded = re.search(r"const studioProbeVideoBase64\s*=\s*'([^']+)'", dart).group(1)
+        data = base64.b64decode(encoded, validate=True)
+        position, boxes = 0, []
+        while position < len(data):
+            size = struct.unpack('>I', data[position:position+4])[0]
+            self.assertGreaterEqual(size, 8)
+            self.assertLessEqual(position+size, len(data))
+            boxes.append(data[position+4:position+8])
+            position += size
+        self.assertEqual(position, len(data))
+        self.assertIn(b'ftyp', boxes)
+        self.assertIn(b'moov', boxes)
+        self.assertIn(b'mdat', boxes)
+        self.assertLess(boxes.index(b'moov'), boxes.index(b'mdat'))
+        script = Path(__file__).with_name('check-android-studio.py').read_text()
+        for mode in ['creative', 'video']:
+            self.assertIn("check_additional_media('"+mode+"')", script)
+        self.assertRegex(dart, r'studioUploadChecks\(\s*request')
+
 
 if __name__ == '__main__':
     unittest.main()

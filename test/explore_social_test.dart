@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:http/testing.dart';
@@ -475,9 +476,9 @@ void main() {
               request.headers['content-type'],
               startsWith('multipart/form-data; boundary='),
             );
-            expect(request.body, contains('name="$type"'));
+            expect(latin1.decode(request.bodyBytes), contains('name="$type"'));
             expect(
-              request.body,
+              latin1.decode(request.bodyBytes),
               contains('filename="media.${type == 'video' ? 'mp4' : 'png'}"'),
             );
             uploads++;
@@ -486,9 +487,22 @@ void main() {
             });
           }),
         );
-        final url = await SocialPostService(
-          api,
-        ).upload([1, 2, 3], 'media.${type == 'video' ? 'mp4' : 'png'}', type);
+        final url = await SocialPostService(api).upload(
+          type == 'video'
+              ? [
+                  0,
+                  0,
+                  0,
+                  24,
+                  ...ascii.encode('ftypmp42'),
+                  ...List.filled(64, 0),
+                ]
+              : base64Decode(
+                  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a0OcAAAAASUVORK5CYII=',
+                ),
+          'media.${type == 'video' ? 'mp4' : 'png'}',
+          type,
+        );
         expect(url, 'https://magicai.example.test/uploads/media.$type');
         expect(uploads, 1);
       },

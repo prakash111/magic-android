@@ -14,6 +14,7 @@ class ImageAttachmentPicker {
     : picker = picker ?? ImagePicker();
   static const _pendingModule = 'pending_studio_image_module';
   static const _pendingField = 'pending_studio_image_field';
+  static const _pendingType = 'pending_studio_media_type';
   static const _recoveredPath = 'recovered_studio_image_path';
   static const _recoveredName = 'recovered_studio_image_name';
   static Future<void>? _recovery;
@@ -22,20 +23,24 @@ class ImageAttachmentPicker {
     required String moduleId,
     required String field,
     int maxBytes = 5 * 1024 * 1024,
+    bool video = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_pendingModule, moduleId);
     await prefs.setString(_pendingField, field);
+    await prefs.setString(_pendingType, video ? 'video' : 'image');
     try {
-      final file = await picker.pickImage(
-        source: ImageSource.gallery,
-        requestFullMetadata: false,
-      );
+      final file = video
+          ? await picker.pickVideo(source: ImageSource.gallery)
+          : await picker.pickImage(
+              source: ImageSource.gallery,
+              requestFullMetadata: false,
+            );
       if (file == null) {
         await _clear(prefs);
         return null;
       }
-      final attachment = await cache(file, maxBytes: maxBytes);
+      final attachment = await cache(file, maxBytes: maxBytes, video: video);
       await _clear(prefs);
       return attachment;
     } on PlatformException catch (error) {
@@ -54,39 +59,45 @@ class ImageAttachmentPicker {
   static Future<WorkflowFile> cache(
     XFile file, {
     int maxBytes = 5 * 1024 * 1024,
+    bool video = false,
   }) async {
     final length = await file.length();
     if (length == 0) {
       throw const ApiFailure(
-        'The selected photo is empty. Choose another image.',
+        'The selected file is empty. Choose another file.',
       );
     }
     if (length > maxBytes) {
       throw ApiFailure(
-        'Choose a photo smaller than ${(maxBytes / 1024 / 1024).toStringAsFixed(0)} MB.',
+        'Choose a file smaller than ${(maxBytes / 1024 / 1024).toStringAsFixed(0)} MB.',
       );
     }
     final bytes = await file.readAsBytes();
-    final mime = imageMimeType(bytes);
+    final mime = video ? videoMimeType(bytes) : imageMimeType(bytes);
     if (mime == null) {
-      throw const ApiFailure('Choose a valid JPEG, PNG or WebP image.');
+      throw ApiFailure(
+        video
+            ? 'Choose a valid MP4, MOV or WebM video.'
+            : 'Choose a valid JPEG, PNG or WebP image.',
+      );
     }
     final extension = {
       'image/jpeg': 'jpg',
       'image/png': 'png',
       'image/webp': 'webp',
+      'video/mp4': 'mp4',
+      'video/quicktime': 'mov',
+      'video/webm': 'webm',
     }[mime]!;
     var name = file.name
         .split(RegExp(r'[/\\]'))
         .last
         .replaceAll(RegExp(r'[\r\n"\x00-\x1f]'), '_');
     if (name.isEmpty) name = 'photo.$extension';
-    if (!RegExp(r'\.(jpe?g|png|webp)$', caseSensitive: false).hasMatch(name)) {
-      name = '$name.$extension';
-    }
+    name = '${name.replaceFirst(RegExp(r'\.[^.]+$'), '')}.$extension';
     String? path;
     if (!kIsWeb) {
-      final directory = await Directory.systemTemp.createTemp('magicai-image-');
+      final directory = await Directory.systemTemp.createTemp('magicai-media-');
       path = '${directory.path}/photo.$extension';
       await File(path).writeAsBytes(bytes, flush: true);
     }
@@ -112,6 +123,20 @@ class ImageAttachmentPicker {
     return null;
   }
 
+  static String? videoMimeType(List<int> bytes) {
+    if (bytes.length >= 12 &&
+        String.fromCharCodes(bytes.skip(4).take(4)) == 'ftyp') {
+      return String.fromCharCodes(bytes.skip(8).take(4)) == 'qt  '
+          ? 'video/quicktime'
+          : 'video/mp4';
+    }
+    if (bytes.length >= 4 &&
+        listEquals(bytes.take(4).toList(), [26, 69, 223, 163])) {
+      return 'video/webm';
+    }
+    return null;
+  }
+
   static Future<void> recoverLostSelection() => _recovery ??= _recover();
   static Future<void> _recover() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
@@ -121,7 +146,11 @@ class ImageAttachmentPicker {
       final response = await ImagePicker().retrieveLostData();
       final file = response.files?.firstOrNull;
       if (file != null) {
-        final cached = await cache(file, maxBytes: 50 * 1024 * 1024);
+        final cached = await cache(
+          file,
+          maxBytes: 50 * 1024 * 1024,
+          video: prefs.getString(_pendingType) == 'video',
+        );
         await prefs.setString(_recoveredPath, cached.path!);
         await prefs.setString(_recoveredName, cached.name);
       }
@@ -146,7 +175,9 @@ class ImageAttachmentPicker {
     if (field == null || path == null || kIsWeb) return null;
     try {
       final bytes = await File(path).readAsBytes();
-      final mime = imageMimeType(bytes);
+      final mime = prefs.getString(_pendingType) == 'video'
+          ? videoMimeType(bytes)
+          : imageMimeType(bytes);
       if (mime == null) return null;
       return (
         field,
@@ -168,6 +199,7 @@ class ImageAttachmentPicker {
     for (final key in [
       _pendingModule,
       _pendingField,
+      _pendingType,
       _recoveredPath,
       _recoveredName,
     ]) {

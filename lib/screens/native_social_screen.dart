@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/mobile_api.dart';
+import '../services/image_attachment_picker.dart';
 import '../services/social_post_service.dart';
 import 'server_screen.dart' show RetryPanel;
 import 'workspace_screen.dart' show SocialAccountsScreen;
@@ -369,16 +370,14 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
       _error = null;
     });
     try {
-      final file = await SecureStore.invokeMapMethod<String, dynamic>(
-        type == 'image' ? 'pickImage' : 'pickFile',
-        {'accept': '$type/*'},
+      final file = await ImageAttachmentPicker().pick(
+        moduleId: 'social_composer',
+        field: type,
+        video: type == 'video',
+        maxBytes: (type == 'video' ? 50 : 10) * 1024 * 1024,
       );
       if (file == null) return;
-      final url = await _service.upload(
-        (file['bytes'] as List).cast<int>(),
-        '${file['name']}',
-        type,
-      );
+      final url = await _service.upload(file.bytes, file.name, type);
       if (mounted) {
         setState(() {
           _media.text = url;
