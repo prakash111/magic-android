@@ -39,8 +39,9 @@ Map<String, bool> studioUploadChecks(http.Request request) {
     if (!RegExp(
       r'name="uploads\[product_image\]"',
       caseSensitive: false,
-    ).hasMatch(headers))
+    ).hasMatch(headers)) {
       continue;
+    }
     result['field'] = true;
     final filename = RegExp(
       r'filename="([^"\r\n]+)"',
