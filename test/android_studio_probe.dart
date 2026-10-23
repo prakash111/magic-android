@@ -1,11 +1,69 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:magicai_mobile/screens/extension_workflow_screen.dart';
 import 'package:magicai_mobile/services/mobile_api.dart';
 import 'package:magicai_mobile/theme/app_theme.dart';
+
+const studioProbeImageBase64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAw0lEQVR4nO3QsQlCURTA0Fe5qOCITuIiTqAb/O5yrpgiZSDk3J6vzxX3x/uSX/ePDtB+A3SA9hugA7TfAB2g/bM9cNpvgA7QfgN0gPYboAO034DtgdN+A3SA9hugA7TfAB2g/QZsD5z2G6ADtN8AHaD9BugA7Tdge+C03wAdoP0G6ADtN0AHaL8B2wOn/QboAO03QAdovwE6QPsN2B447TdAB2i/ATpA+w3QAdpvwPbAab8BOkD7DdAB2m+ADtD+3w/4AireQnfqDwbPAAAAAElFTkSuQmCC';
+
+/// Inspect the actual image part rather than filenames rewritten by Android's
+/// Photo Picker. Keeps the fixture transport strict about payload integrity.
+Map<String, bool> studioUploadChecks(http.Request request) {
+  final result = {
+    'field': false,
+    'filename': false,
+    'mime': false,
+    'bytes': false,
+  };
+  final contentType = request.headers['content-type'];
+  if (contentType == null) return result;
+  String? boundary;
+  try {
+    final type = http.MediaType.parse(contentType);
+    if (type.mimeType != 'multipart/form-data') return result;
+    boundary = type.parameters['boundary'];
+  } on FormatException {
+    return result;
+  }
+  if (boundary == null || boundary.isEmpty) return result;
+  final text = latin1.decode(request.bodyBytes);
+  for (final part in text.split('--$boundary')) {
+    final separator = part.indexOf('\r\n\r\n');
+    if (separator < 0) continue;
+    final headers = part.substring(0, separator);
+    if (!RegExp(
+      r'name="uploads\[product_image\]"',
+      caseSensitive: false,
+    ).hasMatch(headers))
+      continue;
+    result['field'] = true;
+    final filename = RegExp(
+      r'filename="([^"\r\n]+)"',
+      caseSensitive: false,
+    ).firstMatch(headers)?.group(1);
+    result['filename'] =
+        filename != null &&
+        RegExp(r'^[^/\\]+\.png$', caseSensitive: false).hasMatch(filename);
+    result['mime'] = RegExp(
+      r'(?:^|\r\n)content-type:\s*image/png\s*(?:\r\n|$)',
+      caseSensitive: false,
+    ).hasMatch(headers);
+    final payload = part.substring(separator + 4);
+    if (payload.endsWith('\r\n')) {
+      result['bytes'] = listEquals(
+        latin1.encode(payload.substring(0, payload.length - 2)),
+        base64Decode(studioProbeImageBase64),
+      );
+    }
+    return result;
+  }
+  return result;
+}
 
 class _ProbeStore extends SecureStore {
   final _values = <String, String>{'access_token': 'probe-session-only'};
@@ -44,20 +102,9 @@ class AndroidStudioProbe extends StatelessWidget {
         };
       } else if (request.headers['content-type']?.startsWith('multipart/') ==
           true) {
-        final bytes = request.bodyBytes, text = latin1.decode(bytes);
-        final realPng = bytes.asMap().entries.any(
-          (entry) =>
-              entry.value == 137 &&
-              entry.key + 7 < bytes.length &&
-              bytes[entry.key + 1] == 80 &&
-              bytes[entry.key + 2] == 78 &&
-              bytes[entry.key + 3] == 71,
-        );
-        if (!realPng ||
-            !text.contains('uploads[product_image]') ||
-            !text.contains('image/png') ||
-            !text.contains('magicai-picker-reference.png')) {
-          debugPrint('STUDIO_PROBE_FAILED: invalid multipart image');
+        final checks = studioUploadChecks(request);
+        if (checks.values.any((valid) => !valid)) {
+          debugPrint('STUDIO_PROBE_FAILED: ${jsonEncode(checks)}');
           return http.Response(
             jsonEncode({'message': 'Picker multipart verification failed'}),
             422,
@@ -65,7 +112,7 @@ class AndroidStudioProbe extends StatelessWidget {
           );
         }
         debugPrint(
-          'STUDIO_PROBE_PASSED: native picker, cached bytes, original filename and image/png multipart (${bytes.length} bytes)',
+          'STUDIO_PROBE_PASSED: native picker, exact cached PNG bytes, provider filename and image/png multipart (${request.bodyBytes.length} bytes)',
         );
         body = {
           'message': 'Native gallery upload verified',
