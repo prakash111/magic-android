@@ -1,0 +1,216 @@
+name: Magic Android Release
+run-name: MagicAI Android ${{ inputs.build_id || github.run_number }}
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      app_identifier:
+        type: choice
+        options: [magicai]
+        default: magicai
+      build_id:
+        type: string
+        default: manual
+      app_name:
+        type: string
+        default: MagicAI
+      package_id:
+        type: string
+        default: com.zoomnearby.ai.zoomnearby_mobile
+      build_version:
+        type: string
+        default: 1.1.0
+      server_url:
+        type: string
+        default: https://ai.zoomnearby.com
+      branding_bundle_url:
+        type: string
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: magicai-android-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: python3 .github/scripts/test-check-android-ui.py
+      - run: flutter analyze
+      - run: flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test
+      - name: Test release JNI descriptor checks
+        working-directory: .
+        run: python3 .github/scripts/test-check-android-jni.py
+  release:
+    permissions:
+      contents: write
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.app_identifier == 'magicai')
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Prepare private signing configuration
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          python3 - <<'PY'
+          import base64, os, pathlib
+          names = ['KEYSTORE_BASE64', 'STORE_PASSWORD', 'KEY_PASSWORD', 'KEY_ALIAS']
+          if any(not os.environ.get(name) for name in names):
+              raise SystemExit('Configure the four Android signing secrets in mobile-release.')
+          key = pathlib.Path(os.environ['RUNNER_TEMP']) / 'magicai-release.jks'
+          key.write_bytes(base64.b64decode(os.environ['KEYSTORE_BASE64'], validate=True))
+          key.chmod(0o600)
+          def escape(value):
+              slash = chr(92)
+              return value.replace(slash, slash * 2).replace(chr(10), slash + 'n').replace(chr(13), slash + 'r').replace(' ', slash + ' ').replace(':', slash + ':').replace('=', slash + '=')
+          values = {'storeFile': str(key), 'storePassword': os.environ['STORE_PASSWORD'], 'keyPassword': os.environ['KEY_PASSWORD'], 'keyAlias': os.environ['KEY_ALIAS']}
+          props = pathlib.Path('android/key.properties')
+          props.write_text(''.join(name + '=' + escape(value) + chr(10) for name, value in values.items()))
+          props.chmod(0o600)
+          PY
+      - name: Configure the Flutter app
+        env:
+          APP_NAME: ${{ inputs.app_name || 'MagicAI' }}
+          PACKAGE_ID: ${{ inputs.package_id || 'com.zoomnearby.ai.zoomnearby_mobile' }}
+          SERVER_URL: ${{ inputs.server_url || 'https://ai.zoomnearby.com' }}
+        run: |
+          python3 tool/customize.py --application-id "$PACKAGE_ID" --app-name "$APP_NAME"
+          python3 - <<'PYTHON'
+          import os, urllib.parse
+          origin = urllib.parse.urlsplit(os.environ['SERVER_URL'])
+          if origin.scheme != 'https' or not origin.hostname or origin.netloc != origin.hostname or origin.path or origin.query or origin.fragment:
+              raise SystemExit('Use an HTTPS backend origin without a path or credentials.')
+          PYTHON
+      - name: Build signed APK and AAB
+        env:
+          BUILD_VERSION: ${{ inputs.build_version || '1.1.0' }}
+          SERVER_URL: ${{ inputs.server_url || 'https://ai.zoomnearby.com' }}
+          APP_NAME: ${{ inputs.app_name || 'MagicAI' }}
+        run: |
+          BUILD_NUMBER="$(( $(date -u +%s) - 1704067200 ))"
+          echo "MAGICAI_RELEASE_BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          flutter build apk --release --build-number="$BUILD_NUMBER" --build-name="$BUILD_VERSION" --dart-define=MAGICAI_SERVER_URL="$SERVER_URL" --dart-define=MAGICAI_APP_NAME="$APP_NAME"
+          flutter build appbundle --release --build-number="$BUILD_NUMBER" --build-name="$BUILD_VERSION" --dart-define=MAGICAI_SERVER_URL="$SERVER_URL" --dart-define=MAGICAI_APP_NAME="$APP_NAME"
+      - name: Verify signed release JNI descriptors
+        run: |
+          python3 .github/scripts/check-android-jni.py build/app/outputs/flutter-apk/app-release.apk build/app/outputs/bundle/release/app-release.aab
+      - name: Store signed binaries in a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: magicai-android-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          mkdir -p build/release-artifacts
+          cp build/app/outputs/flutter-apk/app-release.apk build/release-artifacts/magicai-mobile-release.apk
+          cp build/app/outputs/bundle/release/app-release.aab build/release-artifacts/magicai-mobile-release.aab
+          python3 - <<'PYTHON'
+          import os, pathlib, zipfile
+          with zipfile.ZipFile(pathlib.Path('build/release-artifacts') / ('magicai-android-' + os.environ['GITHUB_RUN_NUMBER'] + '.zip'), 'w', zipfile.ZIP_DEFLATED) as bundle:
+              bundle.write('build/app/outputs/flutter-apk/app-release.apk', 'flutter-apk/app-release.apk')
+              bundle.write('build/app/outputs/bundle/release/app-release.aab', 'bundle/release/app-release.aab')
+          PYTHON
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "MagicAI Android build $GITHUB_RUN_NUMBER" --notes "Signed build for commit $GITHUB_SHA. Device checks are recorded in this Actions run." build/release-artifacts/magicai-mobile-release.apk build/release-artifacts/magicai-mobile-release.aab "build/release-artifacts/magicai-android-$GITHUB_RUN_NUMBER.zip"
+      - name: Build signed preferences regression probe
+        env:
+          BUILD_VERSION: ${{ inputs.build_version || '1.1.0' }}
+        run: |
+          flutter build apk --release --target=test/android_preferences_probe.dart --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test --build-number="$MAGICAI_RELEASE_BUILD_NUMBER" --build-name="$BUILD_VERSION"
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/storage-probe.apk
+      - name: Store probe and artifact checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: magicai-android-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          cp build/app/outputs/storage-probe.apk build/release-artifacts/storage-probe.apk
+          cd build/release-artifacts
+          sha256sum magicai-mobile-release.apk magicai-mobile-release.aab storage-probe.apk > SHA256SUMS
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" storage-probe.apk SHA256SUMS
+      - name: Remove signing material
+        if: always()
+        run: |
+          rm -f android/key.properties "$RUNNER_TEMP/magicai-release.jks"
+
+  startup-smoke:
+    permissions:
+      contents: write
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact signed build and probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: magicai-android-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          mkdir -p android-release-assets android-startup-build/flutter-apk android-preferences-build
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern magicai-mobile-release.apk --pattern magicai-mobile-release.aab --pattern storage-probe.apk --pattern SHA256SUMS --dir android-release-assets
+          cd android-release-assets
+          sha256sum --check SHA256SUMS
+          cp magicai-mobile-release.apk ../android-startup-build/flutter-apk/app-release.apk
+          cp storage-probe.apk ../android-preferences-build/storage-probe.apk
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Launch signed release and verify login
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          MAGICAI_PACKAGE_ID: ${{ inputs.package_id || 'com.zoomnearby.ai.zoomnearby_mobile' }}
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            python3 .github/scripts/check-android-preferences.py android-preferences-build/storage-probe.apk
+            python3 .github/scripts/check-android-ui.py
+            python3 .github/scripts/check-android-studio.py
+            python3 .github/scripts/check-android-startup.py android-startup-build/flutter-apk/app-release.apk
+      - name: Store emulator diagnostics
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: magicai-android-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          if [ -d android-startup-diagnostics ]; then
+            python3 -m zipfile -c startup-diagnostics.zip android-startup-diagnostics
+            gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" startup-diagnostics.zip
+          fi
