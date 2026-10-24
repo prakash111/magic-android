@@ -24,7 +24,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   final _form = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _password = TextEditingController();
-  final _otp = TextEditingController();
   bool _busy = false, _obscure = true;
   List<Map<String, dynamic>> _providers = [];
   BrowserLoginFlow? _browserFlow;
@@ -85,7 +84,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     _browserFlow?.cancel();
     _email.dispose();
     _password.dispose();
-    _otp.dispose();
     super.dispose();
   }
 
@@ -98,11 +96,30 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       _error = null;
     });
     try {
-      await ApiService.login(
-        email: _email.text.trim(),
-        password: _password.text,
-        otp: _otp.text.trim(),
-      );
+      try {
+        await ApiService.login(
+          email: _email.text.trim(),
+          password: _password.text,
+          client: widget.api,
+        );
+      } on ApiFailure catch (failure) {
+        if (failure.code != 'mfa_required' &&
+            !(failure.status == 422 &&
+                failure.message.toLowerCase().contains(
+                  'two-factor authentication code',
+                ))) {
+          rethrow;
+        }
+        if (!mounted) return;
+        final code = await _verifyAuthenticator();
+        if (code == null) return;
+        await ApiService.login(
+          email: _email.text.trim(),
+          password: _password.text,
+          otp: code,
+          client: widget.api,
+        );
+      }
       if (!mounted) {
         return;
       }
@@ -123,6 +140,53 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         setState(() => _busy = false);
       }
     }
+  }
+
+  Future<String?> _verifyAuthenticator() async {
+    var code = '';
+    final form = GlobalKey<FormState>();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Verify your sign-in'),
+        content: Form(
+          key: form,
+          child: TextFormField(
+            onChanged: (value) => code = value,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            decoration: const InputDecoration(
+              labelText: 'Authenticator code',
+              helperText: 'Enter the code from your authenticator app',
+            ),
+            validator: (value) => RegExp(r'^\d{6}$').hasMatch(value ?? '')
+                ? null
+                : 'Enter the six-digit code',
+            onFieldSubmitted: (_) {
+              if (form.currentState!.validate()) {
+                Navigator.pop(context, code);
+              }
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (form.currentState!.validate()) {
+                Navigator.pop(context, code);
+              }
+            },
+            child: const Text('Verify'),
+          ),
+        ],
+      ),
+    );
+    return result;
   }
 
   @override
@@ -207,15 +271,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                     },
                   ),
                   const SizedBox(height: 24),
-                  TextFormField(
-                    controller: _otp,
-                    enabled: !_busy,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Authenticator code (if enabled)',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   if (_error != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),

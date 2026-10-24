@@ -136,6 +136,8 @@ class _GeneratedOutputCardState extends State<GeneratedOutputCard> {
                             title: title,
                             content: content,
                             draft: true,
+                            api: widget.api,
+                            documentId: widget.documentId,
                           );
                           if (edit != null && mounted) {
                             setState(() {

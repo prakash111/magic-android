@@ -97,29 +97,27 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       return;
     }
     if (action == 'edit') {
+      MobileDocument? saved;
       final edit = await editDocumentText(
         context,
         title: document.title,
         content: document.content,
+        api: widget.api,
+        documentId: document.id,
+        onSave: (edit) async {
+          saved = await service.save(
+            id: document.id,
+            title: edit.title,
+            content: edit.content,
+            revision: document.revision,
+            update: true,
+          );
+        },
       );
-      if (edit == null || !mounted) return;
-      setState(() => mutating = true);
-      try {
-        final saved = await service.save(
-          id: document.id,
-          title: edit.title,
-          content: edit.content,
-          revision: document.revision,
-          update: true,
-        );
-        if (mounted) widget.onDocumentUpdated?.call(saved);
-        await load();
-        if (mounted) documentNotice(context, 'Document updated.');
-      } catch (failure) {
-        if (mounted) documentNotice(context, failure.toString());
-      } finally {
-        if (mounted) setState(() => mutating = false);
-      }
+      if (edit == null || !mounted || saved == null) return;
+      widget.onDocumentUpdated?.call(saved!);
+      await load();
+      if (mounted) documentNotice(context, 'Document updated.');
     }
     if (action == 'delete' && mounted) {
       if (!await confirmDocumentDelete(context) || !mounted) return;
@@ -433,37 +431,31 @@ class _DocumentDetailState extends State<_DocumentDetail> {
     }
   }
 
-  Future<void> edit() async {
+  Future<void> edit({String? aiAction}) async {
+    MobileDocument? saved;
     final result = await editDocumentText(
       context,
       title: document.title,
       content: document.content,
+      api: widget.api,
+      documentId: document.id,
+      initialAiAction: aiAction,
+      onSave: (edit) async {
+        saved = await service.save(
+          id: document.id,
+          title: edit.title,
+          content: edit.content,
+          revision: document.revision,
+          update: true,
+        );
+      },
     );
-    if (result == null || !mounted) return;
+    if (result == null || !mounted || saved == null) return;
     setState(() {
-      busy = true;
-      error = null;
+      document = saved!;
+      changed = true;
     });
-    try {
-      final saved = await service.save(
-        id: document.id,
-        title: result.title,
-        content: result.content,
-        revision: document.revision,
-        update: true,
-      );
-      if (mounted) {
-        setState(() {
-          document = saved;
-          changed = true;
-        });
-        widget.onUpdated?.call(saved);
-      }
-    } catch (failure) {
-      if (mounted) setState(() => error = failure.toString());
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
+    widget.onUpdated?.call(saved!);
   }
 
   Future<void> delete() async {
@@ -571,6 +563,36 @@ class _DocumentDetailState extends State<_DocumentDetail> {
                         ),
                       ],
                     ),
+                    if (document.editable) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: busy
+                                ? null
+                                : () => edit(aiAction: 'correct'),
+                            icon: const Icon(Icons.spellcheck),
+                            label: const Text('AI Correct'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: busy
+                                ? null
+                                : () => edit(aiAction: 'refine'),
+                            icon: const Icon(Icons.auto_fix_high),
+                            label: const Text('Make changes / Refine'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: busy
+                                ? null
+                                : () => edit(aiAction: 'extend'),
+                            icon: const Icon(Icons.playlist_add),
+                            label: const Text('Addition / Extend'),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     if (document.content.isEmpty)
                       const Text('This document has no text content yet.')

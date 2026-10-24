@@ -28,6 +28,16 @@ class LoginScreenAssertions(unittest.TestCase):
     def test_password_field_is_required(self):
         self.assertFalse(startup.is_login_screen(screen(password="false")))
 
+    def test_native_welcome_can_be_completed_without_weakening_login_check(self):
+        raw = f'<hierarchy><node package="{startup.package}" enabled="true" clickable="true" content-desc="Skip" bounds="[270,24][330,72]" /></hierarchy>'
+        self.assertEqual(startup.welcome_action(raw), (300, 48))
+        self.assertFalse(startup.is_login_screen(raw))
+
+    def test_welcome_ignores_other_apps_disabled_and_invalid_targets(self):
+        for extra in ['package="another.app" enabled="true" clickable="true"', f'package="{startup.package}" enabled="false" clickable="true"', f'package="{startup.package}" enabled="true" clickable="false"']:
+            self.assertIsNone(startup.welcome_action(f'<hierarchy><node {extra} content-desc="Skip" bounds="[1,2][60,50]" /></hierarchy>'))
+        self.assertIsNone(startup.welcome_action(f'<hierarchy><node package="{startup.package}" enabled="true" clickable="true" content-desc="Skip" bounds="invalid" /></hierarchy>'))
+
 
 if __name__ == "__main__":
     unittest.main()

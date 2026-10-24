@@ -51,6 +51,7 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - run: python3 .github/scripts/test-check-android-ui.py
       - run: python3 .github/scripts/test-check-android-studio.py
+      - run: python3 .github/scripts/test-check-android-startup.py
       - run: flutter analyze
       - run: flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test
       - name: Test release JNI descriptor checks

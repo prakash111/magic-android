@@ -33,6 +33,19 @@ def is_login_screen(raw):
     )
 
 
+def welcome_action(raw):
+    root = ET.fromstring(raw)
+    for node in root.iter("node"):
+        if node.get("package") != package or node.get("enabled") != "true":
+            continue
+        label = node.get("content-desc", "") or node.get("text", "")
+        if label == "Skip" and node.get("clickable") == "true":
+            coords = [int(value) for value in re.findall(r"\d+", node.get("bounds", ""))]
+            if len(coords) == 4 and coords[2] > coords[0] and coords[3] > coords[1]:
+                return ((coords[0] + coords[2]) // 2, (coords[1] + coords[3]) // 2)
+    return None
+
+
 def login_visible():
     adb("shell", "uiautomator", "dump", "/sdcard/magicai-startup.xml")
     raw = adb("shell", "cat", "/sdcard/magicai-startup.xml")
@@ -56,6 +69,12 @@ def main():
                     if login_visible():
                         reached_login = True
                         break
+                    welcome = welcome_action((output / "screen.xml").read_bytes())
+                    if welcome is not None:
+                        snapshot("native-welcome-" + str(attempt))
+                        adb("shell", "input", "tap", str(welcome[0]), str(welcome[1]))
+                        print("Completed native first-launch welcome", flush=True)
+                        continue
                     if not retried:
                         root = ET.fromstring((output / "screen.xml").read_bytes())
                         retry = next((node for node in root.iter("node") if node.get("package") == package and node.get("class") == "android.widget.Button" and node.get("content-desc") == "Retry"), None)

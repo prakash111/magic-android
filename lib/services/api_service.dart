@@ -73,8 +73,10 @@ class ApiService {
     required String email,
     required String password,
     String? otp,
+    MobileApi? client,
   }) async {
-    final data = await api.request(
+    final backend = client ?? api;
+    final data = await backend.request(
       '/auth/login',
       method: 'POST',
       authenticated: false,
@@ -85,7 +87,7 @@ class ApiService {
       },
     ) as Map<String, dynamic>;
     await StorageService.clearAuth();
-    await api.saveSession(data);
+    await backend.saveSession(data);
     final user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
     await StorageService.saveUser(user);
     return user;

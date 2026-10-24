@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:magicai_mobile/main.dart';
@@ -66,6 +67,7 @@ MobileApi startupApi({
 
 void main() {
   setUp(() {
+    SharedPreferences.setMockInitialValues({'has_seen_mobile_intro_v1': true});
     MobileApi.failure.value = null;
   });
   tearDown(() {
