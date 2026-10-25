@@ -84,7 +84,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byType(LoginScreen), findsOneWidget);
-    expect(find.text('Welcome to MagicAI'), findsOneWidget);
+    expect(find.text('Welcome back'), findsOneWidget);
     expect(find.byType(SplashScreen), findsNothing);
     expect(tester.takeException(), isNull);
   });

@@ -223,7 +223,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1500));
     expect(find.text('Preparing your workspace…'), findsOneWidget);
     expect(find.textContaining('Verifying license'), findsNothing);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
     api.started.completeError(
       const ApiFailure('Internal token handshake detail'),
     );
@@ -233,7 +233,7 @@ void main() {
       find.textContaining('Unable to load your workspace'),
       findsOneWidget,
     );
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
     expect(find.text('Retry'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

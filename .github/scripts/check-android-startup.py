@@ -26,7 +26,7 @@ def is_login_screen(raw):
     labels = " ".join(node.get("text", "") + " " + node.get("content-desc", "") for node in nodes)
     fields = [node for node in nodes if node.get("class") == "android.widget.EditText"]
     return (
-        "Welcome to" in labels
+        ("Welcome to" in labels or "Welcome back" in labels)
         and any(node.get("content-desc") == "Sign In" or node.get("text") == "Sign In" for node in nodes)
         and len(fields) >= 2
         and any(node.get("password") == "true" for node in fields)

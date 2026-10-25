@@ -81,7 +81,7 @@ Flutter development simplifies UI design with declarative widgets.
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome to MagicAI'), findsOneWidget);
+    expect(find.text('Welcome back'), findsOneWidget);
     expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Email'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);

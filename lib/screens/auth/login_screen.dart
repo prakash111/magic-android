@@ -1,4 +1,7 @@
 import 'social_provider_icon.dart';
+import 'auth_links.dart';
+import 'auth_verification_dialog.dart';
+import '../../widgets/auth_motion.dart';
 
 import 'package:flutter/material.dart';
 
@@ -24,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   final _form = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _password = TextEditingController();
-  bool _busy = false, _obscure = true;
+  bool _busy = false, _obscure = true, _signedIn = false, _awaitingMfa = false;
   List<Map<String, dynamic>> _providers = [];
   BrowserLoginFlow? _browserFlow;
   @override
@@ -62,14 +65,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         UserModel.fromJson(Map<String, dynamic>.from(data['user'] as Map)),
       );
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(
-            onThemeChanged: widget.onThemeChanged,
-            api: widget.api,
-          ),
-        ),
-      );
+      FocusScope.of(context).unfocus();
+      setState(() => _signedIn = true);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -111,7 +108,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           rethrow;
         }
         if (!mounted) return;
+        setState(() => _awaitingMfa = true);
         final code = await _verifyAuthenticator();
+        if (!mounted) return;
+        setState(() => _awaitingMfa = false);
         if (code == null) return;
         await ApiService.login(
           email: _email.text.trim(),
@@ -123,14 +123,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       if (!mounted) {
         return;
       }
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(
-            onThemeChanged: widget.onThemeChanged,
-            api: widget.api,
-          ),
-        ),
-      );
+      FocusScope.of(context).unfocus();
+      setState(() => _signedIn = true);
     } catch (error) {
       if (mounted) {
         setState(() => _error = error.toString());
@@ -142,180 +136,317 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<String?> _verifyAuthenticator() async {
-    var code = '';
-    final form = GlobalKey<FormState>();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Verify your sign-in'),
-        content: Form(
-          key: form,
-          child: TextFormField(
-            onChanged: (value) => code = value,
-            autofocus: true,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            decoration: const InputDecoration(
-              labelText: 'Authenticator code',
-              helperText: 'Enter the code from your authenticator app',
-            ),
-            validator: (value) => RegExp(r'^\d{6}$').hasMatch(value ?? '')
-                ? null
-                : 'Enter the six-digit code',
-            onFieldSubmitted: (_) {
-              if (form.currentState!.validate()) {
-                Navigator.pop(context, code);
-              }
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (form.currentState!.validate()) {
-                Navigator.pop(context, code);
-              }
-            },
-            child: const Text('Verify'),
-          ),
-        ],
-      ),
-    );
-    return result;
-  }
+  Future<String?> _verifyAuthenticator() => showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const AuthVerificationDialog(),
+  );
+
+  void _enterWorkspace() => Navigator.of(context).pushReplacement(
+    MaterialPageRoute<void>(
+      builder: (_) =>
+          HomeScreen(onThemeChanged: widget.onThemeChanged, api: widget.api),
+    ),
+  );
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    resizeToAvoidBottomInset: true,
-    body: SafeArea(
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Form(
-              key: _form,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(
-                    Icons.auto_awesome,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Welcome to ${BrandConfig.name}',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Sign in to your AI workspace',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 28),
-                  SocialLoginButtons(
-                    providers: _providers,
-                    busy: _busy,
-                    onSelected: _browserLogin,
-                  ),
-                  if (_providers.isNotEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      child: Text(
-                        'or sign in with email',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  TextFormField(
-                    controller: _email,
-                    enabled: !_busy,
-                    keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.username],
-                    decoration: const InputDecoration(labelText: 'Email'),
-                    validator: (value) => (value?.contains('@') ?? false)
-                        ? null
-                        : 'Enter your email',
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _password,
-                    enabled: !_busy,
-                    obscureText: _obscure,
-                    autofillHints: const [AutofillHints.password],
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      suffixIcon: IconButton(
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                        icon: Icon(
-                          _obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
-                      ),
-                    ),
-                    validator: (value) => (value?.isNotEmpty ?? false)
-                        ? null
-                        : 'Enter your password',
-                    onFieldSubmitted: (_) {
-                      if (!_busy) {
-                        _login();
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ),
-                  FilledButton(
-                    onPressed: _busy ? null : _login,
-                    child: Text(_busy ? 'Signing in…' : 'Sign In'),
-                  ),
-                  TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RegisterScreen(
-                                onThemeChanged: widget.onThemeChanged,
+  Widget build(BuildContext context) {
+    final colors = AuthPalette.of(context);
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      backgroundColor: colors.page,
+      body: AuthScene(
+        child: SafeArea(
+          child: _signedIn
+              ? AuthSuccess(onContinue: _enterWorkspace)
+              : LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(26, 36, 26, 16),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 440),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: (constraints.maxHeight - 52).clamp(
+                              0,
+                              double.infinity,
+                            ),
+                          ),
+                          child: Form(
+                            key: _form,
+                            child: AutofillGroup(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      const Center(child: AuthMark()),
+                                      const SizedBox(height: 22),
+                                      AuthEntrance(
+                                        index: 1,
+                                        child: Text(
+                                          'Welcome back',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: colors.text,
+                                            fontSize: 29,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -.4,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      AuthEntrance(
+                                        index: 2,
+                                        child: Text(
+                                          'Sign in to your AI workspace',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: colors.muted,
+                                            fontSize: 14.5,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 28),
+                                      AuthEntrance(
+                                        index: 3,
+                                        child: SocialLoginButtons(
+                                          providers: _providers,
+                                          busy: _busy,
+                                          onSelected: _browserLogin,
+                                        ),
+                                      ),
+                                      if (_providers.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 14,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: Divider(
+                                                  color: colors.outline,
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 14,
+                                                    ),
+                                                child: Text(
+                                                  'or sign in with email',
+                                                  style: TextStyle(
+                                                    color: colors.muted,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Divider(
+                                                  color: colors.outline,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      AuthEntrance(
+                                        index: 4,
+                                        horizontal: true,
+                                        child: AuthInput(
+                                          controller: _email,
+                                          label: 'Email',
+                                          icon: Icons.mail_outline_rounded,
+                                          enabled: !_busy,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                          textInputAction: TextInputAction.next,
+                                          autofillHints: const [
+                                            AutofillHints.username,
+                                          ],
+                                          validator: (value) =>
+                                              (value?.contains('@') ?? false)
+                                              ? null
+                                              : 'Enter your email',
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                      AuthEntrance(
+                                        index: 5,
+                                        horizontal: true,
+                                        child: AuthInput(
+                                          controller: _password,
+                                          label: 'Password',
+                                          icon: Icons.lock_outline_rounded,
+                                          enabled: !_busy,
+                                          obscure: _obscure,
+                                          textInputAction: TextInputAction.done,
+                                          autofillHints: const [
+                                            AutofillHints.password,
+                                          ],
+                                          suffix: IconButton(
+                                            tooltip: _obscure
+                                                ? 'Show password'
+                                                : 'Hide password',
+                                            onPressed: _busy
+                                                ? null
+                                                : () => setState(
+                                                    () => _obscure = !_obscure,
+                                                  ),
+                                            icon: Icon(
+                                              _obscure
+                                                  ? Icons.visibility_outlined
+                                                  : Icons
+                                                        .visibility_off_outlined,
+                                              size: 21,
+                                              color: colors.muted,
+                                            ),
+                                          ),
+                                          validator: (value) =>
+                                              (value?.isNotEmpty ?? false)
+                                              ? null
+                                              : 'Enter your password',
+                                          onSubmitted: (_) {
+                                            if (!_busy) _login();
+                                          },
+                                        ),
+                                      ),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: TextButton(
+                                          onPressed: _busy
+                                              ? null
+                                              : () => openAuthPage(
+                                                  context,
+                                                  widget.api ??
+                                                      MobileApi.instance,
+                                                  '/forgot-password',
+                                                ),
+                                          child: const Text('Forgot password?'),
+                                        ),
+                                      ),
+                                      if (_error != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 16,
+                                          ),
+                                          child: Semantics(
+                                            liveRegion: true,
+                                            child: Text(
+                                              _error!,
+                                              style: TextStyle(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .error,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      AuthEntrance(
+                                        index: 6,
+                                        child: AuthPrimaryButton(
+                                          label: 'Sign In',
+                                          busyLabel: 'Signing in…',
+                                          busy: _busy && !_awaitingMfa,
+                                          onPressed: _busy ? null : _login,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                      AuthEntrance(
+                                        index: 7,
+                                        child: OutlinedButton.icon(
+                                          onPressed: _busy
+                                              ? null
+                                              : () => _browserLogin(),
+                                          icon: const Icon(
+                                            Icons.lock_outline,
+                                            size: 18,
+                                          ),
+                                          label: const Text(
+                                            'Secure browser sign-in',
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            minimumSize: const Size.fromHeight(
+                                              50,
+                                            ),
+                                            foregroundColor: colors.link,
+                                            backgroundColor: colors.base.primary
+                                                .withValues(alpha: .08),
+                                            side: BorderSide(
+                                              color: colors.base.primary
+                                                  .withValues(alpha: .25),
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      if (_busy && _browserFlow != null)
+                                        TextButton(
+                                          onPressed: () =>
+                                              _browserFlow?.cancel(),
+                                          child: const Text('Cancel sign-in'),
+                                        ),
+                                    ],
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 28),
+                                    child: AuthEntrance(
+                                      index: 8,
+                                      child: Wrap(
+                                        alignment: WrapAlignment.center,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          Text(
+                                            'New to ${BrandConfig.name}?',
+                                            style: TextStyle(
+                                              color: colors.muted,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: _busy
+                                                ? null
+                                                : () => Navigator.push(
+                                                    context,
+                                                    authRoute(
+                                                      context,
+                                                      (_) => RegisterScreen(
+                                                        onThemeChanged: widget
+                                                            .onThemeChanged,
+                                                        api: widget.api,
+                                                      ),
+                                                    ),
+                                                  ),
+                                            child: const Text(
+                                              'Create an account',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                    child: const Text('Create an account'),
-                  ),
-                  TextButton.icon(
-                    onPressed: _busy ? null : () => _browserLogin(),
-                    icon: const Icon(Icons.lock_outline),
-                    label: const Text('Secure browser sign-in'),
-                  ),
-                  if (_busy && _browserFlow != null)
-                    TextButton(
-                      onPressed: () => _browserFlow?.cancel(),
-                      child: const Text('Cancel sign-in'),
+                        ),
+                      ),
                     ),
-                ],
-              ),
-            ),
-          ),
+                  ),
+                ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class SocialLoginButtons extends StatelessWidget {
@@ -342,6 +473,15 @@ class SocialLoginButtons extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(56),
+              backgroundColor: AuthPalette.of(context).surface,
+              foregroundColor: AuthPalette.of(context).text,
+              side: BorderSide(color: AuthPalette.of(context).outline),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
             onPressed: busy
                 ? null
                 : () => onSelected(provider['id'].toString()),

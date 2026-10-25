@@ -17,6 +17,7 @@ def screen(package=startup.package, password="true", title="Welcome to MagicAI")
 class LoginScreenAssertions(unittest.TestCase):
     def test_flutter_inputs_need_not_expose_hint_labels(self):
         self.assertTrue(startup.is_login_screen(screen()))
+        self.assertTrue(startup.is_login_screen(screen(title="Welcome back")))
 
     def test_splash_or_license_lockout_is_not_login(self):
         self.assertFalse(startup.is_login_screen(screen(title="Preparing your workspace")))

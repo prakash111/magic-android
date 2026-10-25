@@ -98,8 +98,9 @@ class ApiService {
     required String surname,
     required String email,
     required String password,
+    MobileApi? client,
   }) async {
-    await api.request(
+    await (client ?? api).request(
       '/auth/register',
       method: 'POST',
       authenticated: false,
@@ -111,7 +112,7 @@ class ApiService {
         'password_confirmation': password,
       },
     );
-    return login(email: email, password: password);
+    return login(email: email, password: password, client: client);
   }
 
   static Future<UserModel> socialLogin({

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/mobile_api.dart';
+import '../theme/brand_config.dart';
 import '../services/startup_service.dart';
-import '../theme/app_colors.dart';
 import '../widgets/welcome_experience.dart';
+import '../widgets/auth_motion.dart';
+import '../widgets/prompt_creation_intro.dart';
 import 'home_screen.dart';
 import 'auth/login_screen.dart';
 
@@ -26,7 +28,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: PromptCreationIntro.duration,
     )..forward();
     start();
   }
@@ -81,50 +83,108 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  Widget status(AuthPalette colors) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (!retry)
+        SizedBox(
+          width: 148,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              minHeight: 4,
+              backgroundColor: colors.outline,
+              color: colors.cyan,
+              semanticsLabel: 'Preparing your workspace',
+            ),
+          ),
+        ),
+      const SizedBox(height: 16),
+      Text(
+        retry
+            ? 'Unable to load your workspace. Please check your connection and retry.'
+            : 'Preparing your workspace…',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: colors.muted, fontSize: 13),
+      ),
+      if (retry)
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: FilledButton(onPressed: start, child: const Text('Retry')),
+        ),
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
+    final colors = AuthPalette.of(context);
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    final artwork = PromptCreationIntro(
+      animation: reduced ? const AlwaysStoppedAnimation(1) : controller,
+    );
+    final footer = Text(
+      'Powered by ${BrandConfig.name}',
+      textAlign: TextAlign.center,
+      style: TextStyle(color: colors.muted, fontSize: 11),
+    );
     return Scaffold(
       backgroundColor: colors.page,
-      body: WelcomeBackdrop(
+      body: AuthScene(
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final loading = AnimatedBuilder(
+                animation: controller,
+                child: status(colors),
+                builder: (_, child) => Opacity(
+                  opacity: retry || reduced
+                      ? 1
+                      : PromptCreationIntro.stage(
+                          controller.value * 5.4,
+                          4.5,
+                          5.2,
+                        ),
+                  child: child,
+                ),
+              );
+              if (constraints.maxHeight < 700 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 19) {
+                return Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        artwork,
+                        const SizedBox(height: 44),
+                        loading,
+                        const SizedBox(height: 36),
+                        footer,
+                      ],
+                    ),
+                  ),
+                );
+              }
+              return Stack(
+                fit: StackFit.expand,
                 children: [
-                  WelcomeBrand(
-                    animation: MediaQuery.disableAnimationsOf(context)
-                        ? const AlwaysStoppedAnimation(1)
-                        : controller,
-                  ),
-                  const SizedBox(height: 56),
-                  if (!retry)
-                    const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                  Align(
+                    alignment: const Alignment(0, -.12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: artwork,
                     ),
-                  const SizedBox(height: 16),
-                  Text(
-                    retry
-                        ? 'Unable to load your workspace. Please check your connection and retry.'
-                        : 'Preparing your workspace…',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.muted, fontSize: 13),
                   ),
-                  if (retry)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: FilledButton(
-                        onPressed: start,
-                        child: const Text('Retry'),
-                      ),
-                    ),
+                  Positioned(
+                    bottom: constraints.maxHeight * .13,
+                    left: 28,
+                    right: 28,
+                    child: loading,
+                  ),
+                  Positioned(bottom: 20, left: 20, right: 20, child: footer),
                 ],
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
