@@ -311,6 +311,34 @@ void main() {
   );
 
   testWidgets(
+    'auth link styling preserves the application font and type scale',
+    (tester) async {
+      final theme = AppTheme.darkTheme;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: AuthScene(
+              child: TextButton(
+                onPressed: () {},
+                child: const Text('Legal link'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final context = tester.element(find.text('Legal link'));
+      final typography = TextButtonTheme.of(context).style!.textStyle!
+          .resolve({})!;
+      final inherited = Theme.of(context).textTheme.labelLarge!;
+      expect(typography.fontFamily, inherited.fontFamily);
+      expect(typography.fontSize, inherited.fontSize);
+      expect(typography.fontWeight, FontWeight.w700);
+    },
+  );
+
+  testWidgets(
     'auth links use only the configured installation and the system browser',
     (tester) async {
       String? opened;

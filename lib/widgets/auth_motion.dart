@@ -86,7 +86,8 @@ class _AuthSceneState extends State<AuthScene> with TickerProviderStateMixin {
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
                 foregroundColor: AuthPalette.of(context).link,
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                textStyle: Theme.of(context).textTheme.labelLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
           ),
