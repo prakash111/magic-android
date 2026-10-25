@@ -21,6 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final email = TextEditingController(),
       password = TextEditingController(),
       confirm = TextEditingController();
+  final inputFocus = List.generate(5, (_) => FocusNode());
   bool obscure = true, busy = false, agreed = false, registered = false;
   String? error;
   static bool validEmail(String value) =>
@@ -78,6 +79,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     for (final controller in [first, last, email, password, confirm]) {
       controller.dispose();
+    }
+    for (final node in inputFocus) {
+      node.dispose();
     }
     super.dispose();
   }
@@ -340,6 +344,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     final names = [
                                       AuthInput(
                                         controller: first,
+                                        focusNode: inputFocus[0],
+                                        onSubmitted: (_) =>
+                                            inputFocus[1].requestFocus(),
                                         label: 'First Name',
                                         enabled: !busy,
                                         textInputAction: TextInputAction.next,
@@ -355,6 +362,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                       AuthInput(
                                         controller: last,
+                                        focusNode: inputFocus[1],
+                                        onSubmitted: (_) =>
+                                            inputFocus[2].requestFocus(),
                                         label: 'Last Name',
                                         enabled: !busy,
                                         textInputAction: TextInputAction.next,
@@ -399,6 +409,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 horizontal: true,
                                 child: AuthInput(
                                   controller: email,
+                                  focusNode: inputFocus[2],
+                                  onSubmitted: (_) =>
+                                      inputFocus[3].requestFocus(),
                                   label: 'Email address',
                                   icon: Icons.mail_outline_rounded,
                                   enabled: !busy,
@@ -423,6 +436,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 horizontal: true,
                                 child: AuthInput(
                                   controller: password,
+                                  focusNode: inputFocus[3],
+                                  onSubmitted: (_) =>
+                                      inputFocus[4].requestFocus(),
                                   label: 'Password',
                                   icon: Icons.lock_outline_rounded,
                                   enabled: !busy,
@@ -462,6 +478,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 horizontal: true,
                                 child: AuthInput(
                                   controller: confirm,
+                                  focusNode: inputFocus[4],
                                   label: 'Confirm password',
                                   icon: Icons.lock_outline_rounded,
                                   enabled: !busy,

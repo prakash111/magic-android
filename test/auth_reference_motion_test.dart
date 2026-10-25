@@ -311,6 +311,59 @@ void main() {
   );
 
   testWidgets(
+    'keyboard Next moves directly through login and registration inputs',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.darkTheme,
+          home: LoginScreen(api: authApi(), onThemeChanged: (_) {}),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextFormField, 'Email'));
+      await tester.pumpAndSettle();
+      await tester.testTextInput.receiveAction(TextInputAction.next);
+      await tester.pumpAndSettle();
+      final loginPassword = find.descendant(
+        of: find.widgetWithText(TextFormField, 'Password'),
+        matching: find.byType(EditableText),
+      );
+      expect(
+        tester.widget<EditableText>(loginPassword).focusNode.hasFocus,
+        isTrue,
+      );
+      await tapVisible(tester, find.text('Create an account'));
+      final labels = [
+        'First Name',
+        'Last Name',
+        'Email address',
+        'Password',
+        'Confirm password',
+      ];
+      await tester.ensureVisible(
+        find.widgetWithText(TextFormField, labels.first),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextFormField, labels.first));
+      await tester.pumpAndSettle();
+      for (var index = 1; index < labels.length; index++) {
+        await tester.testTextInput.receiveAction(TextInputAction.next);
+        await tester.pumpAndSettle();
+        final field = find.descendant(
+          of: find.widgetWithText(TextFormField, labels[index]),
+          matching: find.byType(EditableText),
+        );
+        expect(
+          tester.widget<EditableText>(field).focusNode.hasFocus,
+          isTrue,
+          reason: 'Next should focus ${labels[index]}',
+        );
+      }
+      expectNoFlutterError(tester);
+    },
+  );
+
+  testWidgets(
     'auth link styling preserves the application font and type scale',
     (tester) async {
       final theme = AppTheme.darkTheme;

@@ -457,6 +457,7 @@ class AuthInput extends StatefulWidget {
   final TextInputType? keyboardType;
   final Iterable<String>? autofillHints;
   final TextInputAction? textInputAction;
+  final FocusNode? focusNode;
   final String? Function(String?)? validator;
   final ValueChanged<String>? onSubmitted, onChanged;
   const AuthInput({
@@ -470,6 +471,7 @@ class AuthInput extends StatefulWidget {
     this.keyboardType,
     this.autofillHints,
     this.textInputAction,
+    this.focusNode,
     this.validator,
     this.onSubmitted,
     this.onChanged,
@@ -485,6 +487,8 @@ class _AuthInputState extends State<AuthInput> {
     final colors = AuthPalette.of(context);
     final phase = authAmbient(context);
     return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
       onFocusChange: (value) => setState(() => focused = value),
       child: AnimatedBuilder(
         animation: focused ? phase : const AlwaysStoppedAnimation<double>(0),
@@ -508,6 +512,7 @@ class _AuthInputState extends State<AuthInput> {
           child: child,
         ),
         child: TextFormField(
+          focusNode: widget.focusNode,
           controller: widget.controller,
           enabled: widget.enabled,
           obscureText: widget.obscure,

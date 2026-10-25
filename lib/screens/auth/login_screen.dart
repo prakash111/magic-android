@@ -27,6 +27,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   final _form = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _passwordFocus = FocusNode();
   bool _busy = false, _obscure = true, _signedIn = false, _awaitingMfa = false;
   List<Map<String, dynamic>> _providers = [];
   BrowserLoginFlow? _browserFlow;
@@ -81,6 +82,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     _browserFlow?.cancel();
     _email.dispose();
     _password.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
@@ -269,6 +271,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                           autofillHints: const [
                                             AutofillHints.username,
                                           ],
+                                          onSubmitted: (_) =>
+                                              _passwordFocus.requestFocus(),
                                           validator: (value) =>
                                               (value?.contains('@') ?? false)
                                               ? null
@@ -281,6 +285,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                         horizontal: true,
                                         child: AuthInput(
                                           controller: _password,
+                                          focusNode: _passwordFocus,
                                           label: 'Password',
                                           icon: Icons.lock_outline_rounded,
                                           enabled: !_busy,
