@@ -29,10 +29,33 @@ on:
       branding_bundle_url:
         type: string
         default: ''
+  workflow_call:
+    inputs:
+      app_identifier:
+        type: string
+        default: magicai
+      build_id:
+        type: string
+        default: manual
+      app_name:
+        type: string
+        default: MagicAI
+      package_id:
+        type: string
+        default: com.zoomnearby.ai.zoomnearby_mobile
+      build_version:
+        type: string
+        default: 1.1.0
+      server_url:
+        type: string
+        default: https://ai.zoomnearby.com
+      branding_bundle_url:
+        type: string
+        default: ''
 permissions:
   contents: read
 concurrency:
-  group: magicai-android-${{ github.ref }}
+  group: magicai-android-${{ inputs.build_id || github.ref }}
   cancel-in-progress: false
 jobs:
   verify:
@@ -110,14 +133,10 @@ jobs:
           APP_NAME: ${{ inputs.app_name || 'MagicAI' }}
           PACKAGE_ID: ${{ inputs.package_id || 'com.zoomnearby.ai.zoomnearby_mobile' }}
           SERVER_URL: ${{ inputs.server_url || 'https://ai.zoomnearby.com' }}
+          BUILD_VERSION: ${{ inputs.build_version || '1.1.0' }}
+          BRANDING_BUNDLE_URL: ${{ inputs.branding_bundle_url }}
         run: |
-          python3 tool/customize.py --application-id "$PACKAGE_ID" --app-name "$APP_NAME"
-          python3 - <<'PYTHON'
-          import os, urllib.parse
-          origin = urllib.parse.urlsplit(os.environ['SERVER_URL'])
-          if origin.scheme != 'https' or not origin.hostname or origin.netloc != origin.hostname or origin.path or origin.query or origin.fragment:
-              raise SystemExit('Use an HTTPS backend origin without a path or credentials.')
-          PYTHON
+          python3 .github/scripts/customize-magicai.py
       - name: Build signed APK and AAB
         env:
           BUILD_VERSION: ${{ inputs.build_version || '1.1.0' }}
@@ -146,6 +165,14 @@ jobs:
               bundle.write('build/app/outputs/bundle/release/app-release.aab', 'bundle/release/app-release.aab')
           PYTHON
           gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "MagicAI Android build $GITHUB_RUN_NUMBER" --notes "Signed build for commit $GITHUB_SHA. Device checks are recorded in this Actions run." build/release-artifacts/magicai-mobile-release.apk build/release-artifacts/magicai-mobile-release.aab "build/release-artifacts/magicai-android-$GITHUB_RUN_NUMBER.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: magicai-android-${{ github.run_number }}
+          path: |
+            build/release-artifacts/magicai-mobile-release.apk
+            build/release-artifacts/magicai-mobile-release.aab
+          if-no-files-found: error
+          retention-days: 14
       - name: Build signed preferences regression probe
         env:
           BUILD_VERSION: ${{ inputs.build_version || '1.1.0' }}

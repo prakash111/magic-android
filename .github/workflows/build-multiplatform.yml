@@ -1,0 +1,131 @@
+name: MagicAI App Builder
+run-name: MagicAI Build ${{ inputs.build_id || github.run_number }}
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        options: [android, ios, web, windows, macos, linux, all]
+        default: android
+      app_identifier:
+        type: choice
+        options: [magicai]
+        default: magicai
+      build_id:
+        type: string
+        default: manual
+      app_name:
+        type: string
+        default: MagicAI
+      package_id:
+        type: string
+        default: com.zoomnearby.ai.zoomnearby_mobile
+      build_version:
+        type: string
+        default: 1.1.0
+      server_url:
+        type: string
+        default: https://ai.zoomnearby.com
+      branding_bundle_url:
+        type: string
+        default: ''
+permissions:
+  contents: read
+jobs:
+  android:
+    if: inputs.platform == 'android' || inputs.platform == 'all'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-android.yml
+    with:
+      app_identifier: ${{ inputs.app_identifier }}
+      build_id: ${{ inputs.build_id }}
+      app_name: ${{ inputs.app_name }}
+      package_id: ${{ inputs.package_id }}
+      build_version: ${{ inputs.build_version }}
+      server_url: ${{ inputs.server_url }}
+      branding_bundle_url: ${{ inputs.branding_bundle_url }}
+    secrets: inherit
+  platforms:
+    if: inputs.platform != 'android'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - id: select
+        env:
+          TARGET_PLATFORM: ${{ inputs.platform }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          runners = {'web': 'ubuntu-latest', 'linux': 'ubuntu-latest', 'windows': 'windows-latest', 'macos': 'macos-latest', 'ios': 'macos-latest'}
+          target = os.environ['TARGET_PLATFORM']
+          selected = [{'platform': platform, 'runner': runner} for platform, runner in runners.items() if target in {platform, 'all'}]
+          if not selected:
+              raise SystemExit('Unsupported MagicAI platform.')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('matrix=' + json.dumps({'include': selected}) + '\n')
+          PY
+  export:
+    needs: platforms
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.platforms.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - name: Install Linux build libraries
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-tools zenity
+      - name: Analyze and test current source
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter analyze
+          flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test
+      - name: Configure licensed branding
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+          SERVER_URL: ${{ inputs.server_url }}
+          BUILD_VERSION: ${{ inputs.build_version }}
+          BRANDING_BUNDLE_URL: ${{ inputs.branding_bundle_url }}
+        run: python3 .github/scripts/customize-magicai.py
+      - name: Build Web or desktop release
+        if: matrix.platform != 'ios'
+        env:
+          TARGET_PLATFORM: ${{ matrix.platform }}
+          BUILD_VERSION: ${{ inputs.build_version }}
+        run: |
+          flutter build "$TARGET_PLATFORM" --release --build-name="$BUILD_VERSION"
+          python3 .github/scripts/package-magicai.py "$TARGET_PLATFORM"
+      - name: Build iOS Xcode project and unsigned app
+        if: matrix.platform == 'ios'
+        env:
+          BUILD_VERSION: ${{ inputs.build_version }}
+        run: |
+          flutter build ios --release --no-codesign --build-name="$BUILD_VERSION"
+          python3 .github/scripts/package-magicai.py ios
+      - name: Build signed IPA when Apple credentials exist
+        if: matrix.platform == 'ios'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_EXPORT_OPTIONS_BASE64: ${{ secrets.APPLE_EXPORT_OPTIONS_BASE64 }}
+        run: python3 .github/scripts/sign-magicai-ios.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: magicai-${{ matrix.platform }}-${{ github.run_number }}
+          path: build/exports/*
+          if-no-files-found: error
+          retention-days: 14
