@@ -40,7 +40,7 @@ class ImageGenerationService {
     var image = Map<String, dynamic>.from(first);
     final deadline = DateTime.now().add(maximumWait);
     while (['IN_QUEUE', 'IN_PROGRESS', 'CREATED'].contains(image['status'])) {
-      if (DateTime.now().isAfter(deadline)) {
+      if (!DateTime.now().isBefore(deadline)) {
         throw const ApiFailure(
           'Your image is still processing. Check generation history before submitting again.',
         );

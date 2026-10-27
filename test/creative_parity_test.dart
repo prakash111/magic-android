@@ -100,13 +100,15 @@ void main() {
         ),
       ),
     );
-    final pending = nativeApi(
-      (_, body) async => {
+    var pendingRequests = 0;
+    final pending = nativeApi((_, body) async {
+      pendingRequests++;
+      return {
         'images': [
           {'id': 4, 'status': 'IN_QUEUE'},
         ],
-      },
-    );
+      };
+    });
     await expectLater(
       ImageGenerationService(
         pending,
@@ -120,6 +122,7 @@ void main() {
         ),
       ),
     );
+    expect(pendingRequests, 1);
     final insecure = nativeApi(
       (_, body) async => {
         'images': [
