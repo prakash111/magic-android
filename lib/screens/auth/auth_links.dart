@@ -1,3 +1,5 @@
+import '../../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../services/mobile_api.dart';
@@ -18,8 +20,8 @@ Future<void> openAuthPage(
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to open this page. Please retry.'),
+        SnackBar(
+          content: Text(appTr('Unable to open this page. Please retry.')),
         ),
       );
     }

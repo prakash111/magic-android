@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -15,6 +17,8 @@ class AiModelSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final model = models.where((row) => row['id'] == selected).firstOrNull;
     return OutlinedButton(
       key: const ValueKey('ai-model-selector'),
@@ -29,7 +33,10 @@ class AiModelSelector extends StatelessWidget {
                 context: context,
                 isScrollControlled: true,
                 useSafeArea: true,
-                builder: (_) => _ModelSheet(models: models, selected: selected),
+                builder: (localizationContext) {
+                  AppLocalizations.watch(localizationContext);
+                  return _ModelSheet(models: models, selected: selected);
+                },
               );
               if (value != null) onSelected?.call(value);
             },
@@ -39,7 +46,7 @@ class AiModelSelector extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              model?['title']?.toString() ?? 'Choose AI model',
+              appTr(model?['title']?.toString() ?? 'Choose AI model'),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -63,6 +70,8 @@ class _ModelSheetState extends State<_ModelSheet> {
   String query = '';
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AppColors.of(context);
     final groups = <String, List<Map>>{};
     for (final model in widget.models) {
@@ -91,29 +100,29 @@ class _ModelSheetState extends State<_ModelSheet> {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
           children: [
             Text(
-              'Choose AI model',
+              appTr('Choose AI model'),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
             TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search AI models...',
+              decoration: InputDecoration(
+                hintText: appTr('Search AI models...'),
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: (value) => setState(() => query = value),
             ),
             const SizedBox(height: 12),
             if (groups.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('No matching models'),
+                child: Text(appTr('No matching models')),
               )
             else ...[
               for (final group in names) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Text(
-                    group,
+                    appTr(group),
                     style: TextStyle(
                       color: colors.muted,
                       fontWeight: FontWeight.w700,

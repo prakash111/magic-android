@@ -1,3 +1,5 @@
+import '../../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -53,10 +55,12 @@ class _SearchQuestionsScreenState extends State<SearchQuestionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     const categories = ['All', 'What', 'How', 'Why', 'Can/Is'];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('People Also Ask (PAA)')),
+      appBar: AppBar(title: Text(appTr('People Also Ask (PAA)'))),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -67,8 +71,8 @@ class _SearchQuestionsScreenState extends State<SearchQuestionsScreen> {
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter topic for search questions...',
+                    decoration: InputDecoration(
+                      hintText: appTr('Enter topic for search questions...'),
                       prefixIcon: Icon(
                         Icons.help_outline,
                         color: AppTheme.primary,
@@ -95,7 +99,7 @@ class _SearchQuestionsScreenState extends State<SearchQuestionsScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Search'),
+                      : Text(appTr('Search')),
                 ),
               ],
             ),
@@ -108,8 +112,12 @@ class _SearchQuestionsScreenState extends State<SearchQuestionsScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: categories.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 8),
+                separatorBuilder: (context, index) {
+                  AppLocalizations.watch(context);
+                  return const SizedBox(width: 8);
+                },
                 itemBuilder: (context, index) {
+                  AppLocalizations.watch(context);
                   final cat = categories[index];
                   final isSelected = _selectedFilter == cat;
                   return ChoiceChip(
@@ -137,17 +145,20 @@ class _SearchQuestionsScreenState extends State<SearchQuestionsScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _filteredQuestions.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        'No search questions found.',
+                        appTr('No search questions found.'),
                         style: TextStyle(color: AppTheme.textMuted),
                       ),
                     )
                   : ListView.separated(
                       itemCount: _filteredQuestions.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 10),
+                      separatorBuilder: (context, index) {
+                        AppLocalizations.watch(context);
+                        return const SizedBox(height: 10);
+                      },
                       itemBuilder: (context, index) {
+                        AppLocalizations.watch(context);
                         final item = _filteredQuestions[index];
                         return Card(
                           child: ExpansionTile(
@@ -172,7 +183,9 @@ class _SearchQuestionsScreenState extends State<SearchQuestionsScreen> {
                               ),
                             ),
                             subtitle: Text(
-                              'Category: ${item.category}',
+                              appTr("Category: :value", {
+                                "value": item.category,
+                              }),
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.textMuted,
@@ -210,9 +223,11 @@ class _SearchQuestionsScreenState extends State<SearchQuestionsScreen> {
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
-                                              const SnackBar(
+                                              SnackBar(
                                                 content: Text(
-                                                  'Copied question & answer!',
+                                                  appTr(
+                                                    'Copied question & answer!',
+                                                  ),
                                                 ),
                                               ),
                                             );
@@ -221,7 +236,7 @@ class _SearchQuestionsScreenState extends State<SearchQuestionsScreen> {
                                             Icons.copy,
                                             size: 16,
                                           ),
-                                          label: const Text('Copy QA'),
+                                          label: Text(appTr('Copy QA')),
                                         ),
                                       ],
                                     ),

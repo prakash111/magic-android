@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -141,8 +143,9 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
       if (!mounted) return null;
       if (reload) await _load();
       if (mounted && result['message'] != null) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('${result['message']}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(appTr((result['message']).toString()))),
+        );
       }
       _submissions.remove(fingerprint);
       return result;
@@ -172,14 +175,18 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
 
   Widget _heading(String title) => Padding(
     padding: const EdgeInsets.only(top: 20, bottom: 10),
-    child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+    child: Text(appTr(title), style: Theme.of(context).textTheme.titleLarge),
   );
   List<Map> get _metrics =>
       ((_data?['periods']?[_period] ?? _data?['metrics']) as List? ?? [])
           .whereType<Map>()
           .toList();
   Widget _empty(String title, String message, IconData icon) =>
-      WorkspaceEmptyState(icon: icon, title: title, message: message);
+      WorkspaceEmptyState(
+        icon: icon,
+        title: appTr(title),
+        message: appTr(message),
+      );
 
   List<Widget> _settings() {
     final whatsapp = _data!['whatsapp'] as Map? ?? {};
@@ -242,7 +249,7 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
     return [
       _heading('Marketing Bot Telegram'),
       if (_data!['telegram']?['configured'] == true)
-        const Text('A token is saved. Enter a new token to replace it.'),
+        Text(appTr('A token is saved. Enter a new token to replace it.')),
       NativeSchemaForm(
         key: const ValueKey('telegram'),
         definition: {
@@ -259,19 +266,21 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
       ),
       _heading('Marketing Bot Whatsapp Settings'),
       if (providers.isEmpty)
-        const Text('Your administrator has disabled WhatsApp providers.')
+        Text(appTr('Your administrator has disabled WhatsApp providers.'))
       else ...[
         DropdownButtonFormField<String>(
           isExpanded: true,
           key: ValueKey(_provider),
           initialValue: _provider,
-          decoration: const InputDecoration(labelText: 'WhatsApp Provider'),
+          decoration: InputDecoration(labelText: appTr('WhatsApp Provider')),
           items: providers
               .map(
                 (provider) => DropdownMenuItem(
                   value: provider,
                   child: Text(
-                    provider == 'twilio' ? 'Twilio' : 'Meta (Official API)',
+                    appTr(
+                      provider == 'twilio' ? 'Twilio' : 'Meta (Official API)',
+                    ),
                   ),
                 ),
               )
@@ -283,7 +292,9 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
         const SizedBox(height: 12),
         if (whatsapp['token_configured'] == true ||
             whatsapp['meta_token_configured'] == true)
-          const Text('Saved tokens are kept when their fields are left empty.'),
+          Text(
+            appTr('Saved tokens are kept when their fields are left empty.'),
+          ),
         NativeSchemaForm(
           key: ValueKey('whatsapp-$_provider'),
           definition: {'title': 'Save WhatsApp settings', 'fields': fields},
@@ -302,7 +313,7 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
   Widget _searchBar(String hint) => TextField(
     controller: _search,
     decoration: InputDecoration(
-      hintText: hint,
+      hintText: appTr(hint),
       prefixIcon: const Icon(Icons.search),
     ),
     onChanged: (_) {
@@ -361,15 +372,18 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute<void>(
-              builder: (_) => Scaffold(
-                resizeToAvoidBottomInset: true,
-                appBar: AppBar(title: Text('${chat['name']}')),
-                body: NativeExtensionScreen(
-                  module: widget.module,
-                  api: widget.api,
-                  conversationId: int.parse('${chat['id']}'),
-                ),
-              ),
+              builder: (localizationContext) {
+                AppLocalizations.watch(localizationContext);
+                return Scaffold(
+                  resizeToAvoidBottomInset: true,
+                  appBar: AppBar(title: Text('${chat['name']}')),
+                  body: NativeExtensionScreen(
+                    module: widget.module,
+                    api: widget.api,
+                    conversationId: int.parse('${chat['id']}'),
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -388,7 +402,7 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                 (_data!['last_page'] as int? ?? 1))
               TextButton(
                 onPressed: _loading ? null : () => _load(more: true),
-                child: const Text('Earlier messages'),
+                child: Text(appTr('Earlier messages')),
               ),
             for (final message in _records)
               Align(
@@ -404,7 +418,9 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SelectableText('${message['message'] ?? ''}'),
+                        SelectableText(
+                          appTr((message['message'] ?? '').toString()),
+                        ),
                         const SizedBox(height: 6),
                         Text(
                           _date(message['created_at']),
@@ -430,13 +446,13 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                   enabled: !_busy,
                   minLines: 1,
                   maxLines: 4,
-                  decoration: const InputDecoration(
-                    hintText: 'Write a message',
+                  decoration: InputDecoration(
+                    hintText: appTr('Write a message'),
                   ),
                 ),
               ),
               IconButton(
-                tooltip: 'Send reply',
+                tooltip: appTr('Send reply'),
                 onPressed: _busy
                     ? null
                     : () async {
@@ -498,12 +514,15 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
     final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => _NativeRecordForm(
-          title: 'New deal',
-          fields: fields,
-          save: (inputs, files) async =>
-              await _act('save_deal', inputs: inputs, reload: false) != null,
-        ),
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return _NativeRecordForm(
+            title: appTr('New deal'),
+            fields: fields,
+            save: (inputs, files) async =>
+                await _act('save_deal', inputs: inputs, reload: false) != null,
+          );
+        },
       ),
     );
     if (saved == true && mounted) await _load();
@@ -516,14 +535,14 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
       children: [
         Expanded(
           child: Text(
-            'Deal pipeline',
+            appTr('Deal pipeline'),
             style: Theme.of(context).textTheme.titleLarge,
           ),
         ),
         FilledButton.icon(
           onPressed: _busy ? null : _newDeal,
           icon: const Icon(Icons.add),
-          label: const Text('New deal'),
+          label: Text(appTr('New deal')),
         ),
       ],
     ),
@@ -533,7 +552,7 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
       DropdownButtonFormField<String>(
         isExpanded: true,
         initialValue: _currency,
-        decoration: const InputDecoration(labelText: 'Currency'),
+        decoration: InputDecoration(labelText: appTr('Currency')),
         items: (_data!['currencies'] as List)
             .map(
               (currency) => DropdownMenuItem(
@@ -555,7 +574,7 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
-              label: const Text('All deals'),
+              label: Text(appTr('All deals')),
               selected: _stage == null,
               onSelected: (_) {
                 setState(() => _stage = null);
@@ -602,17 +621,20 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                     ),
                   ),
                   PopupMenuButton<int>(
-                    tooltip: 'Move deal',
+                    tooltip: appTr('Move deal'),
                     enabled: !_busy,
-                    itemBuilder: (_) => (_data!['stages'] as List)
-                        .whereType<Map>()
-                        .map(
-                          (stage) => PopupMenuItem(
-                            value: stage['id'] as int,
-                            child: Text('${stage['name']}'),
-                          ),
-                        )
-                        .toList(),
+                    itemBuilder: (localizationContext) {
+                      AppLocalizations.watch(localizationContext);
+                      return (_data!['stages'] as List)
+                          .whereType<Map>()
+                          .map(
+                            (stage) => PopupMenuItem(
+                              value: stage['id'] as int,
+                              child: Text('${stage['name']}'),
+                            ),
+                          )
+                          .toList();
+                    },
                     onSelected: (stage) => _act(
                       'move_deal',
                       recordId: int.parse('${deal['id']}'),
@@ -633,7 +655,11 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               if (deal['close_date'] != null)
-                Text('Expected close: ${deal['close_date']}'),
+                Text(
+                  appTr("Expected close: :value", {
+                    "value": deal['close_date'],
+                  }),
+                ),
             ],
           ),
         ),
@@ -644,11 +670,14 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
     final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => _CampaignComposer(
-          module: widget.module,
-          api: widget.api,
-          data: _data!,
-        ),
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return _CampaignComposer(
+            module: widget.module,
+            api: widget.api,
+            data: _data!,
+          );
+        },
       ),
     );
     if (saved == true && mounted) await _load();
@@ -659,14 +688,18 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
       children: [
         Expanded(
           child: Text(
-            '${_data!['channel'] == 'telegram' ? 'Telegram' : 'WhatsApp'} campaigns',
+            appTr(":value campaigns", {
+              "value": _data!['channel'] == 'telegram'
+                  ? 'Telegram'
+                  : 'WhatsApp',
+            }),
             style: Theme.of(context).textTheme.titleLarge,
           ),
         ),
         FilledButton.icon(
           onPressed: _busy ? null : _newCampaign,
           icon: const Icon(Icons.add),
-          label: const Text('Create'),
+          label: Text(appTr('Create')),
         ),
       ],
     ),
@@ -687,7 +720,7 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
             overflow: TextOverflow.ellipsis,
           ),
           isThreeLine: true,
-          trailing: Chip(label: Text(_status('${campaign['status']}'))),
+          trailing: Chip(label: Text(appTr(_status('${campaign['status']}')))),
         ),
       ),
   ];
@@ -707,17 +740,20 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
       Card(
         child: ListTile(
           leading: const Icon(Icons.movie_creation_outlined),
-          title: Text('${source['label']}'),
-          subtitle: Text('${source['description'] ?? ''}'),
+          title: Text(appTr((source['label']).toString())),
+          subtitle: Text(appTr((source['description'] ?? '').toString())),
           trailing: const Icon(Icons.chevron_right),
           onTap: () async {
             await Navigator.push(
               context,
               MaterialPageRoute<void>(
-                builder: (_) => NativeModuleScreen(
-                  module: Map<String, dynamic>.from(source['module'] as Map),
-                  api: widget.api,
-                ),
+                builder: (localizationContext) {
+                  AppLocalizations.watch(localizationContext);
+                  return NativeModuleScreen(
+                    module: Map<String, dynamic>.from(source['module'] as Map),
+                    api: widget.api,
+                  );
+                },
               ),
             );
             if (mounted) await _load();
@@ -729,13 +765,13 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
       DropdownButtonFormField<String>(
         isExpanded: true,
         initialValue: _source ?? '',
-        decoration: const InputDecoration(labelText: 'Project type'),
+        decoration: InputDecoration(labelText: appTr('Project type')),
         items: [
-          const DropdownMenuItem(value: '', child: Text('All projects')),
+          DropdownMenuItem(value: '', child: Text(appTr('All projects'))),
           for (final source in (_data!['sources'] as List).whereType<Map>())
             DropdownMenuItem(
               value: '${source['key']}',
-              child: Text('${source['label']}'),
+              child: Text(appTr((source['label']).toString())),
             ),
         ],
         onChanged: (value) {
@@ -764,10 +800,13 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                     height: 150,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, error, stack) => const SizedBox(
-                      height: 32,
-                      child: Icon(Icons.movie_outlined),
-                    ),
+                    errorBuilder: (localizationContext, error, stack) {
+                      AppLocalizations.watch(localizationContext);
+                      return const SizedBox(
+                        height: 32,
+                        child: Icon(Icons.movie_outlined),
+                      );
+                    },
                   ),
                 ),
               Row(
@@ -778,7 +817,11 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  Chip(label: Text(_status('${project['status'] ?? 'saved'}'))),
+                  Chip(
+                    label: Text(
+                      appTr(_status('${project['status'] ?? 'saved'}')),
+                    ),
+                  ),
                 ],
               ),
               Text(
@@ -798,7 +841,7 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                           source: '${project['source']}',
                         ),
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Refresh status'),
+                  label: Text(appTr('Refresh status')),
                 ),
               if (project['video_url'] is String)
                 TextButton.icon(
@@ -806,7 +849,7 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                     'url': project['video_url'],
                   }),
                   icon: const Icon(Icons.play_circle_outline),
-                  label: const Text('Open video'),
+                  label: Text(appTr('Open video')),
                 ),
             ],
           ),
@@ -816,8 +859,10 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
 
   List<Widget> _creator() => [
     _heading('Create your video'),
-    const Text(
-      'Choose your creative options. Your project will appear in Studio after submission.',
+    Text(
+      appTr(
+        'Choose your creative options. Your project will appear in Studio after submission.',
+      ),
     ),
     NativeSchemaForm(
       definition: {'title': 'Create project', 'fields': _data!['fields'] ?? []},
@@ -835,20 +880,22 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
   ];
 
   Widget _errorPanel() => MaterialBanner(
-    content: Text(_error!),
+    content: Text(appTr(_error!)),
     actions: [
       TextButton(
         onPressed: _loading || _busy ? null : () => _load(),
-        child: const Text('Retry'),
+        child: Text(appTr('Retry')),
       ),
     ],
   );
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_data == null) {
       return _error == null
           ? const Center(child: CircularProgressIndicator())
-          : RetryPanel(message: _error!, retry: _load);
+          : RetryPanel(message: appTr(_error!), retry: _load);
     }
     if (widget.conversationId != null) return _thread();
     return Column(
@@ -875,7 +922,7 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                           'last_30_days': 'Last 30 Days',
                         }.entries)
                           ChoiceChip(
-                            label: Text(period.value),
+                            label: Text(appTr(period.value)),
                             selected: _period == period.key,
                             onSelected: (_) =>
                                 setState(() => _period = period.key),
@@ -897,7 +944,9 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                           leading: const Icon(Icons.campaign_outlined),
                           title: Text('${campaign['name']}'),
                           subtitle: Text(
-                            '${campaign['type']} · ${campaign['status']}',
+                            appTr(
+                              '${campaign['type']} · ${campaign['status']}',
+                            ),
                           ),
                         ),
                       ),
@@ -918,7 +967,7 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
                     (_data!['last_page'] as int? ?? 1))
                   OutlinedButton(
                     onPressed: _loading ? null : () => _load(more: true),
-                    child: const Text('Load more'),
+                    child: Text(appTr('Load more')),
                   ),
               ],
             ),
@@ -933,67 +982,75 @@ class NativeMetricGrid extends StatelessWidget {
   final List<Map> metrics;
   const NativeMetricGrid({super.key, required this.metrics});
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) => Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        for (final metric in metrics)
-          SizedBox(
-            width: (constraints.maxWidth - 10) / 2,
-            child: Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${metric['label']}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      metric['currency'] != null
-                          ? NumberFormat.simpleCurrency(
-                              name: '${metric['currency']}',
-                            ).format(num.tryParse('${metric['value']}') ?? 0)
-                          : '${metric['value']}${metric['unit'] ?? ''}',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    if (metric['change'] is num)
-                      Row(
-                        children: [
-                          Icon(
-                            (metric['change'] as num) > 0
-                                ? Icons.trending_up
-                                : (metric['change'] as num) < 0
-                                ? Icons.trending_down
-                                : Icons.trending_flat,
-                            size: 16,
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        AppLocalizations.watch(context);
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final metric in metrics)
+              SizedBox(
+                width: (constraints.maxWidth - 10) / 2,
+                child: Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          appTr((metric['label']).toString()),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          metric['currency'] != null
+                              ? NumberFormat.simpleCurrency(
+                                  name: '${metric['currency']}',
+                                ).format(
+                                  num.tryParse('${metric['value']}') ?? 0,
+                                )
+                              : '${metric['value']}${metric['unit'] ?? ''}',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        if (metric['change'] is num)
+                          Row(
+                            children: [
+                              Icon(
+                                (metric['change'] as num) > 0
+                                    ? Icons.trending_up
+                                    : (metric['change'] as num) < 0
+                                    ? Icons.trending_down
+                                    : Icons.trending_flat,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  '${(metric['change'] as num) > 0 ? '+' : ''}${metric['change']}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 5),
-                          Expanded(
-                            child: Text(
-                              '${(metric['change'] as num) > 0 ? '+' : ''}${metric['change']}',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
+                        if (metric['detail'] != null)
+                          Text(
+                            '${metric['detail']}',
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
-                        ],
-                      ),
-                    if (metric['detail'] != null)
-                      Text(
-                        '${metric['detail']}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-      ],
-    ),
-  );
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _NativeRecordForm extends StatefulWidget {
@@ -1013,40 +1070,43 @@ class _NativeRecordFormState extends State<_NativeRecordForm> {
   bool _busy = false;
   String? _error;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    resizeToAvoidBottomInset: true,
-    appBar: AppBar(title: Text(widget.title)),
-    body: ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        if (_error != null) Text(_error!),
-        NativeSchemaForm(
-          definition: {'title': 'Save', 'fields': widget.fields},
-          busy: _busy,
-          submit: (inputs, files) async {
-            setState(() => _busy = true);
-            try {
-              final saved = await widget.save(
-                Map<String, dynamic>.from(inputs),
-                files,
-              );
-              if (mounted) {
-                if (saved) {
-                  Navigator.pop(this.context, true);
-                } else {
-                  setState(
-                    () => _error = 'The record could not be saved. Check the fields and try again.',
-                  );
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(title: Text(appTr(widget.title))),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (_error != null) Text(appTr(_error!)),
+          NativeSchemaForm(
+            definition: {'title': 'Save', 'fields': widget.fields},
+            busy: _busy,
+            submit: (inputs, files) async {
+              setState(() => _busy = true);
+              try {
+                final saved = await widget.save(
+                  Map<String, dynamic>.from(inputs),
+                  files,
+                );
+                if (mounted) {
+                  if (saved) {
+                    Navigator.pop(this.context, true);
+                  } else {
+                    setState(
+                      () => _error = 'The record could not be saved. Check the fields and try again.',
+                    );
+                  }
                 }
+              } finally {
+                if (mounted) setState(() => _busy = false);
               }
-            } finally {
-              if (mounted) setState(() => _busy = false);
-            }
-          },
-        ),
-      ],
-    ),
-  );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _CampaignComposer extends StatefulWidget {
@@ -1170,122 +1230,129 @@ class _CampaignComposerState extends State<_CampaignComposer> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    resizeToAvoidBottomInset: true,
-    appBar: AppBar(title: const Text('Create campaign')),
-    body: ListView(
-      padding: const EdgeInsets.all(20),
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      children: [
-        if (_busy) const LinearProgressIndicator(),
-        TextField(
-          controller: _name,
-          enabled: !_busy,
-          decoration: const InputDecoration(labelText: 'Campaign title'),
-        ),
-        const SizedBox(height: 14),
-        TextField(
-          controller: _prompt,
-          enabled: !_busy,
-          minLines: 2,
-          maxLines: 4,
-          decoration: const InputDecoration(labelText: 'Prompt'),
-        ),
-        TextButton.icon(
-          onPressed: _busy
-              ? null
-              : () {
-                  if (_prompt.text.trim().isEmpty) {
-                    setState(() => _error = 'Enter a prompt.');
-                    return;
-                  }
-                  _run(
-                    'generate_content',
-                    inputs: {'prompt': _prompt.text.trim()},
-                  );
-                },
-          icon: const Icon(Icons.auto_awesome),
-          label: const Text('Generate campaign content'),
-        ),
-        TextField(
-          controller: _content,
-          enabled: !_busy,
-          minLines: 3,
-          maxLines: 7,
-          decoration: const InputDecoration(labelText: 'Message'),
-        ),
-        const SizedBox(height: 14),
-        OutlinedButton.icon(
-          onPressed: _busy ? null : _imagePicker,
-          icon: const Icon(Icons.image_outlined),
-          label: Text(_image == null ? 'Choose image' : 'Image attached'),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          'Audience / contact lists',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        if ((widget.data['contacts'] as List? ?? []).isEmpty)
-          const Text(
-            'Add contacts in your workspace before creating a campaign.',
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(title: Text(appTr('Create campaign'))),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        children: [
+          if (_busy) const LinearProgressIndicator(),
+          TextField(
+            controller: _name,
+            enabled: !_busy,
+            decoration: InputDecoration(labelText: appTr('Campaign title')),
           ),
-        for (final contact
-            in (widget.data['contacts'] as List? ?? []).whereType<Map>())
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text('${contact['name']}'),
-            value: _contacts.contains(contact['id']),
-            onChanged: _busy
+          const SizedBox(height: 14),
+          TextField(
+            controller: _prompt,
+            enabled: !_busy,
+            minLines: 2,
+            maxLines: 4,
+            decoration: InputDecoration(labelText: appTr('Prompt')),
+          ),
+          TextButton.icon(
+            onPressed: _busy
                 ? null
-                : (selected) => setState(() {
-                    if (selected == true) {
-                      _contacts.add(contact['id'] as int);
-                    } else {
-                      _contacts.remove(contact['id']);
+                : () {
+                    if (_prompt.text.trim().isEmpty) {
+                      setState(() => _error = 'Enter a prompt.');
+                      return;
                     }
-                  }),
+                    _run(
+                      'generate_content',
+                      inputs: {'prompt': _prompt.text.trim()},
+                    );
+                  },
+            icon: const Icon(Icons.auto_awesome),
+            label: Text(appTr('Generate campaign content')),
           ),
-        OutlinedButton.icon(
-          onPressed: _busy ? null : _pickTime,
-          icon: const Icon(Icons.schedule),
-          label: Text(DateFormat.yMMMd().add_jm().format(_scheduled)),
-        ),
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+          TextField(
+            controller: _content,
+            enabled: !_busy,
+            minLines: 3,
+            maxLines: 7,
+            decoration: InputDecoration(labelText: appTr('Message')),
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _imagePicker,
+            icon: const Icon(Icons.image_outlined),
+            label: Text(
+              appTr(_image == null ? 'Choose image' : 'Image attached'),
             ),
           ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: _busy
-              ? null
-              : () {
-                  if (_name.text.trim().isEmpty ||
-                      _content.text.trim().isEmpty ||
-                      _contacts.isEmpty ||
-                      !_scheduled.isAfter(DateTime.now())) {
-                    setState(
-                      () => _error = 'Enter a title, message, audience and future schedule.',
+          const SizedBox(height: 14),
+          Text(
+            appTr('Audience / contact lists'),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          if ((widget.data['contacts'] as List? ?? []).isEmpty)
+            Text(
+              appTr(
+                'Add contacts in your workspace before creating a campaign.',
+              ),
+            ),
+          for (final contact
+              in (widget.data['contacts'] as List? ?? []).whereType<Map>())
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('${contact['name']}'),
+              value: _contacts.contains(contact['id']),
+              onChanged: _busy
+                  ? null
+                  : (selected) => setState(() {
+                      if (selected == true) {
+                        _contacts.add(contact['id'] as int);
+                      } else {
+                        _contacts.remove(contact['id']);
+                      }
+                    }),
+            ),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _pickTime,
+            icon: const Icon(Icons.schedule),
+            label: Text(DateFormat.yMMMd().add_jm().format(_scheduled)),
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                appTr(_error!),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _busy
+                ? null
+                : () {
+                    if (_name.text.trim().isEmpty ||
+                        _content.text.trim().isEmpty ||
+                        _contacts.isEmpty ||
+                        !_scheduled.isAfter(DateTime.now())) {
+                      setState(
+                        () => _error = 'Enter a title, message, audience and future schedule.',
+                      );
+                      return;
+                    }
+                    _run(
+                      'save_campaign',
+                      inputs: {
+                        'name': _name.text.trim(),
+                        'content': _content.text.trim(),
+                        'contacts': _contacts.toList(),
+                        'scheduled_at': _scheduled.toUtc().toIso8601String(),
+                        if (_image != null) 'image': _image,
+                      },
                     );
-                    return;
-                  }
-                  _run(
-                    'save_campaign',
-                    inputs: {
-                      'name': _name.text.trim(),
-                      'content': _content.text.trim(),
-                      'contacts': _contacts.toList(),
-                      'scheduled_at': _scheduled.toUtc().toIso8601String(),
-                      if (_image != null) 'image': _image,
-                    },
-                  );
-                },
-          child: const Text('Schedule campaign'),
-        ),
-      ],
-    ),
-  );
+                  },
+            child: Text(appTr('Schedule campaign')),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -1,3 +1,4 @@
+import '../../services/app_localizations.dart';
 import 'social_provider_icon.dart';
 import 'auth_links.dart';
 import 'auth_verification_dialog.dart';
@@ -141,18 +142,28 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   Future<String?> _verifyAuthenticator() => showDialog<String>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => const AuthVerificationDialog(),
+    builder: (localizationContext) {
+      AppLocalizations.watch(localizationContext);
+      return const AuthVerificationDialog();
+    },
   );
 
   void _enterWorkspace() => Navigator.of(context).pushReplacement(
     MaterialPageRoute<void>(
-      builder: (_) =>
-          HomeScreen(onThemeChanged: widget.onThemeChanged, api: widget.api),
+      builder: (localizationContext) {
+        AppLocalizations.watch(localizationContext);
+        return HomeScreen(
+          onThemeChanged: widget.onThemeChanged,
+          api: widget.api,
+        );
+      },
     ),
   );
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AuthPalette.of(context);
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -162,291 +173,311 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           child: _signedIn
               ? AuthSuccess(onContinue: _enterWorkspace)
               : LayoutBuilder(
-                  builder: (context, constraints) => SingleChildScrollView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.fromLTRB(26, 36, 26, 16),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 440),
+                  builder: (context, constraints) {
+                    AppLocalizations.watch(context);
+                    return SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: const EdgeInsets.fromLTRB(26, 36, 26, 16),
+                      child: Center(
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: (constraints.maxHeight - 52).clamp(
-                              0,
-                              double.infinity,
+                          constraints: const BoxConstraints(maxWidth: 440),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: (constraints.maxHeight - 52).clamp(
+                                0,
+                                double.infinity,
+                              ),
                             ),
-                          ),
-                          child: Form(
-                            key: _form,
-                            child: AutofillGroup(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      const Center(child: AuthMark()),
-                                      const SizedBox(height: 22),
-                                      AuthEntrance(
-                                        index: 1,
-                                        child: Text(
-                                          'Welcome back',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: colors.text,
-                                            fontSize: 29,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: -.4,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      AuthEntrance(
-                                        index: 2,
-                                        child: Text(
-                                          'Sign in to your AI workspace',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: colors.muted,
-                                            fontSize: 14.5,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 28),
-                                      AuthEntrance(
-                                        index: 3,
-                                        child: SocialLoginButtons(
-                                          providers: _providers,
-                                          busy: _busy,
-                                          onSelected: _browserLogin,
-                                        ),
-                                      ),
-                                      if (_providers.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 14,
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Expanded(
-                                                child: Divider(
-                                                  color: colors.outline,
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 14,
-                                                    ),
-                                                child: Text(
-                                                  'or sign in with email',
-                                                  style: TextStyle(
-                                                    color: colors.muted,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: Divider(
-                                                  color: colors.outline,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      AuthEntrance(
-                                        index: 4,
-                                        horizontal: true,
-                                        child: AuthInput(
-                                          controller: _email,
-                                          label: 'Email',
-                                          icon: Icons.mail_outline_rounded,
-                                          enabled: !_busy,
-                                          keyboardType:
-                                              TextInputType.emailAddress,
-                                          textInputAction: TextInputAction.next,
-                                          autofillHints: const [
-                                            AutofillHints.username,
-                                          ],
-                                          onSubmitted: (_) =>
-                                              _passwordFocus.requestFocus(),
-                                          validator: (value) =>
-                                              (value?.contains('@') ?? false)
-                                              ? null
-                                              : 'Enter your email',
-                                        ),
-                                      ),
-                                      const SizedBox(height: 14),
-                                      AuthEntrance(
-                                        index: 5,
-                                        horizontal: true,
-                                        child: AuthInput(
-                                          controller: _password,
-                                          focusNode: _passwordFocus,
-                                          label: 'Password',
-                                          icon: Icons.lock_outline_rounded,
-                                          enabled: !_busy,
-                                          obscure: _obscure,
-                                          textInputAction: TextInputAction.done,
-                                          autofillHints: const [
-                                            AutofillHints.password,
-                                          ],
-                                          suffix: IconButton(
-                                            tooltip: _obscure
-                                                ? 'Show password'
-                                                : 'Hide password',
-                                            onPressed: _busy
-                                                ? null
-                                                : () => setState(
-                                                    () => _obscure = !_obscure,
-                                                  ),
-                                            icon: Icon(
-                                              _obscure
-                                                  ? Icons.visibility_outlined
-                                                  : Icons
-                                                        .visibility_off_outlined,
-                                              size: 21,
-                                              color: colors.muted,
-                                            ),
-                                          ),
-                                          validator: (value) =>
-                                              (value?.isNotEmpty ?? false)
-                                              ? null
-                                              : 'Enter your password',
-                                          onSubmitted: (_) {
-                                            if (!_busy) _login();
-                                          },
-                                        ),
-                                      ),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: TextButton(
-                                          onPressed: _busy
-                                              ? null
-                                              : () => openAuthPage(
-                                                  context,
-                                                  widget.api ??
-                                                      MobileApi.instance,
-                                                  '/forgot-password',
-                                                ),
-                                          child: const Text('Forgot password?'),
-                                        ),
-                                      ),
-                                      if (_error != null)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 16,
-                                          ),
-                                          child: Semantics(
-                                            liveRegion: true,
-                                            child: Text(
-                                              _error!,
-                                              style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .error,
-                                              ),
+                            child: Form(
+                              key: _form,
+                              child: AutofillGroup(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        const Center(child: AuthMark()),
+                                        const SizedBox(height: 22),
+                                        AuthEntrance(
+                                          index: 1,
+                                          child: Text(
+                                            appTr('Welcome back'),
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: colors.text,
+                                              fontSize: 29,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: -.4,
                                             ),
                                           ),
                                         ),
-                                      AuthEntrance(
-                                        index: 6,
-                                        child: AuthPrimaryButton(
-                                          label: 'Sign In',
-                                          busyLabel: 'Signing in…',
-                                          busy: _busy && !_awaitingMfa,
-                                          onPressed: _busy ? null : _login,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 14),
-                                      AuthEntrance(
-                                        index: 7,
-                                        child: OutlinedButton.icon(
-                                          onPressed: _busy
-                                              ? null
-                                              : () => _browserLogin(),
-                                          icon: const Icon(
-                                            Icons.lock_outline,
-                                            size: 18,
-                                          ),
-                                          label: const Text(
-                                            'Secure browser sign-in',
-                                          ),
-                                          style: OutlinedButton.styleFrom(
-                                            minimumSize: const Size.fromHeight(
-                                              50,
+                                        const SizedBox(height: 8),
+                                        AuthEntrance(
+                                          index: 2,
+                                          child: Text(
+                                            appTr(
+                                              'Sign in to your AI workspace',
                                             ),
-                                            foregroundColor: colors.link,
-                                            backgroundColor: colors.base.primary
-                                                .withValues(alpha: .08),
-                                            side: BorderSide(
-                                              color: colors.base.primary
-                                                  .withValues(alpha: .25),
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      if (_busy && _browserFlow != null)
-                                        TextButton(
-                                          onPressed: () =>
-                                              _browserFlow?.cancel(),
-                                          child: const Text('Cancel sign-in'),
-                                        ),
-                                    ],
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 28),
-                                    child: AuthEntrance(
-                                      index: 8,
-                                      child: Wrap(
-                                        alignment: WrapAlignment.center,
-                                        crossAxisAlignment:
-                                            WrapCrossAlignment.center,
-                                        children: [
-                                          Text(
-                                            'New to ${BrandConfig.name}?',
+                                            textAlign: TextAlign.center,
                                             style: TextStyle(
                                               color: colors.muted,
-                                              fontSize: 14,
+                                              fontSize: 14.5,
                                             ),
                                           ),
-                                          TextButton(
-                                            onPressed: _busy
-                                                ? null
-                                                : () => Navigator.push(
-                                                    context,
-                                                    authRoute(
-                                                      context,
-                                                      (_) => RegisterScreen(
-                                                        onThemeChanged: widget
-                                                            .onThemeChanged,
-                                                        api: widget.api,
+                                        ),
+                                        const SizedBox(height: 28),
+                                        AuthEntrance(
+                                          index: 3,
+                                          child: SocialLoginButtons(
+                                            providers: _providers,
+                                            busy: _busy,
+                                            onSelected: _browserLogin,
+                                          ),
+                                        ),
+                                        if (_providers.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 14,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Divider(
+                                                    color: colors.outline,
+                                                  ),
+                                                ),
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 14,
                                                       ),
+                                                  child: Text(
+                                                    appTr(
+                                                      'or sign in with email',
+                                                    ),
+                                                    style: TextStyle(
+                                                      color: colors.muted,
+                                                      fontSize: 13,
                                                     ),
                                                   ),
-                                            child: const Text(
-                                              'Create an account',
+                                                ),
+                                                Expanded(
+                                                  child: Divider(
+                                                    color: colors.outline,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ],
+                                        AuthEntrance(
+                                          index: 4,
+                                          horizontal: true,
+                                          child: AuthInput(
+                                            controller: _email,
+                                            label: appTr('Email'),
+                                            icon: Icons.mail_outline_rounded,
+                                            enabled: !_busy,
+                                            keyboardType:
+                                                TextInputType.emailAddress,
+                                            textInputAction:
+                                                TextInputAction.next,
+                                            autofillHints: const [
+                                              AutofillHints.username,
+                                            ],
+                                            onSubmitted: (_) =>
+                                                _passwordFocus.requestFocus(),
+                                            validator: (value) =>
+                                                (value?.contains('@') ?? false)
+                                                ? null
+                                                : appTr('Enter your email'),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 14),
+                                        AuthEntrance(
+                                          index: 5,
+                                          horizontal: true,
+                                          child: AuthInput(
+                                            controller: _password,
+                                            focusNode: _passwordFocus,
+                                            label: appTr('Password'),
+                                            icon: Icons.lock_outline_rounded,
+                                            enabled: !_busy,
+                                            obscure: _obscure,
+                                            textInputAction:
+                                                TextInputAction.done,
+                                            autofillHints: const [
+                                              AutofillHints.password,
+                                            ],
+                                            suffix: IconButton(
+                                              tooltip: appTr(
+                                                _obscure
+                                                    ? 'Show password'
+                                                    : 'Hide password',
+                                              ),
+                                              onPressed: _busy
+                                                  ? null
+                                                  : () => setState(
+                                                      () =>
+                                                          _obscure = !_obscure,
+                                                    ),
+                                              icon: Icon(
+                                                _obscure
+                                                    ? Icons.visibility_outlined
+                                                    : Icons
+                                                          .visibility_off_outlined,
+                                                size: 21,
+                                                color: colors.muted,
+                                              ),
+                                            ),
+                                            validator: (value) =>
+                                                (value?.isNotEmpty ?? false)
+                                                ? null
+                                                : appTr('Enter your password'),
+                                            onSubmitted: (_) {
+                                              if (!_busy) _login();
+                                            },
+                                          ),
+                                        ),
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: TextButton(
+                                            onPressed: _busy
+                                                ? null
+                                                : () => openAuthPage(
+                                                    context,
+                                                    widget.api ??
+                                                        MobileApi.instance,
+                                                    '/forgot-password',
+                                                  ),
+                                            child: Text(
+                                              appTr('Forgot password?'),
+                                            ),
+                                          ),
+                                        ),
+                                        if (_error != null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 16,
+                                            ),
+                                            child: Semantics(
+                                              liveRegion: true,
+                                              child: Text(
+                                                appTr(_error!),
+                                                style: TextStyle(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .error,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        AuthEntrance(
+                                          index: 6,
+                                          child: AuthPrimaryButton(
+                                            label: appTr('Sign In'),
+                                            busyLabel: 'Signing in…',
+                                            busy: _busy && !_awaitingMfa,
+                                            onPressed: _busy ? null : _login,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 14),
+                                        AuthEntrance(
+                                          index: 7,
+                                          child: OutlinedButton.icon(
+                                            onPressed: _busy
+                                                ? null
+                                                : () => _browserLogin(),
+                                            icon: const Icon(
+                                              Icons.lock_outline,
+                                              size: 18,
+                                            ),
+                                            label: Text(
+                                              appTr('Secure browser sign-in'),
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              minimumSize:
+                                                  const Size.fromHeight(50),
+                                              foregroundColor: colors.link,
+                                              backgroundColor: colors
+                                                  .base
+                                                  .primary
+                                                  .withValues(alpha: .08),
+                                              side: BorderSide(
+                                                color: colors.base.primary
+                                                    .withValues(alpha: .25),
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        if (_busy && _browserFlow != null)
+                                          TextButton(
+                                            onPressed: () =>
+                                                _browserFlow?.cancel(),
+                                            child: Text(
+                                              appTr('Cancel sign-in'),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 28),
+                                      child: AuthEntrance(
+                                        index: 8,
+                                        child: Wrap(
+                                          alignment: WrapAlignment.center,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
+                                            Text(
+                                              appTr("New to :value?", {
+                                                "value": BrandConfig.name,
+                                              }),
+                                              style: TextStyle(
+                                                color: colors.muted,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            TextButton(
+                                              onPressed: _busy
+                                                  ? null
+                                                  : () => Navigator.push(
+                                                      context,
+                                                      authRoute(
+                                                        context,
+                                                        (_) => RegisterScreen(
+                                                          onThemeChanged: widget
+                                                              .onThemeChanged,
+                                                          api: widget.api,
+                                                        ),
+                                                      ),
+                                                    ),
+                                              child: Text(
+                                                appTr('Create an account'),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
         ),
       ),
@@ -466,36 +497,43 @@ class SocialLoginButtons extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      for (final provider in providers.where(
-        (provider) =>
-            provider['available'] == true &&
-            provider['enabled'] != false &&
-            const ['google', 'facebook', 'github'].contains(provider['id']),
-      ))
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(56),
-              backgroundColor: AuthPalette.of(context).surface,
-              foregroundColor: AuthPalette.of(context).text,
-              side: BorderSide(color: AuthPalette.of(context).outline),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final provider in providers.where(
+          (provider) =>
+              provider['available'] == true &&
+              provider['enabled'] != false &&
+              const ['google', 'facebook', 'github'].contains(provider['id']),
+        ))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(56),
+                backgroundColor: AuthPalette.of(context).surface,
+                foregroundColor: AuthPalette.of(context).text,
+                side: BorderSide(color: AuthPalette.of(context).outline),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              onPressed: busy
+                  ? null
+                  : () => onSelected(provider['id'].toString()),
+              icon: SocialProviderIcon('${provider['id']}'),
+              label: Text(
+                appTr("Login with :value", {
+                  "value": provider['id'] == 'github'
+                      ? 'Github'
+                      : provider['label'],
+                }),
               ),
             ),
-            onPressed: busy
-                ? null
-                : () => onSelected(provider['id'].toString()),
-            icon: SocialProviderIcon('${provider['id']}'),
-            label: Text(
-              'Login with ${provider['id'] == 'github' ? 'Github' : provider['label']}',
-            ),
           ),
-        ),
-    ],
-  );
+      ],
+    );
+  }
 }

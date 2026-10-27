@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -167,24 +169,27 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
     );
     final value = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add your words'),
-        content: TextField(
-          controller: controller,
-          maxLines: 4,
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          title: Text(appTr('Add your words')),
+          content: TextField(
+            controller: controller,
+            maxLines: 4,
+            autofocus: true,
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Apply'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: Text(appTr('Apply')),
+            ),
+          ],
+        );
+      },
     );
     controller.dispose();
     if (value == null || value.isEmpty || !mounted) return;
@@ -229,7 +234,7 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
       await _load();
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Project saved')));
+            .showSnackBar(SnackBar(content: Text(appTr('Project saved'))));
       }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -307,6 +312,8 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
       Color(int.tryParse(hex.replaceFirst('#', 'FF'), radix: 16) ?? 0xFF1E2230);
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_loading) return const Center(child: CircularProgressIndicator());
     return RefreshIndicator(
       onRefresh: _load,
@@ -317,7 +324,7 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            'Turn an idea into your next asset.',
+            appTr('Turn an idea into your next asset.'),
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 16),
@@ -326,19 +333,21 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
                 ? null
                 : () => setState(() => _editorOnly = !_editorOnly),
             icon: const Icon(Icons.layers_outlined),
-            label: Text(_editorOnly ? 'AI image tools' : 'Advanced canvas'),
+            label: Text(
+              appTr(_editorOnly ? 'AI image tools' : 'Advanced canvas'),
+            ),
           ),
           if (!_editorOnly) ...[
             Wrap(
               spacing: 8,
               children: [
                 ChoiceChip(
-                  label: const Text('Start with AI Template'),
+                  label: Text(appTr('Start with AI Template')),
                   selected: _mode == 'template',
                   onSelected: (_) => setState(() => _mode = 'template'),
                 ),
                 ChoiceChip(
-                  label: const Text('Start with AI Image'),
+                  label: Text(appTr('Start with AI Image')),
                   selected: _mode == 'image',
                   onSelected: (_) => setState(() => _mode = 'image'),
                 ),
@@ -352,7 +361,7 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
                   children: [
                     for (final template in _templates)
                       ActionChip(
-                        label: Text('${template['title']}'),
+                        label: Text(appTr((template['title']).toString())),
                         onPressed: () => setState(() {
                           _prompt.text = '${template['prompt']}';
                           _name.text = '${template['title']}';
@@ -368,9 +377,11 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
               enabled: !_busy,
               minLines: 3,
               maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'Describe your design',
-                hintText: 'A bold campaign visual with soft studio lighting…',
+              decoration: InputDecoration(
+                labelText: appTr('Describe your design'),
+                hintText: appTr(
+                  'A bold campaign visual with soft studio lighting…',
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -380,14 +391,16 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
                   child: FilledButton.icon(
                     onPressed: _busy ? null : _generate,
                     icon: const Icon(Icons.auto_awesome),
-                    label: Text(_busy ? 'Working…' : 'Generate reference'),
+                    label: Text(
+                      appTr(_busy ? 'Working…' : 'Generate reference'),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton.outlined(
                   onPressed: _busy ? null : _reference,
                   icon: const Icon(Icons.add_photo_alternate_outlined),
-                  tooltip: 'Add reference image',
+                  tooltip: appTr('Add reference image'),
                 ),
               ],
             ),
@@ -414,7 +427,7 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _error!,
+                    appTr(_error!),
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
                     ),
@@ -422,7 +435,7 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
                   TextButton.icon(
                     onPressed: _busy ? null : _load,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
+                    label: Text(appTr('Retry')),
                   ),
                 ],
               ),
@@ -430,7 +443,7 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
           const SizedBox(height: 20),
           TextField(
             controller: _name,
-            decoration: const InputDecoration(labelText: 'Project name'),
+            decoration: InputDecoration(labelText: appTr('Project name')),
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -461,6 +474,7 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
           _CanvasKeepAlive(
             child: LayoutBuilder(
               builder: (context, constraints) {
+                AppLocalizations.watch(context);
                 final size = constraints.maxWidth;
                 return RepaintBoundary(
                   key: _canvasKey,
@@ -524,13 +538,19 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
                                                 size *
                                                 (_layers[i]['size'] as num),
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, e, s) =>
-                                                const Padding(
-                                                  padding: EdgeInsets.all(24),
-                                                  child: Icon(
-                                                    Icons.broken_image_outlined,
-                                                  ),
-                                                ),
+                                            errorBuilder:
+                                                (localizationContext, e, s) {
+                                                  AppLocalizations.watch(
+                                                    localizationContext,
+                                                  );
+                                                  return const Padding(
+                                                    padding: EdgeInsets.all(24),
+                                                    child: Icon(
+                                                      Icons
+                                                          .broken_image_outlined,
+                                                    ),
+                                                  );
+                                                },
                                           )
                                         : SizedBox(
                                             width: size * .8,
@@ -567,12 +587,12 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
               OutlinedButton.icon(
                 onPressed: _busy ? null : _text,
                 icon: const Icon(Icons.text_fields),
-                label: const Text('Text'),
+                label: Text(appTr('Text')),
               ),
               OutlinedButton.icon(
                 onPressed: _busy ? null : _reference,
                 icon: const Icon(Icons.image_outlined),
-                label: const Text('Image'),
+                label: Text(appTr('Image')),
               ),
               if (_selected != null)
                 IconButton(
@@ -626,12 +646,12 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
             children: [
               FilledButton(
                 onPressed: _busy || _layers.isEmpty ? null : _save,
-                child: const Text('Save project'),
+                child: Text(appTr('Save project')),
               ),
               const SizedBox(width: 8),
               OutlinedButton(
                 onPressed: _busy || _layers.isEmpty ? null : _export,
-                child: const Text('Export PNG'),
+                child: Text(appTr('Export PNG')),
               ),
               IconButton(
                 onPressed: _busy
@@ -645,18 +665,18 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
                         _background = '#1E2230';
                       }),
                 icon: const Icon(Icons.add),
-                tooltip: 'New project',
+                tooltip: appTr('New project'),
               ),
             ],
           ),
           const SizedBox(height: 28),
           Text(
-            'Recent projects',
+            appTr('Recent projects'),
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
           if (_projects.isEmpty)
-            const Text('Your saved designs will appear here.'),
+            Text(appTr('Your saved designs will appear here.')),
           for (final project in _projects)
             Card(
               child: ListTile(
@@ -668,8 +688,10 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
                           width: 48,
                           height: 48,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, e, s) =>
-                              const Icon(Icons.image_outlined),
+                          errorBuilder: (localizationContext, e, s) {
+                            AppLocalizations.watch(localizationContext);
+                            return const Icon(Icons.image_outlined);
+                          },
                         ),
                       )
                     : const Icon(Icons.layers_outlined),
@@ -684,7 +706,7 @@ class _NativeCreativeScreenState extends State<NativeCreativeScreen> {
           if (_page < _lastPage)
             TextButton(
               onPressed: () => _load(more: true),
-              child: const Text('Load more projects'),
+              child: Text(appTr('Load more projects')),
             ),
         ],
       ),
@@ -705,6 +727,8 @@ class _CanvasKeepAliveState extends State<_CanvasKeepAlive>
   bool get wantKeepAlive => true;
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     super.build(context);
     return widget.child;
   }

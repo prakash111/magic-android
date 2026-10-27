@@ -1,3 +1,5 @@
+import '../../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -54,7 +56,7 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
     }
     Clipboard.setData(ClipboardData(text: buffer.toString()));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('All keywords copied as CSV!')),
+      SnackBar(content: Text(appTr('All keywords copied as CSV!'))),
     );
   }
 
@@ -66,12 +68,14 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Keyword Research & Wizard'),
+        title: Text(appTr('Keyword Research & Wizard')),
         actions: [
           IconButton(
-            tooltip: 'Export CSV',
+            tooltip: appTr('Export CSV'),
             icon: const Icon(Icons.download_outlined),
             onPressed: _copyAll,
           ),
@@ -87,8 +91,8 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter seed topic or keyword...',
+                    decoration: InputDecoration(
+                      hintText: appTr('Enter seed topic or keyword...'),
                       prefixIcon: Icon(Icons.search, color: AppTheme.primary),
                     ),
                     onSubmitted: (_) => _fetchKeywords(),
@@ -112,7 +116,7 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Discover'),
+                      : Text(appTr('Discover')),
                 ),
               ],
             ),
@@ -125,7 +129,9 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${_keywords.length} Keyword Opportunities Found',
+                    appTr(":value Keyword Opportunities Found", {
+                      "value": _keywords.length,
+                    }),
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -135,7 +141,7 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
                   TextButton.icon(
                     onPressed: _copyAll,
                     icon: const Icon(Icons.copy, size: 16),
-                    label: const Text('Copy All'),
+                    label: Text(appTr('Copy All')),
                   ),
                 ],
               ),
@@ -147,17 +153,20 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _keywords.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        'No keywords found. Try another query.',
+                        appTr('No keywords found. Try another query.'),
                         style: TextStyle(color: AppTheme.textMuted),
                       ),
                     )
                   : ListView.separated(
                       itemCount: _keywords.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 10),
+                      separatorBuilder: (context, index) {
+                        AppLocalizations.watch(context);
+                        return const SizedBox(height: 10);
+                      },
                       itemBuilder: (context, index) {
+                        AppLocalizations.watch(context);
                         final kw = _keywords[index];
                         final diffColor = _getDifficultyColor(kw.difficulty);
 
@@ -180,7 +189,7 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.copy, size: 18),
-                                      tooltip: 'Copy Keyword',
+                                      tooltip: appTr('Copy Keyword'),
                                       onPressed: () {
                                         Clipboard.setData(
                                           ClipboardData(text: kw.keyword),
@@ -189,7 +198,9 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
                                             .showSnackBar(
                                               SnackBar(
                                                 content: Text(
-                                                  'Copied "${kw.keyword}"',
+                                                  appTr("Copied \":value\"", {
+                                                    "value": kw.keyword,
+                                                  }),
                                                 ),
                                               ),
                                             );
@@ -204,18 +215,23 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
                                   children: [
                                     _buildPill(
                                       icon: Icons.bar_chart,
-                                      label: '${kw.volume}/mo',
+                                      label: appTr(":value/mo", {
+                                        "value": kw.volume,
+                                      }),
                                       color: AppTheme.primary,
                                     ),
                                     _buildPill(
                                       icon: Icons.attach_money,
-                                      label:
-                                          '\$${kw.cpc.toStringAsFixed(2)} CPC',
+                                      label: appTr("\$:value CPC", {
+                                        "value": kw.cpc.toStringAsFixed(2),
+                                      }),
                                       color: AppTheme.accent,
                                     ),
                                     _buildPill(
                                       icon: Icons.speed,
-                                      label: '${kw.difficulty}% Diff',
+                                      label: appTr(":value% Diff", {
+                                        "value": kw.difficulty,
+                                      }),
                                       color: diffColor,
                                     ),
                                     _buildPill(
@@ -256,7 +272,7 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
           Text(
-            label,
+            appTr(label),
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,

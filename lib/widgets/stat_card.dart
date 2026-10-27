@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -20,6 +22,8 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final effectiveIconColor = iconColor ?? AppTheme.primary;
 
     return Card(
@@ -42,7 +46,7 @@ class StatCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    title,
+                    appTr(title),
                     style: const TextStyle(
                       color: AppTheme.textMuted,
                       fontSize: 12,
@@ -60,7 +64,7 @@ class StatCard extends StatelessWidget {
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
                     Text(
-                      subtitle!,
+                      appTr(subtitle!),
                       style: const TextStyle(
                         fontSize: 11,
                         color: AppTheme.textMuted,

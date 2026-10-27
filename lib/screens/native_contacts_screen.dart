@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -68,8 +70,10 @@ class _NativeContactsScreenState extends State<NativeContactsScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No compatible app is available on this device.'),
+          SnackBar(
+            content: Text(
+              appTr('No compatible app is available on this device.'),
+            ),
           ),
         );
       }
@@ -98,121 +102,131 @@ class _NativeContactsScreenState extends State<NativeContactsScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, change) => Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            MediaQuery.viewInsetsOf(context).bottom + 20,
-          ),
-          child: Form(
-            key: form,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    contact == null ? 'New contact' : 'Edit contact',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 18),
-                  for (final name in names)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: TextFormField(
-                        controller: controllers[name],
-                        enabled: !saving,
-                        maxLines: name == 'notes' ? 3 : 1,
-                        keyboardType: name == 'email'
-                            ? TextInputType.emailAddress
-                            : name == 'phone'
-                            ? TextInputType.phone
-                            : TextInputType.text,
-                        decoration: InputDecoration(
-                          labelText: name.replaceAll('_', ' '),
-                        ),
-                        validator: (value) {
-                          if ((name == 'first_name' || name == 'last_name') &&
-                              (value?.trim().isEmpty ?? true)) {
-                            return 'Required';
-                          }
-                          if (name == 'email' &&
-                              value!.isNotEmpty &&
-                              !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
-                                  .hasMatch(value)) {
-                            return 'Enter a valid email';
-                          }
-                          return null;
-                        },
+      builder: (sheetContext) {
+        AppLocalizations.watch(sheetContext);
+        return StatefulBuilder(
+          builder: (context, change) {
+            AppLocalizations.watch(context);
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.viewInsetsOf(context).bottom + 20,
+              ),
+              child: Form(
+                key: form,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        appTr(contact == null ? 'New contact' : 'Edit contact'),
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                    ),
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    initialValue: status,
-                    decoration: const InputDecoration(labelText: 'Status'),
-                    items: const [
-                      DropdownMenuItem(value: 'active', child: Text('Active')),
-                      DropdownMenuItem(
-                        value: 'inactive',
-                        child: Text('Inactive'),
+                      const SizedBox(height: 18),
+                      for (final name in names)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: TextFormField(
+                            controller: controllers[name],
+                            enabled: !saving,
+                            maxLines: name == 'notes' ? 3 : 1,
+                            keyboardType: name == 'email'
+                                ? TextInputType.emailAddress
+                                : name == 'phone'
+                                ? TextInputType.phone
+                                : TextInputType.text,
+                            decoration: InputDecoration(
+                              labelText: name.replaceAll('_', ' '),
+                            ),
+                            validator: (value) {
+                              if ((name == appTr('first_name') ||
+                                      name == appTr('last_name')) &&
+                                  (value?.trim().isEmpty ?? true)) {
+                                return appTr('Required');
+                              }
+                              if (name == appTr('email') &&
+                                  value!.isNotEmpty &&
+                                  !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+                                      .hasMatch(value)) {
+                                return appTr('Enter a valid email');
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: status,
+                        decoration: InputDecoration(labelText: appTr('Status')),
+                        items: [
+                          DropdownMenuItem(
+                            value: 'active',
+                            child: Text(appTr('Active')),
+                          ),
+                          DropdownMenuItem(
+                            value: 'inactive',
+                            child: Text(appTr('Inactive')),
+                          ),
+                        ],
+                        onChanged: saving ? null : (value) => status = value!,
+                      ),
+                      CheckboxListTile(
+                        title: Text(appTr('Favorite')),
+                        value: favorite,
+                        onChanged: saving
+                            ? null
+                            : (value) => change(() => favorite = value!),
+                      ),
+                      if (error != null)
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(appTr(error!)),
+                        ),
+                      FilledButton(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                if (!form.currentState!.validate()) return;
+                                change(() {
+                                  saving = true;
+                                  error = null;
+                                });
+                                try {
+                                  await widget.api.request(
+                                    '/native/contacts${contact == null ? '' : '/${contact['id']}'}',
+                                    method: contact == null ? 'POST' : 'PUT',
+                                    body: {
+                                      for (final name in names)
+                                        name: controllers[name]!.text.trim(),
+                                      'status': status,
+                                      'is_favorite': favorite,
+                                    },
+                                  );
+                                  if (sheetContext.mounted) {
+                                    Navigator.pop(sheetContext, true);
+                                  }
+                                } catch (failure) {
+                                  if (sheetContext.mounted) {
+                                    change(() {
+                                      error = failure.toString();
+                                      saving = false;
+                                    });
+                                  }
+                                }
+                              },
+                        child: Text(appTr(saving ? 'Saving…' : 'Save contact')),
                       ),
                     ],
-                    onChanged: saving ? null : (value) => status = value!,
                   ),
-                  CheckboxListTile(
-                    title: const Text('Favorite'),
-                    value: favorite,
-                    onChanged: saving
-                        ? null
-                        : (value) => change(() => favorite = value!),
-                  ),
-                  if (error != null)
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(error!),
-                    ),
-                  FilledButton(
-                    onPressed: saving
-                        ? null
-                        : () async {
-                            if (!form.currentState!.validate()) return;
-                            change(() {
-                              saving = true;
-                              error = null;
-                            });
-                            try {
-                              await widget.api.request(
-                                '/native/contacts${contact == null ? '' : '/${contact['id']}'}',
-                                method: contact == null ? 'POST' : 'PUT',
-                                body: {
-                                  for (final name in names)
-                                    name: controllers[name]!.text.trim(),
-                                  'status': status,
-                                  'is_favorite': favorite,
-                                },
-                              );
-                              if (sheetContext.mounted) {
-                                Navigator.pop(sheetContext, true);
-                              }
-                            } catch (failure) {
-                              if (sheetContext.mounted) {
-                                change(() {
-                                  error = failure.toString();
-                                  saving = false;
-                                });
-                              }
-                            }
-                          },
-                    child: Text(saving ? 'Saving…' : 'Save contact'),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
     for (final controller in controllers.values) {
       controller.dispose();
@@ -223,22 +237,28 @@ class _NativeContactsScreenState extends State<NativeContactsScreen> {
   Future<void> _delete(Map contact) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete contact?'),
-        content: Text(
-          '${contact['first_name']} ${contact['last_name']} will be removed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          title: Text(appTr('Delete contact?')),
+          content: Text(
+            appTr(":value :value2 will be removed.", {
+              "value": contact['first_name'],
+              "value2": contact['last_name'],
+            }),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(appTr('Delete')),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true) return;
     try {
@@ -253,156 +273,168 @@ class _NativeContactsScreenState extends State<NativeContactsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-        child: TextField(
-          controller: _search,
-          decoration: const InputDecoration(
-            hintText: 'Search contacts',
-            prefixIcon: Icon(Icons.search),
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: TextField(
+            controller: _search,
+            decoration: InputDecoration(
+              hintText: appTr('Search contacts'),
+              prefixIcon: Icon(Icons.search),
+            ),
+            onChanged: (_) {
+              _debounce?.cancel();
+              _debounce = Timer(const Duration(milliseconds: 350), _load);
+            },
           ),
-          onChanged: (_) {
-            _debounce?.cancel();
-            _debounce = Timer(const Duration(milliseconds: 350), _load);
-          },
         ),
-      ),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  spacing: 8,
-                  children: [
-                    for (final filter in [
-                      'all',
-                      'active',
-                      'inactive',
-                      'favorites',
-                    ])
-                      ChoiceChip(
-                        label: Text(filter),
-                        selected: _filter == filter,
-                        onSelected: (_) {
-                          setState(() => _filter = filter);
-                          _load();
-                        },
-                      ),
-                  ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    spacing: 8,
+                    children: [
+                      for (final filter in [
+                        'all',
+                        'active',
+                        'inactive',
+                        'favorites',
+                      ])
+                        ChoiceChip(
+                          label: Text(appTr(filter)),
+                          selected: _filter == filter,
+                          onSelected: (_) {
+                            setState(() => _filter = filter);
+                            _load();
+                          },
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: () => _edit(),
-              icon: const Icon(Icons.person_add_alt_1),
-              tooltip: 'New contact',
-            ),
-          ],
+              const SizedBox(width: 8),
+              IconButton.filled(
+                onPressed: () => _edit(),
+                icon: const Icon(Icons.person_add_alt_1),
+                tooltip: appTr('New contact'),
+              ),
+            ],
+          ),
         ),
-      ),
-      if (_error != null)
-        Padding(padding: const EdgeInsets.all(8), child: Text(_error!)),
-      Expanded(
-        child: _contacts == null
-            ? (_error == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : RetryPanel(message: _error!, retry: _load))
-            : RefreshIndicator(
-                onRefresh: _load,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                  children: [
-                    if (_contacts!.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text(
-                          'No contacts found. Add your first contact to get started.',
-                        ),
-                      ),
-                    for (final contact in _contacts!)
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            children: [
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: CircleAvatar(
-                                  child: Text('${contact['initials'] ?? ''}'),
-                                ),
-                                title: Text(
-                                  '${contact['first_name']} ${contact['last_name']}',
-                                ),
-                                subtitle: Text(
-                                  [
-                                        contact['job_title'],
-                                        contact['company'],
-                                        contact['email'],
-                                      ]
-                                      .where(
-                                        (value) =>
-                                            value != null &&
-                                            '$value'.isNotEmpty,
-                                      )
-                                      .join(' · '),
-                                ),
-                                trailing: Chip(
-                                  label: Text('${contact['status']}'),
-                                ),
-                                onTap: () => _edit(contact),
-                              ),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  if ('${contact['phone'] ?? ''}'.isNotEmpty)
-                                    IconButton(
-                                      onPressed: () =>
-                                          _launch('tel', '${contact['phone']}'),
-                                      icon: const Icon(Icons.call_outlined),
-                                      tooltip: 'Call',
-                                    ),
-                                  if ('${contact['email'] ?? ''}'.isNotEmpty)
-                                    IconButton(
-                                      onPressed: () => _launch(
-                                        'mailto',
-                                        '${contact['email']}',
-                                      ),
-                                      icon: const Icon(Icons.mail_outline),
-                                      tooltip: 'Email',
-                                    ),
-                                  IconButton(
-                                    onPressed: () => _edit(contact),
-                                    icon: const Icon(Icons.edit_outlined),
-                                    tooltip: 'Edit',
-                                  ),
-                                  IconButton(
-                                    onPressed: () => _delete(contact),
-                                    icon: const Icon(Icons.delete_outline),
-                                    tooltip: 'Delete',
-                                  ),
-                                ],
-                              ),
-                            ],
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Text(appTr(_error!)),
+          ),
+        Expanded(
+          child: _contacts == null
+              ? (_error == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : RetryPanel(message: appTr(_error!), retry: _load))
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                    children: [
+                      if (_contacts!.isEmpty)
+                        Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Text(
+                            appTr(
+                              'No contacts found. Add your first contact to get started.',
+                            ),
                           ),
                         ),
-                      ),
-                    if (_page < _lastPage)
-                      TextButton(
-                        onPressed: _loadingMore
-                            ? null
-                            : () => _load(more: true),
-                        child: Text(_loadingMore ? 'Loading…' : 'Load more'),
-                      ),
-                  ],
+                      for (final contact in _contacts!)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Column(
+                              children: [
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: CircleAvatar(
+                                    child: Text('${contact['initials'] ?? ''}'),
+                                  ),
+                                  title: Text(
+                                    '${contact['first_name']} ${contact['last_name']}',
+                                  ),
+                                  subtitle: Text(
+                                    [
+                                          contact['job_title'],
+                                          contact['company'],
+                                          contact['email'],
+                                        ]
+                                        .where(
+                                          (value) =>
+                                              value != null &&
+                                              '$value'.isNotEmpty,
+                                        )
+                                        .join(' · '),
+                                  ),
+                                  trailing: Chip(
+                                    label: Text(appTr('${contact['status']}')),
+                                  ),
+                                  onTap: () => _edit(contact),
+                                ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    if ('${contact['phone'] ?? ''}'.isNotEmpty)
+                                      IconButton(
+                                        onPressed: () => _launch(
+                                          'tel',
+                                          '${contact['phone']}',
+                                        ),
+                                        icon: const Icon(Icons.call_outlined),
+                                        tooltip: appTr('Call'),
+                                      ),
+                                    if ('${contact['email'] ?? ''}'.isNotEmpty)
+                                      IconButton(
+                                        onPressed: () => _launch(
+                                          'mailto',
+                                          '${contact['email']}',
+                                        ),
+                                        icon: const Icon(Icons.mail_outline),
+                                        tooltip: appTr('Email'),
+                                      ),
+                                    IconButton(
+                                      onPressed: () => _edit(contact),
+                                      icon: const Icon(Icons.edit_outlined),
+                                      tooltip: appTr('Edit'),
+                                    ),
+                                    IconButton(
+                                      onPressed: () => _delete(contact),
+                                      icon: const Icon(Icons.delete_outline),
+                                      tooltip: appTr('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (_page < _lastPage)
+                        TextButton(
+                          onPressed: _loadingMore
+                              ? null
+                              : () => _load(more: true),
+                          child: Text(
+                            appTr(_loadingMore ? 'Loading…' : 'Load more'),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-      ),
-    ],
-  );
+        ),
+      ],
+    );
+  }
 }

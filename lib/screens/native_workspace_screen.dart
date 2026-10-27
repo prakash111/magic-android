@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -27,43 +29,49 @@ class WorkspaceEmptyState extends StatelessWidget {
     this.onAction,
   });
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 32,
-            backgroundColor: Theme.of(context).colorScheme.primary
-                .withValues(alpha: .12),
-            child: Icon(
-              icon,
-              size: 30,
-              color: Theme.of(context).colorScheme.primary,
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+        child: Column(
+          children: [
+            CircleAvatar(
+              radius: 32,
+              backgroundColor: Theme.of(context).colorScheme.primary
+                  .withValues(alpha: .12),
+              child: Icon(
+                icon,
+                size: 30,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 20),
-            FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+            Text(
+              appTr(title),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              appTr(message),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 20),
+              FilledButton(
+                onPressed: onAction,
+                child: Text(appTr(actionLabel!)),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class NativeWorkspaceScreen extends StatefulWidget {
@@ -143,11 +151,14 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
   Future<void> _edit(String kind, [Map? record]) async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => WorkspaceRecordEditor(
-          service: _service,
-          kind: kind,
-          record: record,
-        ),
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return WorkspaceRecordEditor(
+            service: _service,
+            kind: kind,
+            record: record,
+          );
+        },
       ),
     );
     if (saved == true && mounted) await _load();
@@ -158,20 +169,23 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
     if (id == null) return;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete ${record['name']}?'),
-        content: const Text('This removes the record from your workspace.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          title: Text(appTr("Delete :value?", {"value": record['name']})),
+          content: Text(appTr('This removes the record from your workspace.')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(appTr('Delete')),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !mounted) return;
     setState(() => _loading = true);
@@ -214,52 +228,58 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
   );
   Widget _section(String title) => Padding(
     padding: const EdgeInsets.only(top: 20, bottom: 12),
-    child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+    child: Text(appTr(title), style: Theme.of(context).textTheme.titleLarge),
   );
 
   Widget _metrics(List items) => LayoutBuilder(
-    builder: (context, constraints) => Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        for (final metric in items.whereType<Map>())
-          SizedBox(
-            width: (constraints.maxWidth - 12) / 2,
-            child: Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(switch (metric['icon']) {
-                      'paid' => Icons.check_circle_outline,
-                      'overdue' => Icons.schedule,
-                      'balance' => Icons.account_balance_wallet_outlined,
-                      _ => Icons.receipt_long_outlined,
-                    }, color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(height: 14),
-                    Text(
-                      '${metric['label']}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 8),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _money(metric['value'], metric['currency'] as String?),
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
+    builder: (context, constraints) {
+      AppLocalizations.watch(context);
+      return Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          for (final metric in items.whereType<Map>())
+            SizedBox(
+              width: (constraints.maxWidth - 12) / 2,
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(switch (metric['icon']) {
+                        'paid' => Icons.check_circle_outline,
+                        'overdue' => Icons.schedule,
+                        'balance' => Icons.account_balance_wallet_outlined,
+                        _ => Icons.receipt_long_outlined,
+                      }, color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(height: 14),
+                      Text(
+                        appTr((metric['label']).toString()),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _money(
+                            metric['value'],
+                            metric['currency'] as String?,
+                          ),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-      ],
-    ),
+        ],
+      );
+    },
   );
 
   Widget _invoice(Map record) => Card(
@@ -269,41 +289,60 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
-        builder: (context) => SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${record['number']}',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 12),
-              _badge('${record['status']}'),
-              const SizedBox(height: 20),
-              Text(
-                '${record['customer'] ?? ''}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Total: ${_money(record['total'], record['currency'] as String?)}',
-              ),
-              Text(
-                'Balance due: ${_money(record['balance'], record['currency'] as String?)}',
-              ),
-              const SizedBox(height: 16),
-              Text('Issued ${_date(record['issue_date'])}'),
-              if (record['due_date'] != null)
-                Text('Due ${_date(record['due_date'])}'),
-              if ('${record['notes'] ?? ''}'.isNotEmpty) ...[
+        builder: (context) {
+          AppLocalizations.watch(context);
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${record['number']}',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 12),
+                _badge('${record['status']}'),
                 const SizedBox(height: 20),
-                Text('${record['notes']}'),
+                Text(
+                  '${record['customer'] ?? ''}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  appTr("Total: :value", {
+                    "value": _money(
+                      record['total'],
+                      record['currency'] as String?,
+                    ),
+                  }),
+                ),
+                Text(
+                  appTr("Balance due: :value", {
+                    "value": _money(
+                      record['balance'],
+                      record['currency'] as String?,
+                    ),
+                  }),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  appTr("Issued :value", {
+                    "value": _date(record['issue_date']),
+                  }),
+                ),
+                if (record['due_date'] != null)
+                  Text(
+                    appTr("Due :value", {"value": _date(record['due_date'])}),
+                  ),
+                if ('${record['notes'] ?? ''}'.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Text('${record['notes']}'),
+                ],
               ],
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -335,7 +374,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
             if (record['due_date'] != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Due ${_date(record['due_date'])}',
+                appTr("Due :value", {"value": _date(record['due_date'])}),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -379,10 +418,19 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                 onSelected: (action) => action == 'edit'
                     ? _edit('company', record)
                     : _delete('company', record),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Edit company')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete company')),
-                ],
+                itemBuilder: (localizationContext) {
+                  AppLocalizations.watch(localizationContext);
+                  return [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text(appTr('Edit company')),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(appTr('Delete company')),
+                    ),
+                  ];
+                },
               ),
             ],
           ),
@@ -448,7 +496,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
           ),
           const SizedBox(width: 6),
           IconButton(
-            tooltip: 'Delete campaign',
+            tooltip: appTr('Delete campaign'),
             onPressed: _loading ? null : () => _delete('campaign', record),
             icon: const Icon(Icons.delete_outline),
           ),
@@ -509,10 +557,13 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
               '$url',
               height: 200,
               fit: BoxFit.cover,
-              errorBuilder: (_, error, stack) => const SizedBox(
-                height: 120,
-                child: Icon(Icons.image_outlined, size: 36),
-              ),
+              errorBuilder: (localizationContext, error, stack) {
+                AppLocalizations.watch(localizationContext);
+                return const SizedBox(
+                  height: 120,
+                  child: Icon(Icons.image_outlined, size: 36),
+                );
+              },
             ),
           Padding(
             padding: const EdgeInsets.all(16),
@@ -558,7 +609,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    workspaceTitle(tool),
+                    appTr(workspaceTitle(tool)),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -578,11 +629,13 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_workspace == null) {
       return Center(
         child: _error == null
             ? const CircularProgressIndicator()
-            : RetryPanel(message: _error!, retry: _load),
+            : RetryPanel(message: appTr(_error!), retry: _load),
       );
     }
     final kind = '${_workspace!['kind']}';
@@ -623,7 +676,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
               padding: const EdgeInsets.all(20),
               children: [
                 Text(
-                  workspaceTitle(widget.module),
+                  appTr(workspaceTitle(widget.module)),
                   style: Theme.of(context).textTheme.headlineSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
@@ -641,10 +694,10 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         children: [
-                          Text(_error!),
+                          Text(appTr(_error!)),
                           TextButton(
                             onPressed: _loading ? null : _load,
-                            child: const Text('Retry'),
+                            child: Text(appTr('Retry')),
                           ),
                         ],
                       ),
@@ -658,7 +711,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                       isExpanded: true,
                       key: ValueKey(_currency),
                       initialValue: _currency,
-                      decoration: const InputDecoration(labelText: 'Currency'),
+                      decoration: InputDecoration(labelText: appTr('Currency')),
                       items: [
                         for (final currency
                             in _workspace!['currencies'] as List)
@@ -687,7 +740,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                         'overdue': 'Overdue',
                       }.entries)
                         ChoiceChip(
-                          label: Text(status.value),
+                          label: Text(appTr(status.value)),
                           selected: _status == status.key,
                           onSelected: (_) {
                             setState(() => _status = status.key);
@@ -704,7 +757,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                   TextField(
                     controller: _search,
                     decoration: InputDecoration(
-                      hintText: 'Search $kind',
+                      hintText: appTr("Search :kind", {"kind": kind}),
                       prefixIcon: const Icon(Icons.search),
                     ),
                     onChanged: (_) {
@@ -726,7 +779,9 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                           ),
                     icon: const Icon(Icons.add),
                     label: Text(
-                      kind == 'companies' ? 'New company' : 'New campaign',
+                      appTr(
+                        kind == 'companies' ? 'New company' : 'New campaign',
+                      ),
                     ),
                   ),
                 if (kind == 'photoshoot') ...[
@@ -756,17 +811,19 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                         setState(() => _day = null);
                         _load();
                       },
-                      child: const Text('Show all dates'),
+                      child: Text(appTr('Show all dates')),
                     ),
                   _section(_day == null ? 'Publishing agenda' : _date(_day)),
                 ],
                 if (isBlog && _workspace!['show_agents'] == true) ...[
                   _section('Your agents'),
                   if ((_workspace!['agents'] as List? ?? []).isEmpty)
-                    const WorkspaceEmptyState(
+                    WorkspaceEmptyState(
                       icon: Icons.auto_awesome_outlined,
-                      title: 'Your publishing workspace',
-                      message: 'Your agents and their publishing schedules will appear here.',
+                      title: appTr('Your publishing workspace'),
+                      message: appTr(
+                        'Your agents and their publishing schedules will appear here.',
+                      ),
                     ),
                   for (final agent
                       in (_workspace!['agents'] as List? ?? [])
@@ -814,27 +871,31 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                       'photoshoot' => Icons.camera_alt_outlined,
                       _ => Icons.event_note_outlined,
                     },
-                    title: _search.text.isNotEmpty
-                        ? 'No matching results'
-                        : switch (kind) {
-                            'invoices' => 'No invoices yet',
-                            'companies' => 'No companies yet',
-                            'campaigns' => 'No campaigns yet',
-                            'photoshoot' => 'No photoshoots yet',
-                            _ => 'A clear calendar, a fresh start',
-                          },
-                    message: _search.text.isNotEmpty
-                        ? 'Try another search or clear your filters.'
-                        : switch (kind) {
-                            'invoices' => 'Your invoices will appear here, with their totals, due dates and payment status.',
-                            'companies' => 'Add your first company to start building your network.',
-                            'campaigns' => 'Create a campaign to bring your audience and message together.',
-                            'photoshoot' =>
-                              'Create a photoshoot to see your images here.',
-                            _ => 'Your planned articles will appear in the agenda. Select a day to explore your publishing schedule.',
-                          },
+                    title: appTr(
+                      _search.text.isNotEmpty
+                          ? 'No matching results'
+                          : switch (kind) {
+                              'invoices' => 'No invoices yet',
+                              'companies' => 'No companies yet',
+                              'campaigns' => 'No campaigns yet',
+                              'photoshoot' => 'No photoshoots yet',
+                              _ => 'A clear calendar, a fresh start',
+                            },
+                    ),
+                    message: appTr(
+                      _search.text.isNotEmpty
+                          ? 'Try another search or clear your filters.'
+                          : switch (kind) {
+                              'invoices' => 'Your invoices will appear here, with their totals, due dates and payment status.',
+                              'companies' => 'Add your first company to start building your network.',
+                              'campaigns' => 'Create a campaign to bring your audience and message together.',
+                              'photoshoot' =>
+                                'Create a photoshoot to see your images here.',
+                              _ => 'Your planned articles will appear in the agenda. Select a day to explore your publishing schedule.',
+                            },
+                    ),
                     actionLabel: kind == 'photoshoot'
-                        ? 'Create photoshoot'
+                        ? appTr('Create photoshoot')
                         : null,
                     onAction:
                         kind == 'photoshoot' &&
@@ -872,7 +933,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                     padding: const EdgeInsets.only(top: 16),
                     child: OutlinedButton(
                       onPressed: _loading ? null : () => _load(more: true),
-                      child: const Text('Load more'),
+                      child: Text(appTr('Load more')),
                     ),
                   ),
               ],
@@ -954,78 +1015,89 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    resizeToAvoidBottomInset: true,
-    appBar: AppBar(
-      title: Text('${widget.record == null ? 'New' : 'Edit'} ${widget.kind}'),
-    ),
-    body: SafeArea(
-      child: Form(
-        key: _form,
-        child: ListView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.all(20),
-          children: [
-            for (final entry in _fields.entries)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: TextFormField(
-                  controller: _controllers[entry.key],
-                  enabled: !_saving,
-                  minLines:
-                      entry.key == 'target_audience' || entry.key == 'notes'
-                      ? 3
-                      : 1,
-                  maxLines:
-                      entry.key == 'target_audience' || entry.key == 'notes'
-                      ? 5
-                      : 1,
-                  keyboardType: entry.key == 'email'
-                      ? TextInputType.emailAddress
-                      : entry.key == 'phone'
-                      ? TextInputType.phone
-                      : entry.key == 'website'
-                      ? TextInputType.url
-                      : TextInputType.text,
-                  decoration: InputDecoration(labelText: entry.value),
-                  onChanged: (_) => _requestId = SocialPostService.requestId(),
-                  validator: (value) {
-                    final text = value?.trim() ?? '';
-                    if (const ['name', 'target_audience'].contains(entry.key) &&
-                        text.isEmpty) {
-                      return 'Enter ${entry.value.toLowerCase()}.';
-                    }
-                    if (entry.key == 'email' &&
-                        text.isNotEmpty &&
-                        !text.contains('@')) {
-                      return 'Enter a valid email.';
-                    }
-                    return null;
-                  },
-                ),
-              ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ),
-            FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.check),
-              label: Text(_saving ? 'Saving…' : 'Save ${widget.kind}'),
-            ),
-          ],
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        title: Text(
+          '${appTr(widget.record == null ? 'New' : 'Edit')} ${appTr(widget.kind)}',
         ),
       ),
-    ),
-  );
+      body: SafeArea(
+        child: Form(
+          key: _form,
+          child: ListView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.all(20),
+            children: [
+              for (final entry in _fields.entries)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 18),
+                  child: TextFormField(
+                    controller: _controllers[entry.key],
+                    enabled: !_saving,
+                    minLines:
+                        entry.key == 'target_audience' || entry.key == 'notes'
+                        ? 3
+                        : 1,
+                    maxLines:
+                        entry.key == 'target_audience' || entry.key == 'notes'
+                        ? 5
+                        : 1,
+                    keyboardType: entry.key == 'email'
+                        ? TextInputType.emailAddress
+                        : entry.key == 'phone'
+                        ? TextInputType.phone
+                        : entry.key == 'website'
+                        ? TextInputType.url
+                        : TextInputType.text,
+                    decoration: InputDecoration(labelText: entry.value),
+                    onChanged: (_) =>
+                        _requestId = SocialPostService.requestId(),
+                    validator: (value) {
+                      final text = value?.trim() ?? '';
+                      if ([
+                            appTr('name'),
+                            appTr('target_audience'),
+                          ].contains(entry.key) &&
+                          text.isEmpty) {
+                        return 'Enter ${entry.value.toLowerCase()}.';
+                      }
+                      if (entry.key == appTr('email') &&
+                          text.isNotEmpty &&
+                          !text.contains('@')) {
+                        return appTr('Enter a valid email.');
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    appTr(_error!),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+              FilledButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check),
+                label: Text(appTr(_saving ? 'Saving…' : 'Save ${widget.kind}')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

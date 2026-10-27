@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
@@ -18,6 +20,8 @@ class ChatResponse extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final references = text.split('\n\nSources:\n');
     final sources = RegExp(r'\[([^\]]+)\]\((https?://[^\s)]+)\)')
         .allMatches(references.length > 1 ? references.last : '')
@@ -66,7 +70,7 @@ class ChatResponse extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-          imageBuilder: (_, title, alt) => Text(alt ?? title ?? 'Image'),
+          imageBuilder: (_, title, alt) => Text(appTr(alt ?? title ?? 'Image')),
           onTapLink: (_, href, _) async {
             final url = Uri.tryParse(href ?? '');
             if (url == null ||
@@ -81,7 +85,7 @@ class ChatResponse extends StatelessWidget {
             } catch (_) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Unable to open this link.')),
+                  SnackBar(content: Text(appTr('Unable to open this link.'))),
                 );
               }
             }
@@ -92,14 +96,14 @@ class ChatResponse extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               IconButton(
-                tooltip: 'Copy response',
+                tooltip: appTr('Copy response'),
                 onPressed: isStreaming
                     ? null
                     : () => copyDocumentText(context, text),
                 icon: const Icon(Icons.copy_outlined),
               ),
               IconButton(
-                tooltip: 'Share response',
+                tooltip: appTr('Share response'),
                 onPressed: isStreaming
                     ? null
                     : () => shareDocumentText(context, text),
@@ -109,7 +113,7 @@ class ChatResponse extends StatelessWidget {
           ),
         if (sources.isNotEmpty) ...[
           const SizedBox(height: 12),
-          const Text('Sources'),
+          Text(appTr('Sources')),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -129,8 +133,8 @@ class ChatResponse extends StatelessWidget {
                     } catch (_) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Unable to open this source.'),
+                          SnackBar(
+                            content: Text(appTr('Unable to open this source.')),
                           ),
                         );
                       }

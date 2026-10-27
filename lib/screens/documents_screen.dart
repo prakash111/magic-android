@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../services/document_service.dart';
@@ -143,44 +145,50 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       useSafeArea: true,
       constraints: const BoxConstraints(maxWidth: 760),
       backgroundColor: AppColors.of(context).surface,
-      builder: (_) => _DocumentDetail(
-        api: widget.api,
-        initial: document,
-        onUpdated: widget.onDocumentUpdated,
-        onDeleted: widget.onDocumentDeleted,
-      ),
+      builder: (localizationContext) {
+        AppLocalizations.watch(localizationContext);
+        return _DocumentDetail(
+          api: widget.api,
+          initial: document,
+          onUpdated: widget.onDocumentUpdated,
+          onDeleted: widget.onDocumentDeleted,
+        );
+      },
     );
     if (mounted) await load();
   }
 
   Widget _menu(MobileDocument document) => PopupMenuButton<String>(
-    tooltip: 'Options for ${document.title}',
+    tooltip: appTr("Options for :value", {"value": document.title}),
     enabled: !mutating,
     onSelected: (value) => action(document, value),
-    itemBuilder: (_) => [
-      const PopupMenuItem(
-        value: 'share',
-        child: ListTile(
-          leading: Icon(Icons.share_outlined),
-          title: Text('Share'),
-        ),
-      ),
-      if (document.editable)
-        const PopupMenuItem(
-          value: 'edit',
+    itemBuilder: (localizationContext) {
+      AppLocalizations.watch(localizationContext);
+      return [
+        PopupMenuItem(
+          value: 'share',
           child: ListTile(
-            leading: Icon(Icons.edit_outlined),
-            title: Text('Edit'),
+            leading: Icon(Icons.share_outlined),
+            title: Text(appTr('Share')),
           ),
         ),
-      const PopupMenuItem(
-        value: 'delete',
-        child: ListTile(
-          leading: Icon(Icons.delete_outline),
-          title: Text('Delete'),
+        if (document.editable)
+          PopupMenuItem(
+            value: 'edit',
+            child: ListTile(
+              leading: Icon(Icons.edit_outlined),
+              title: Text(appTr('Edit')),
+            ),
+          ),
+        PopupMenuItem(
+          value: 'delete',
+          child: ListTile(
+            leading: Icon(Icons.delete_outline),
+            title: Text(appTr('Delete')),
+          ),
         ),
-      ),
-    ],
+      ];
+    },
   );
 
   Widget _historyCard(MobileDocument document) {
@@ -240,6 +248,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AppColors.of(context);
     return RefreshIndicator(
       onRefresh: load,
@@ -252,14 +262,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             children: [
               Expanded(
                 child: Text(
-                  widget.templateId == null
-                      ? 'My documents'
-                      : 'Generation history',
+                  appTr(
+                    widget.templateId == null
+                        ? 'My documents'
+                        : 'Generation history',
+                  ),
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ),
               IconButton(
-                tooltip: 'Refresh documents',
+                tooltip: appTr('Refresh documents'),
                 onPressed: loading || mutating ? null : load,
                 icon: const Icon(Icons.refresh),
               ),
@@ -280,12 +292,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   children: [
                     const Icon(Icons.cloud_off_outlined, size: 36),
                     const SizedBox(height: 12),
-                    Text(error!, textAlign: TextAlign.center),
+                    Text(appTr(error!), textAlign: TextAlign.center),
                     const SizedBox(height: 12),
                     FilledButton(
                       onPressed: () =>
                           load(more: documents.isNotEmpty && page < lastPage),
-                      child: const Text('Retry'),
+                      child: Text(appTr('Retry')),
                     ),
                   ],
                 ),
@@ -304,9 +316,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      widget.templateId == null
-                          ? 'No saved documents yet'
-                          : 'No generation history yet',
+                      appTr(
+                        widget.templateId == null
+                            ? 'No saved documents yet'
+                            : 'No generation history yet',
+                      ),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
@@ -320,7 +334,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     OutlinedButton.icon(
                       onPressed: load,
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Refresh'),
+                      label: Text(appTr('Refresh')),
                     ),
                   ],
                 ),
@@ -379,7 +393,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               child: OutlinedButton.icon(
                 onPressed: loadingMore ? null : () => load(more: true),
                 icon: const Icon(Icons.expand_more),
-                label: Text(loadingMore ? 'Loading…' : 'Load more'),
+                label: Text(appTr(loadingMore ? 'Loading…' : 'Load more')),
               ),
             ),
         ],
@@ -478,133 +492,144 @@ class _DocumentDetailState extends State<_DocumentDetail> {
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !busy,
-    child: SafeArea(
-      child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * .9,
-        child: ScaffoldMessenger(
-          child: Builder(
-            builder: (context) => Scaffold(
-              backgroundColor: AppColors.of(context).surface,
-              body: ListView(
-                primary: false,
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Row(
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return PopScope(
+      canPop: !busy,
+      child: SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * .9,
+          child: ScaffoldMessenger(
+            child: Builder(
+              builder: (context) {
+                AppLocalizations.watch(context);
+                return Scaffold(
+                  backgroundColor: AppColors.of(context).surface,
+                  body: ListView(
+                    primary: false,
+                    padding: const EdgeInsets.all(20),
                     children: [
-                      Expanded(
-                        child: Text(
-                          document.title,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Close document',
-                        onPressed: busy
-                            ? null
-                            : () => Navigator.pop(context, changed),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    documentTimestamp(document.createdAt),
-                    style: TextStyle(color: AppColors.of(context).muted),
-                  ),
-                  const SizedBox(height: 16),
-                  if (loading || busy) const LinearProgressIndicator(),
-                  if (error != null) ...[
-                    Text(
-                      error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: busy ? null : load,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                  if (!loading) ...[
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: busy
-                              ? null
-                              : () => shareDocumentText(
-                                  context,
-                                  document.content,
-                                ),
-                          icon: const Icon(Icons.share_outlined),
-                          label: const Text('Share'),
-                        ),
-                        if (document.editable)
-                          FilledButton.icon(
-                            onPressed: busy ? null : edit,
-                            icon: const Icon(Icons.edit_outlined),
-                            label: const Text('Edit'),
-                          ),
-                        OutlinedButton.icon(
-                          onPressed: busy
-                              ? null
-                              : () =>
-                                    copyDocumentText(context, document.content),
-                          icon: const Icon(Icons.copy_outlined),
-                          label: const Text('Copy'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: busy ? null : delete,
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('Delete'),
-                        ),
-                      ],
-                    ),
-                    if (document.editable) ...[
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                      Row(
                         children: [
-                          OutlinedButton.icon(
-                            onPressed: busy
-                                ? null
-                                : () => edit(aiAction: 'correct'),
-                            icon: const Icon(Icons.spellcheck),
-                            label: const Text('AI Correct'),
+                          Expanded(
+                            child: Text(
+                              document.title,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
                           ),
-                          OutlinedButton.icon(
+                          IconButton(
+                            tooltip: appTr('Close document'),
                             onPressed: busy
                                 ? null
-                                : () => edit(aiAction: 'refine'),
-                            icon: const Icon(Icons.auto_fix_high),
-                            label: const Text('Make changes / Refine'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: busy
-                                ? null
-                                : () => edit(aiAction: 'extend'),
-                            icon: const Icon(Icons.playlist_add),
-                            label: const Text('Addition / Extend'),
+                                : () => Navigator.pop(context, changed),
+                            icon: const Icon(Icons.close),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        documentTimestamp(document.createdAt),
+                        style: TextStyle(color: AppColors.of(context).muted),
+                      ),
+                      const SizedBox(height: 16),
+                      if (loading || busy) const LinearProgressIndicator(),
+                      if (error != null) ...[
+                        Text(
+                          appTr(error!),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: busy ? null : load,
+                          child: Text(appTr('Retry')),
+                        ),
+                      ],
+                      if (!loading) ...[
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: busy
+                                  ? null
+                                  : () => shareDocumentText(
+                                      context,
+                                      document.content,
+                                    ),
+                              icon: const Icon(Icons.share_outlined),
+                              label: Text(appTr('Share')),
+                            ),
+                            if (document.editable)
+                              FilledButton.icon(
+                                onPressed: busy ? null : edit,
+                                icon: const Icon(Icons.edit_outlined),
+                                label: Text(appTr('Edit')),
+                              ),
+                            OutlinedButton.icon(
+                              onPressed: busy
+                                  ? null
+                                  : () => copyDocumentText(
+                                      context,
+                                      document.content,
+                                    ),
+                              icon: const Icon(Icons.copy_outlined),
+                              label: Text(appTr('Copy')),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: busy ? null : delete,
+                              icon: const Icon(Icons.delete_outline),
+                              label: Text(appTr('Delete')),
+                            ),
+                          ],
+                        ),
+                        if (document.editable) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: busy
+                                    ? null
+                                    : () => edit(aiAction: 'correct'),
+                                icon: const Icon(Icons.spellcheck),
+                                label: Text(appTr('AI Correct')),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: busy
+                                    ? null
+                                    : () => edit(aiAction: 'refine'),
+                                icon: const Icon(Icons.auto_fix_high),
+                                label: Text(appTr('Make changes / Refine')),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: busy
+                                    ? null
+                                    : () => edit(aiAction: 'extend'),
+                                icon: const Icon(Icons.playlist_add),
+                                label: Text(appTr('Addition / Extend')),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        if (document.content.isEmpty)
+                          Text(appTr('This document has no text content yet.'))
+                        else
+                          ChatResponse(
+                            text: document.content,
+                            showActions: false,
+                          ),
+                      ],
                     ],
-                    const SizedBox(height: 20),
-                    if (document.content.isEmpty)
-                      const Text('This document has no text content yet.')
-                    else
-                      ChatResponse(text: document.content, showActions: false),
-                  ],
-                ],
-              ),
+                  ),
+                );
+              },
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

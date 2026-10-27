@@ -1,3 +1,5 @@
+import '../../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -62,20 +64,22 @@ ${_metaResult!.schemaJson}
 
     Clipboard.setData(ClipboardData(text: html));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Full HTML Meta & Schema copied to clipboard!'),
+      SnackBar(
+        content: Text(appTr('Full HTML Meta & Schema copied to clipboard!')),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SEO Meta & Schema Generator'),
+        title: Text(appTr('SEO Meta & Schema Generator')),
         actions: [
           IconButton(
-            tooltip: 'Copy HTML Header',
+            tooltip: appTr('Copy HTML Header'),
             icon: const Icon(Icons.code),
             onPressed: _copyCompleteHtml,
           ),
@@ -94,18 +98,18 @@ ${_metaResult!.schemaJson}
                   children: [
                     TextField(
                       controller: _topicController,
-                      decoration: const InputDecoration(
-                        labelText: 'Focus Topic / Page Subject',
-                        hintText: 'e.g. AI SEO Automation',
+                      decoration: InputDecoration(
+                        labelText: appTr('Focus Topic / Page Subject'),
+                        hintText: appTr('e.g. AI SEO Automation'),
                         prefixIcon: Icon(Icons.topic, color: AppTheme.primary),
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _brandController,
-                      decoration: const InputDecoration(
-                        labelText: 'Brand / Website Name',
-                        hintText: 'e.g. MagicAI',
+                      decoration: InputDecoration(
+                        labelText: appTr('Brand / Website Name'),
+                        hintText: appTr('e.g. MagicAI'),
                         prefixIcon: Icon(
                           Icons.business,
                           color: AppTheme.accent,
@@ -127,7 +131,7 @@ ${_metaResult!.schemaJson}
                                 ),
                               )
                             : const Icon(Icons.auto_fix_high),
-                        label: const Text('Generate Meta & Schema'),
+                        label: Text(appTr('Generate Meta & Schema')),
                       ),
                     ),
                   ],
@@ -139,8 +143,8 @@ ${_metaResult!.schemaJson}
 
             if (_metaResult != null) ...[
               // Google SERP Live Preview Card
-              const Text(
-                'Google Search Live Preview',
+              Text(
+                appTr('Google Search Live Preview'),
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -191,7 +195,7 @@ ${_metaResult!.schemaJson}
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _metaResult!.description,
+                        appTr(_metaResult!.description),
                         style: const TextStyle(
                           fontSize: 13,
                           height: 1.4,
@@ -207,7 +211,7 @@ ${_metaResult!.schemaJson}
 
               // Title Detail Card
               _buildFieldCard(
-                title: 'Meta Title',
+                title: appTr('Meta Title'),
                 content: _metaResult!.title,
                 countText: '${_metaResult!.title.length} / 60 chars',
                 isOptimal:
@@ -219,7 +223,7 @@ ${_metaResult!.schemaJson}
 
               // Description Detail Card
               _buildFieldCard(
-                title: 'Meta Description',
+                title: appTr('Meta Description'),
                 content: _metaResult!.description,
                 countText: '${_metaResult!.description.length} / 160 chars',
                 isOptimal:
@@ -231,7 +235,7 @@ ${_metaResult!.schemaJson}
 
               // Keywords Card
               _buildFieldCard(
-                title: 'Focus Keywords',
+                title: appTr('Focus Keywords'),
                 content: _metaResult!.keywords,
                 countText: 'Comma-separated',
                 isOptimal: true,
@@ -249,8 +253,8 @@ ${_metaResult!.schemaJson}
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'JSON-LD Structured Data',
+                          Text(
+                            appTr('JSON-LD Structured Data'),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -263,8 +267,8 @@ ${_metaResult!.schemaJson}
                                 ClipboardData(text: _metaResult!.schemaJson),
                               );
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Schema JSON copied!'),
+                                SnackBar(
+                                  content: Text(appTr('Schema JSON copied!')),
                                 ),
                               );
                             },
@@ -314,7 +318,7 @@ ${_metaResult!.schemaJson}
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  title,
+                  appTr(title),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -333,7 +337,7 @@ ${_metaResult!.schemaJson}
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        countText,
+                        appTr(countText),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -349,7 +353,11 @@ ${_metaResult!.schemaJson}
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: content));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Copied $title!')),
+                          SnackBar(
+                            content: Text(
+                              appTr("Copied :title!", {"title": title}),
+                            ),
+                          ),
                         );
                       },
                     ),

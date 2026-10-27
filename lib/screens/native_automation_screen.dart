@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../services/mobile_api.dart';
@@ -46,11 +48,14 @@ class _NativeAutomationScreenState extends State<NativeAutomationScreen> {
   Future<void> _edit([Map? item]) async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => _AutomationEditor(
-          api: widget.api,
-          accounts: _accounts,
-          automation: item,
-        ),
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return _AutomationEditor(
+            api: widget.api,
+            accounts: _accounts,
+            automation: item,
+          );
+        },
       ),
     );
     if (saved == true) await _load();
@@ -60,32 +65,39 @@ class _NativeAutomationScreenState extends State<NativeAutomationScreen> {
     final enabling = item['status'] != 'live';
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          delete
-              ? 'Delete automation?'
-              : enabling
-              ? 'Activate automation?'
-              : 'Pause automation?',
-        ),
-        content: Text(
-          delete
-              ? 'This workflow will be removed.'
-              : enabling
-              ? 'Matching social comments can trigger messages and public replies using this workflow.'
-              : 'New comments will no longer trigger this workflow.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          title: Text(
+            appTr(
+              delete
+                  ? 'Delete automation?'
+                  : enabling
+                  ? 'Activate automation?'
+                  : 'Pause automation?',
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm'),
+          content: Text(
+            appTr(
+              delete
+                  ? 'This workflow will be removed.'
+                  : enabling
+                  ? 'Matching social comments can trigger messages and public replies using this workflow.'
+                  : 'New comments will no longer trigger this workflow.',
+            ),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(appTr('Confirm')),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true) return;
     setState(() => _busy = true);
@@ -104,10 +116,12 @@ class _NativeAutomationScreenState extends State<NativeAutomationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_items == null) {
       return _error == null
           ? const Center(child: CircularProgressIndicator())
-          : RetryPanel(message: _error!, retry: _load);
+          : RetryPanel(message: appTr(_error!), retry: _load);
     }
     return RefreshIndicator(
       onRefresh: _load,
@@ -115,12 +129,14 @@ class _NativeAutomationScreenState extends State<NativeAutomationScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            'Conversations that keep moving.',
+            appTr('Conversations that keep moving.'),
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Create comment triggers, direct messages and public replies. New workflows start as drafts.',
+          Text(
+            appTr(
+              'Create comment triggers, direct messages and public replies. New workflows start as drafts.',
+            ),
           ),
           const SizedBox(height: 16),
           Row(
@@ -129,7 +145,7 @@ class _NativeAutomationScreenState extends State<NativeAutomationScreen> {
                 child: FilledButton.icon(
                   onPressed: _busy || _accounts.isEmpty ? null : () => _edit(),
                   icon: const Icon(Icons.add),
-                  label: const Text('Create automation'),
+                  label: Text(appTr('Create automation')),
                 ),
               ),
               IconButton(
@@ -137,24 +153,29 @@ class _NativeAutomationScreenState extends State<NativeAutomationScreen> {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const SocialAccountsScreen(),
+                      builder: (localizationContext) {
+                        AppLocalizations.watch(localizationContext);
+                        return const SocialAccountsScreen();
+                      },
                     ),
                   );
                   await _load();
                 },
                 icon: const Icon(Icons.hub_outlined),
-                tooltip: 'Connect accounts',
+                tooltip: appTr('Connect accounts'),
               ),
             ],
           ),
           if (_accounts.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Text(
-                'Connect a supported social account to create an automation.',
+                appTr(
+                  'Connect a supported social account to create an automation.',
+                ),
               ),
             ),
-          if (_error != null) Text(_error!),
+          if (_error != null) Text(appTr(_error!)),
           if (_busy) const LinearProgressIndicator(),
           for (final item in _items!)
             Card(
@@ -173,7 +194,7 @@ class _NativeAutomationScreenState extends State<NativeAutomationScreen> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
-                        Chip(label: Text('${item['status']}')),
+                        Chip(label: Text(appTr('${item['status']}'))),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -195,12 +216,14 @@ class _NativeAutomationScreenState extends State<NativeAutomationScreen> {
                       children: [
                         TextButton(
                           onPressed: _busy ? null : () => _edit(item),
-                          child: const Text('Edit'),
+                          child: Text(appTr('Edit')),
                         ),
                         TextButton(
                           onPressed: _busy ? null : () => _action(item),
                           child: Text(
-                            item['status'] == 'live' ? 'Pause' : 'Activate',
+                            appTr(
+                              item['status'] == 'live' ? 'Pause' : 'Activate',
+                            ),
                           ),
                         ),
                         IconButton(
@@ -216,14 +239,14 @@ class _NativeAutomationScreenState extends State<NativeAutomationScreen> {
               ),
             ),
           if (_items!.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(28),
-              child: Text('Your automations will appear here.'),
+              child: Text(appTr('Your automations will appear here.')),
             ),
           if (_page < _lastPage)
             TextButton(
               onPressed: () => _load(more: true),
-              child: const Text('Load more'),
+              child: Text(appTr('Load more')),
             ),
         ],
       ),
@@ -379,253 +402,274 @@ class _AutomationEditorState extends State<_AutomationEditor> {
       initialValue: '${action['content'][field] ?? ''}',
       maxLines: number ? 1 : 3,
       keyboardType: number ? TextInputType.number : TextInputType.text,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: appTr(label)),
       validator: (value) => value == null || value.trim().isEmpty
-          ? 'Required'
+          ? appTr('Required')
           : number &&
                 (int.tryParse(value) == null ||
                     int.parse(value) < 0 ||
                     int.parse(value) > 300)
-          ? 'Use 0–300 seconds'
+          ? appTr('Use 0–300 seconds')
           : null,
       onSaved: (value) =>
           action['content'][field] = number ? int.parse(value!) : value!.trim(),
     ),
   );
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(
-        widget.automation == null ? 'New automation' : 'Edit automation',
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          appTr(
+            widget.automation == null ? 'New automation' : 'Edit automation',
+          ),
+        ),
       ),
-    ),
-    body: Form(
-      key: _form,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          TextFormField(
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Workflow name'),
-            validator: (value) =>
-                value?.trim().isEmpty ?? true ? 'Required' : null,
-          ),
-          const SizedBox(height: 14),
-          DropdownButtonFormField<String>(
-            initialValue: _account,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Connected account'),
-            items: widget.accounts
-                .map(
-                  (account) => DropdownMenuItem(
-                    value: '${account['id']}',
-                    child: Text(
-                      '${account['platform']} · ${account['name']}',
-                      overflow: TextOverflow.ellipsis,
+      body: Form(
+        key: _form,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            TextFormField(
+              controller: _name,
+              decoration: InputDecoration(labelText: appTr('Workflow name')),
+              validator: (value) =>
+                  value?.trim().isEmpty ?? true ? appTr('Required') : null,
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _account,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: appTr('Connected account'),
+              ),
+              items: widget.accounts
+                  .map(
+                    (account) => DropdownMenuItem(
+                      value: '${account['id']}',
+                      child: Text(
+                        '${account['platform']} · ${account['name']}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                )
-                .toList(),
-            onChanged: _saving
-                ? null
-                : (value) => setState(() => _account = value),
-            validator: (value) =>
-                value == null ? 'Connect and select an account' : null,
-          ),
-          const SizedBox(height: 14),
-          if (_account != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Text(
-                '${widget.accounts.firstWhere((a) => '${a['id']}' == _account)['permissions']?['notes'] ?? ''}',
+                  )
+                  .toList(),
+              onChanged: _saving
+                  ? null
+                  : (value) => setState(() => _account = value),
+              validator: (value) =>
+                  value == null ? appTr('Connect and select an account') : null,
+            ),
+            const SizedBox(height: 14),
+            if (_account != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Text(
+                  '${widget.accounts.firstWhere((a) => '${a['id']}' == _account)['permissions']?['notes'] ?? ''}',
+                ),
+              ),
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              initialValue: _target,
+              decoration: InputDecoration(labelText: appTr('Trigger')),
+              items: [
+                DropdownMenuItem(
+                  value: 'all_posts',
+                  child: Text(appTr('Comments on all posts')),
+                ),
+                DropdownMenuItem(
+                  value: 'specific_post',
+                  child: Text(appTr('Comments on a specific post')),
+                ),
+              ],
+              onChanged: (value) => setState(() => _target = value!),
+            ),
+            const SizedBox(height: 14),
+            if (_target == 'specific_post')
+              TextFormField(
+                controller: _post,
+                decoration: InputDecoration(
+                  labelText: appTr('Platform post ID'),
+                ),
+                validator: (value) => value?.trim().isEmpty ?? true
+                    ? appTr('Enter the platform post ID')
+                    : null,
+              ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              initialValue: _keywordMode,
+              decoration: InputDecoration(labelText: appTr('Comment matching')),
+              items: [
+                DropdownMenuItem(
+                  value: 'any',
+                  child: Text(appTr('Any comment')),
+                ),
+                DropdownMenuItem(
+                  value: 'specific',
+                  child: Text(appTr('Specific keywords')),
+                ),
+              ],
+              onChanged: (value) => setState(() => _keywordMode = value!),
+            ),
+            const SizedBox(height: 14),
+            if (_keywordMode == 'specific')
+              TextFormField(
+                controller: _keywords,
+                decoration: InputDecoration(
+                  labelText: appTr('Keywords, separated by commas'),
+                ),
+                validator: (value) => value?.trim().isEmpty ?? true
+                    ? appTr('Add a keyword')
+                    : null,
+              ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _excluded,
+              decoration: InputDecoration(
+                labelText: appTr('Exclude keywords (optional)'),
               ),
             ),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            initialValue: _target,
-            decoration: const InputDecoration(labelText: 'Trigger'),
-            items: const [
-              DropdownMenuItem(
-                value: 'all_posts',
-                child: Text('Comments on all posts'),
-              ),
-              DropdownMenuItem(
-                value: 'specific_post',
-                child: Text('Comments on a specific post'),
-              ),
-            ],
-            onChanged: (value) => setState(() => _target = value!),
-          ),
-          const SizedBox(height: 14),
-          if (_target == 'specific_post')
+            const SizedBox(height: 14),
             TextFormField(
-              controller: _post,
-              decoration: const InputDecoration(labelText: 'Platform post ID'),
-              validator: (value) => value?.trim().isEmpty ?? true
-                  ? 'Enter the platform post ID'
+              controller: _delay,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: appTr('Initial delay (seconds)'),
+              ),
+              validator: (value) =>
+                  int.tryParse(value ?? '') == null ||
+                      int.parse(value!) < 0 ||
+                      int.parse(value) > 300
+                  ? appTr('Use 0–300 seconds')
                   : null,
             ),
-          const SizedBox(height: 14),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            initialValue: _keywordMode,
-            decoration: const InputDecoration(labelText: 'Comment matching'),
-            items: const [
-              DropdownMenuItem(value: 'any', child: Text('Any comment')),
-              DropdownMenuItem(
-                value: 'specific',
-                child: Text('Specific keywords'),
-              ),
-            ],
-            onChanged: (value) => setState(() => _keywordMode = value!),
-          ),
-          const SizedBox(height: 14),
-          if (_keywordMode == 'specific')
-            TextFormField(
-              controller: _keywords,
-              decoration: const InputDecoration(
-                labelText: 'Keywords, separated by commas',
-              ),
-              validator: (value) =>
-                  value?.trim().isEmpty ?? true ? 'Add a keyword' : null,
+            const SizedBox(height: 20),
+            Text(
+              appTr('Message sequence'),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: _excluded,
-            decoration: const InputDecoration(
-              labelText: 'Exclude keywords (optional)',
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: _delay,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Initial delay (seconds)',
-            ),
-            validator: (value) =>
-                int.tryParse(value ?? '') == null ||
-                    int.parse(value!) < 0 ||
-                    int.parse(value) > 300
-                ? 'Use 0–300 seconds'
-                : null,
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Message sequence',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          for (var i = 0; i < _actions.length; i++)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text('Step ${i + 1} · ${_actions[i]['type']}'),
-                        ),
-                        if (i > 0)
-                          IconButton(
-                            onPressed: () => setState(() {
-                              final action = _actions.removeAt(i);
-                              _actions.insert(i - 1, action);
-                            }),
-                            icon: const Icon(Icons.arrow_upward),
+            for (var i = 0; i < _actions.length; i++)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              appTr("Step :value · :value2", {
+                                "value": i + 1,
+                                "value2": _actions[i]['type'],
+                              }),
+                            ),
                           ),
-                        IconButton(
-                          onPressed: () => setState(() => _actions.removeAt(i)),
-                          icon: const Icon(Icons.delete_outline),
+                          if (i > 0)
+                            IconButton(
+                              onPressed: () => setState(() {
+                                final action = _actions.removeAt(i);
+                                _actions.insert(i - 1, action);
+                              }),
+                              icon: const Icon(Icons.arrow_upward),
+                            ),
+                          IconButton(
+                            onPressed: () =>
+                                setState(() => _actions.removeAt(i)),
+                            icon: const Icon(Icons.delete_outline),
+                          ),
+                        ],
+                      ),
+                      if (_actions[i]['type'] == 'text')
+                        _actionField(
+                          _actions[i],
+                          'text',
+                          'Message · supports {first_name}',
                         ),
+                      if (_actions[i]['type'] == 'button') ...[
+                        _actionField(_actions[i], 'label', 'Button label'),
+                        _actionField(_actions[i], 'url', 'HTTPS URL'),
                       ],
-                    ),
-                    if (_actions[i]['type'] == 'text')
-                      _actionField(
-                        _actions[i],
-                        'text',
-                        'Message · supports {first_name}',
-                      ),
-                    if (_actions[i]['type'] == 'button') ...[
-                      _actionField(_actions[i], 'label', 'Button label'),
-                      _actionField(_actions[i], 'url', 'HTTPS URL'),
+                      if (_actions[i]['type'] == 'image')
+                        _actionField(_actions[i], 'url', 'Image HTTPS URL'),
+                      if (_actions[i]['type'] == 'delay')
+                        _actionField(
+                          _actions[i],
+                          'seconds',
+                          'Wait seconds',
+                          number: true,
+                        ),
+                      if (_actions[i]['type'] == 'quick_replies')
+                        TextFormField(
+                          key: ValueKey('quick:$i'),
+                          initialValue:
+                              (_actions[i]['content']['items'] as List? ?? [])
+                                  .join(', '),
+                          decoration: InputDecoration(
+                            labelText: appTr(
+                              'Reply choices, separated by commas',
+                            ),
+                          ),
+                          onSaved: (value) => _actions[i]['content']['items'] =
+                              _split(value ?? ''),
+                        ),
                     ],
-                    if (_actions[i]['type'] == 'image')
-                      _actionField(_actions[i], 'url', 'Image HTTPS URL'),
-                    if (_actions[i]['type'] == 'delay')
-                      _actionField(
-                        _actions[i],
-                        'seconds',
-                        'Wait seconds',
-                        number: true,
-                      ),
-                    if (_actions[i]['type'] == 'quick_replies')
-                      TextFormField(
-                        key: ValueKey('quick:$i'),
-                        initialValue:
-                            (_actions[i]['content']['items'] as List? ?? [])
-                                .join(', '),
-                        decoration: const InputDecoration(
-                          labelText: 'Reply choices, separated by commas',
-                        ),
-                        onSaved: (value) => _actions[i]['content']['items'] =
-                            _split(value ?? ''),
-                      ),
-                  ],
+                  ),
                 ),
               ),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final type in [
+                  'text',
+                  'button',
+                  'image',
+                  'delay',
+                  'quick_replies',
+                ])
+                  ActionChip(
+                    label: Text('+ $type'),
+                    onPressed: _actions.length >= 20
+                        ? null
+                        : () => setState(
+                            () => _actions.add({
+                              'type': type,
+                              'content': <String, dynamic>{},
+                            }),
+                          ),
+                  ),
+              ],
             ),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final type in [
-                'text',
-                'button',
-                'image',
-                'delay',
-                'quick_replies',
-              ])
-                ActionChip(
-                  label: Text('+ $type'),
-                  onPressed: _actions.length >= 20
-                      ? null
-                      : () => setState(
-                          () => _actions.add({
-                            'type': type,
-                            'content': <String, dynamic>{},
-                          }),
-                        ),
+            SwitchListTile(
+              title: Text(appTr('Public comment replies')),
+              value: _publicReplies,
+              onChanged: (value) => setState(() => _publicReplies = value),
+            ),
+            if (_publicReplies)
+              TextFormField(
+                controller: _reply,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: appTr('Reply variations · one per line'),
                 ),
-            ],
-          ),
-          SwitchListTile(
-            title: const Text('Public comment replies'),
-            value: _publicReplies,
-            onChanged: (value) => setState(() => _publicReplies = value),
-          ),
-          if (_publicReplies)
-            TextFormField(
-              controller: _reply,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Reply variations · one per line',
+                validator: (value) =>
+                    value?.trim().isEmpty ?? true ? appTr('Add a reply') : null,
               ),
-              validator: (value) =>
-                  value?.trim().isEmpty ?? true ? 'Add a reply' : null,
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Text(appTr(_error!)),
+              ),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: _saving || _actions.isEmpty ? null : _save,
+              child: Text(appTr(_saving ? 'Saving…' : 'Save workflow')),
             ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Text(_error!),
-            ),
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed: _saving || _actions.isEmpty ? null : _save,
-            child: Text(_saving ? 'Saving…' : 'Save workflow'),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

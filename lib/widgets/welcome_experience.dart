@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -14,6 +16,8 @@ class WelcomeBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AppColors.of(context);
     return ColoredBox(
       color: colors.page,
@@ -51,10 +55,13 @@ class WelcomeBrand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AppColors.of(context);
     return AnimatedBuilder(
       animation: animation,
       builder: (context, _) {
+        AppLocalizations.watch(context);
         final progress = Curves.easeOutCubic.transform(animation.value);
         return Opacity(
           opacity: progress,
@@ -116,7 +123,7 @@ class WelcomeBrand extends StatelessWidget {
                     border: Border.all(color: colors.outline),
                   ),
                   child: Text(
-                    'SEO Suite • Generative AI • Social Suite',
+                    appTr('SEO Suite • Generative AI • Social Suite'),
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12, color: colors.muted),
                   ),
@@ -170,7 +177,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => widget.destination()),
+      MaterialPageRoute<void>(
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return widget.destination();
+        },
+      ),
     );
   }
 
@@ -182,6 +194,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AppColors.of(context);
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
     return Scaffold(
@@ -207,7 +221,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     ),
                     TextButton(
                       onPressed: finishing ? null : finish,
-                      child: const Text('Skip'),
+                      child: Text(appTr('Skip')),
                     ),
                   ],
                 ),
@@ -217,53 +231,66 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   controller: controller,
                   itemCount: titles.length,
                   onPageChanged: (value) => setState(() => page = value),
-                  itemBuilder: (context, index) => LayoutBuilder(
-                    builder: (context, constraints) => SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
-                        vertical: 16,
-                      ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: math.max(0, constraints.maxHeight - 32),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _WelcomeArtwork(page: index),
-                            const SizedBox(height: 32),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 420),
-                              child: Text(
-                                titles[index],
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: colors.text,
-                                  fontSize: 30,
-                                  height: 1.15,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -.9,
-                                ),
+                  itemBuilder: (context, index) {
+                    AppLocalizations.watch(context);
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        AppLocalizations.watch(context);
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 28,
+                            vertical: 16,
+                          ),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: math.max(
+                                0,
+                                constraints.maxHeight - 32,
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 380),
-                              child: Text(
-                                descriptions[index],
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: colors.muted,
-                                  height: 1.6,
-                                  fontSize: 15,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _WelcomeArtwork(page: index),
+                                const SizedBox(height: 32),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 420,
+                                  ),
+                                  child: Text(
+                                    appTr(titles[index]),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: colors.text,
+                                      fontSize: 30,
+                                      height: 1.15,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -.9,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 16),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 380,
+                                  ),
+                                  child: Text(
+                                    appTr(descriptions[index]),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: colors.muted,
+                                      height: 1.6,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
               Padding(
@@ -278,8 +305,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         children: List.generate(
                           titles.length,
                           (index) => Semantics(
-                            label:
-                                'Welcome page ${index + 1} of ${titles.length}',
+                            label: appTr("Welcome page :value of :value2", {
+                              "value": index + 1,
+                              "value2": titles.length,
+                            }),
                             selected: page == index,
                             button: true,
                             child: SizedBox(
@@ -338,18 +367,20 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 : Icons.arrow_forward_rounded,
                           ),
                           label: Text(
-                            finishing
-                                ? 'Opening your workspace…'
-                                : page == titles.length - 1
-                                ? 'Get started'
-                                : 'Next',
+                            appTr(
+                              finishing
+                                  ? 'Opening your workspace…'
+                                  : page == titles.length - 1
+                                  ? 'Get started'
+                                  : 'Next',
+                            ),
                           ),
                         ),
                       ),
                       if (page == titles.length - 1)
                         TextButton(
                           onPressed: finishing ? null : finish,
-                          child: const Text('Sign in'),
+                          child: Text(appTr('Sign in')),
                         ),
                     ],
                   ),
@@ -368,6 +399,8 @@ class _WelcomeArtwork extends StatelessWidget {
   const _WelcomeArtwork({required this.page});
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AppColors.of(context);
     final icons = [
       Icons.edit_note_rounded,

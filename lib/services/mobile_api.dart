@@ -91,6 +91,7 @@ class TenantSecureStore extends SecureStore {
 }
 
 class MobileApi {
+  static String? languageCode;
   static final instance = MobileApi();
   static final failure = ValueNotifier<ApiFailure?>(null);
   final http.Client client;
@@ -155,7 +156,18 @@ class MobileApi {
     }
   }
 
-  Future<void> _verify() async {
+  Future<void> _silentBootstrap() async {
+    if (_handshake != null) return _handshake;
+    final pending = _verify(notifyFailure: false);
+    _handshake = pending;
+    try {
+      await pending;
+    } finally {
+      _handshake = null;
+    }
+  }
+
+  Future<void> _verify({bool notifyFailure = true}) async {
     _session = null;
     _sessionExpiry = null;
     try {
@@ -172,7 +184,11 @@ class MobileApi {
             }),
           )
           .timeout(const Duration(seconds: 20));
-      final data = _decode(response, notifyAuth: false);
+      final data = _decode(
+        response,
+        notifyAuth: false,
+        notifyLicense: notifyFailure,
+      );
       if (data is! Map ||
           data['valid'] != true ||
           data['status'] != 'success' ||
@@ -197,10 +213,10 @@ class MobileApi {
         '${error is PlatformException ? ' (${error.code})' : ''}',
       );
       final problem = ApiFailure(
-        error is ApiFailure ? error.message : 'License verification unavailable. Check your connection and retry.',
+        error is ApiFailure ? error.message : 'Unable to connect to the server. Please check your internet connection and try again.',
         code: 'license_invalid',
       );
-      failure.value = problem;
+      if (notifyFailure) failure.value = problem;
       throw problem;
     }
   }
@@ -208,6 +224,7 @@ class MobileApi {
   Future<Map<String, String>> headers({
     bool authenticated = true,
     bool notifyAuthFailure = true,
+    bool notifyLicenseFailure = true,
   }) async {
     if (_session == null ||
         _sessionExpiry == null ||
@@ -215,7 +232,7 @@ class MobileApi {
             .toUtc()
             .add(const Duration(seconds: 10))
             .isAfter(_sessionExpiry!)) {
-      await bootstrap();
+      await (notifyLicenseFailure ? bootstrap() : _silentBootstrap());
     }
     if (authenticated) {
       await _refreshIfNeeded(notifyAuthFailure: notifyAuthFailure);
@@ -227,6 +244,8 @@ class MobileApi {
     return {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
+      if (languageCode != null)
+        'Accept-Language': languageCode!.replaceAll('_', '-'),
       'X-Mobile-Session': _session!,
       'X-Instance-Hash': await instanceHash,
       if (token != null) 'Authorization': 'Bearer $token',
@@ -309,6 +328,7 @@ class MobileApi {
     Map<String, dynamic>? body,
     bool authenticated = true,
     bool notifyAuthFailure = true,
+    bool notifyLicenseFailure = true,
   }) async {
     try {
       final readOnly =
@@ -332,6 +352,7 @@ class MobileApi {
             await headers(
               authenticated: authenticated,
               notifyAuthFailure: notifyAuthFailure,
+              notifyLicenseFailure: notifyLicenseFailure,
             ),
           );
         if (body != null) request.body = jsonEncode(body);
@@ -341,6 +362,7 @@ class MobileApi {
         return _decode(
           response,
           notifyAuth: authenticated && notifyAuthFailure,
+          notifyLicense: notifyLicenseFailure,
         );
       }
 
@@ -398,7 +420,11 @@ class MobileApi {
 
   dynamic decodeResponse(http.Response response) => _decode(response);
 
-  dynamic _decode(http.Response response, {bool notifyAuth = true}) {
+  dynamic _decode(
+    http.Response response, {
+    bool notifyAuth = true,
+    bool notifyLicense = true,
+  }) {
     dynamic data;
     try {
       data = jsonDecode(response.body);
@@ -440,7 +466,7 @@ class MobileApi {
     if (response.statusCode == 401 && notifyAuth) {
       unawaited(clearSession().catchError((Object _) {}));
       failure.value = problem;
-    } else if (problem.code == 'license_invalid') {
+    } else if (problem.code == 'license_invalid' && notifyLicense) {
       failure.value = problem;
     }
     throw problem;

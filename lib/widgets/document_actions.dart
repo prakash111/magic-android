@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -38,7 +40,8 @@ Future<void> shareDocumentText(BuildContext context, String text) async {
 }
 
 void documentNotice(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(appTr(message))));
 }
 
 Future<bool> confirmDocumentDelete(
@@ -48,34 +51,41 @@ Future<bool> confirmDocumentDelete(
     await showDialog<bool>(
       context: context,
       useRootNavigator: true,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.of(context).surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: AppColors.of(context).outline),
-        ),
-        title: Text(
-          clearOutput ? 'Clear generated output?' : 'Delete document?',
-        ),
-        content: Text(
-          clearOutput
-              ? 'This clears the result from this screen. Your saved document remains in My documents.'
-              : 'This permanently deletes the document from your account and this device.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          backgroundColor: AppColors.of(context).surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: AppColors.of(context).outline),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
+          title: Text(
+            appTr(clearOutput ? 'Clear generated output?' : 'Delete document?'),
+          ),
+          content: Text(
+            appTr(
+              clearOutput
+                  ? 'This clears the result from this screen. Your saved document remains in My documents.'
+                  : 'This permanently deletes the document from your account and this device.',
             ),
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(clearOutput ? 'Clear output' : 'Delete document'),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(
+                appTr(clearOutput ? 'Clear output' : 'Delete document'),
+              ),
+            ),
+          ],
+        );
+      },
     ) ??
     false;
 
@@ -103,15 +113,18 @@ Future<DocumentEdit?> editDocumentText(
   useSafeArea: true,
   backgroundColor: AppColors.of(context).surface,
   constraints: const BoxConstraints(maxWidth: 720),
-  builder: (_) => _DocumentEditor(
-    title: title,
-    content: content,
-    draft: draft,
-    api: api,
-    documentId: documentId,
-    initialAiAction: initialAiAction,
-    onSave: onSave,
-  ),
+  builder: (localizationContext) {
+    AppLocalizations.watch(localizationContext);
+    return _DocumentEditor(
+      title: appTr(title),
+      content: content,
+      draft: draft,
+      api: api,
+      documentId: documentId,
+      initialAiAction: initialAiAction,
+      onSave: onSave,
+    );
+  },
 );
 
 class _DocumentEditor extends StatefulWidget {
@@ -230,10 +243,15 @@ class _DocumentEditorState extends State<_DocumentEditor> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Write with AI', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            appTr('Write with AI'),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 6),
-          const Text(
-            'Select text to edit a section, or leave it unselected to edit the whole document. AI generation uses your plan credits.',
+          Text(
+            appTr(
+              'Select text to edit a section, or leave it unselected to edit the whole document. AI generation uses your plan credits.',
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -248,7 +266,7 @@ class _DocumentEditorState extends State<_DocumentEditor> {
                         generate('correct');
                       },
                 icon: const Icon(Icons.spellcheck),
-                label: const Text('AI Correct'),
+                label: Text(appTr('AI Correct')),
               ),
               OutlinedButton.icon(
                 onPressed: busy || proposal != null
@@ -259,7 +277,7 @@ class _DocumentEditorState extends State<_DocumentEditor> {
                         error = null;
                       }),
                 icon: const Icon(Icons.auto_fix_high),
-                label: const Text('Make changes / Refine'),
+                label: Text(appTr('Make changes / Refine')),
               ),
               OutlinedButton.icon(
                 onPressed: busy || proposal != null
@@ -270,7 +288,7 @@ class _DocumentEditorState extends State<_DocumentEditor> {
                         error = null;
                       }),
                 icon: const Icon(Icons.playlist_add),
-                label: const Text('Addition / Extend'),
+                label: Text(appTr('Addition / Extend')),
               ),
             ],
           ),
@@ -284,12 +302,16 @@ class _DocumentEditorState extends State<_DocumentEditor> {
               maxLines: 4,
               maxLength: 2000,
               decoration: InputDecoration(
-                labelText: action == 'refine'
-                    ? 'What would you like to change?'
-                    : 'What should AI add? (optional)',
-                hintText: action == 'refine'
-                    ? 'Make the tone warmer and simplify the wording'
-                    : 'Add a practical example or a concluding paragraph',
+                labelText: appTr(
+                  action == 'refine'
+                      ? 'What would you like to change?'
+                      : 'What should AI add? (optional)',
+                ),
+                hintText: appTr(
+                  action == 'refine'
+                      ? 'Make the tone warmer and simplify the wording'
+                      : 'Add a practical example or a concluding paragraph',
+                ),
                 alignLabelWithHint: true,
               ),
               onChanged: (_) => requestId = null,
@@ -299,31 +321,33 @@ class _DocumentEditorState extends State<_DocumentEditor> {
                   ? null
                   : () => generate(action!),
               icon: const Icon(Icons.auto_awesome),
-              label: const Text('Generate preview'),
+              label: Text(appTr('Generate preview')),
             ),
           ],
           if (generating) ...[
             const SizedBox(height: 12),
             const LinearProgressIndicator(),
             const SizedBox(height: 8),
-            const Text('Preparing your suggestion…'),
+            Text(appTr('Preparing your suggestion…')),
           ],
           if (proposal != null) ...[
             const SizedBox(height: 16),
             Text(
-              'Preview changes',
+              appTr('Preview changes'),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
             Text(
-              proposal!.selectionOnly
-                  ? proposal!.action == 'extend'
-                        ? 'New content will be inserted after your selected passage. Your original is kept until you accept.'
-                        : 'Only the selected passage will change. Your original is kept until you accept.'
-                  : 'Your original text is kept until you accept.',
+              appTr(
+                proposal!.selectionOnly
+                    ? proposal!.action == 'extend'
+                          ? 'New content will be inserted after your selected passage. Your original is kept until you accept.'
+                          : 'Only the selected passage will change. Your original is kept until you accept.'
+                    : 'Your original text is kept until you accept.',
+              ),
             ),
             ExpansionTile(
-              title: const Text('Original text'),
+              title: Text(appTr('Original text')),
               tilePadding: EdgeInsets.zero,
               children: [
                 ConstrainedBox(
@@ -369,7 +393,7 @@ class _DocumentEditorState extends State<_DocumentEditor> {
                           error = null;
                         }),
                   icon: const Icon(Icons.check),
-                  label: const Text('Accept changes'),
+                  label: Text(appTr('Accept changes')),
                 ),
                 OutlinedButton(
                   onPressed: busy
@@ -378,12 +402,12 @@ class _DocumentEditorState extends State<_DocumentEditor> {
                           proposal = null;
                           requestId = null;
                         }),
-                  child: const Text('Discard'),
+                  child: Text(appTr('Discard')),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            const Text('Accepted text is saved when you tap Save changes.'),
+            Text(appTr('Accepted text is saved when you tap Save changes.')),
           ],
         ],
       ),
@@ -401,103 +425,112 @@ class _DocumentEditorState extends State<_DocumentEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !busy,
-    child: Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SizedBox(
-        height:
-            (MediaQuery.sizeOf(context).height -
-                MediaQuery.viewInsetsOf(context).bottom) *
-            .9,
-        child: Form(
-          key: form,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return PopScope(
+      canPop: !busy,
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SizedBox(
+          height:
+              (MediaQuery.sizeOf(context).height -
+                  MediaQuery.viewInsetsOf(context).bottom) *
+              .9,
+          child: Form(
+            key: form,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          appTr('Edit document'),
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: appTr('Close editor'),
+                        onPressed: busy ? null : () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    key: const ValueKey('document-title-input'),
+                    controller: title,
+                    enabled: !busy,
+                    maxLength: 255,
+                    decoration: InputDecoration(
+                      labelText: appTr('Document title'),
+                    ),
+                    validator: (value) =>
+                        value == null ||
+                            value.trim().isEmpty ||
+                            [
+                              appTr('null'),
+                              appTr('undefined'),
+                            ].contains(value.trim().toLowerCase())
+                        ? appTr('Enter a document title.')
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
-                        'Edit document',
-                        style: Theme.of(context).textTheme.titleLarge,
+                        appTr(error!),
+                        key: const ValueKey('document-editor-error'),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Close editor',
-                      onPressed: busy ? null : () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
+                  TextFormField(
+                    key: const ValueKey('document-content-input'),
+                    controller: content,
+                    focusNode: contentFocus,
+                    enabled: !busy && proposal == null,
+                    minLines: 8,
+                    maxLines: 20,
+                    maxLength: 200000,
+                    decoration: InputDecoration(
+                      labelText: appTr('Content'),
+                      alignLabelWithHint: true,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  key: const ValueKey('document-title-input'),
-                  controller: title,
-                  enabled: !busy,
-                  maxLength: 255,
-                  decoration: const InputDecoration(
-                    labelText: 'Document title',
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? appTr('Enter some document content.')
+                        : null,
                   ),
-                  validator: (value) =>
-                      value == null ||
-                          value.trim().isEmpty ||
-                          [
-                            'null',
-                            'undefined',
-                          ].contains(value.trim().toLowerCase())
-                      ? 'Enter a document title.'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                if (error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      error!,
-                      key: const ValueKey('document-editor-error'),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
+                  const SizedBox(height: 20),
+                  if (canAssist) aiControls(),
+                  FilledButton.icon(
+                    onPressed: busy || proposal != null ? null : save,
+                    icon: Icon(
+                      widget.draft ? Icons.check : Icons.save_outlined,
+                    ),
+                    label: Text(
+                      appTr(
+                        saving
+                            ? 'Saving…'
+                            : widget.draft
+                            ? 'Apply changes'
+                            : 'Save changes',
                       ),
                     ),
                   ),
-                TextFormField(
-                  key: const ValueKey('document-content-input'),
-                  controller: content,
-                  focusNode: contentFocus,
-                  enabled: !busy && proposal == null,
-                  minLines: 8,
-                  maxLines: 20,
-                  maxLength: 200000,
-                  decoration: const InputDecoration(
-                    labelText: 'Content',
-                    alignLabelWithHint: true,
-                  ),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Enter some document content.'
-                      : null,
-                ),
-                const SizedBox(height: 20),
-                if (canAssist) aiControls(),
-                FilledButton.icon(
-                  onPressed: busy || proposal != null ? null : save,
-                  icon: Icon(widget.draft ? Icons.check : Icons.save_outlined),
-                  label: Text(
-                    saving
-                        ? 'Saving…'
-                        : widget.draft
-                        ? 'Apply changes'
-                        : 'Save changes',
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

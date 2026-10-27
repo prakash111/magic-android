@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../services/document_service.dart';
@@ -85,6 +87,8 @@ class _GeneratedOutputCardState extends State<GeneratedOutputCard> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AppColors.of(context);
     final busy = widget.generating || saving;
     return Card(
@@ -99,11 +103,11 @@ class _GeneratedOutputCardState extends State<GeneratedOutputCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Generated result',
+              appTr('Generated result'),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            Text(title, style: TextStyle(color: colors.muted)),
+            Text(appTr(title), style: TextStyle(color: colors.muted)),
             const SizedBox(height: 16),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 360),
@@ -125,7 +129,7 @@ class _GeneratedOutputCardState extends State<GeneratedOutputCard> {
                 FilledButton.icon(
                   onPressed: busy || widget.documentId == null ? null : save,
                   icon: Icon(saved ? Icons.check : Icons.save_outlined),
-                  label: Text(saving ? 'Saving…' : 'Save'),
+                  label: Text(appTr(saving ? 'Saving…' : 'Save')),
                 ),
                 OutlinedButton.icon(
                   onPressed: busy
@@ -149,16 +153,16 @@ class _GeneratedOutputCardState extends State<GeneratedOutputCard> {
                           }
                         },
                   icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit'),
+                  label: Text(appTr('Edit')),
                 ),
                 Tooltip(
-                  message: 'Copy response',
+                  message: appTr('Copy response'),
                   child: OutlinedButton.icon(
                     onPressed: busy
                         ? null
                         : () => copyDocumentText(context, content),
                     icon: const Icon(Icons.copy_outlined),
-                    label: const Text('Copy'),
+                    label: Text(appTr('Copy')),
                   ),
                 ),
                 OutlinedButton.icon(
@@ -174,7 +178,7 @@ class _GeneratedOutputCardState extends State<GeneratedOutputCard> {
                           }
                         },
                   icon: const Icon(Icons.delete_outline),
-                  label: const Text('Delete'),
+                  label: Text(appTr('Delete')),
                 ),
               ],
             ),
@@ -183,14 +187,14 @@ class _GeneratedOutputCardState extends State<GeneratedOutputCard> {
               OutlinedButton.icon(
                 onPressed: widget.onViewHistory,
                 icon: const Icon(Icons.history),
-                label: const Text('View in History'),
+                label: Text(appTr('View in History')),
               ),
             ],
             if (error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(
-                  error!,
+                  appTr(error!),
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),

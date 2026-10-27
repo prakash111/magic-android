@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -24,6 +26,8 @@ class ScoreGauge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final clampedScore = score.clamp(0.0, 100.0);
     final color = _getColor(clampedScore);
 
@@ -53,7 +57,7 @@ class ScoreGauge extends StatelessWidget {
                 ),
               ),
               Text(
-                label,
+                appTr(label),
                 style: TextStyle(
                   fontSize: size * 0.09,
                   color: AppTheme.textMuted,

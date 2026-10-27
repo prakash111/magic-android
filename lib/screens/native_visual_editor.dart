@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -17,15 +19,18 @@ Future<void> openVisualEditor(
   String title = 'Editor',
 }) => Navigator.of(context).push<void>(
   MaterialPageRoute(
-    builder: (_) => Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: NativeVisualEditor(
-        api: api,
-        moduleId: moduleId,
-        kind: kind,
-        recordId: recordId,
-      ),
-    ),
+    builder: (localizationContext) {
+      AppLocalizations.watch(localizationContext);
+      return Scaffold(
+        appBar: AppBar(title: Text(appTr(title))),
+        body: NativeVisualEditor(
+          api: api,
+          moduleId: moduleId,
+          kind: kind,
+          recordId: recordId,
+        ),
+      );
+    },
   ),
 );
 
@@ -166,7 +171,7 @@ class _NativeVisualEditorState extends State<NativeVisualEditor> {
         case 'saved':
           setState(() => _dirty = false);
           ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('Project saved')));
+              .showSnackBar(SnackBar(content: Text(appTr('Project saved'))));
         case 'error':
           setState(
             () => _error =
@@ -214,22 +219,25 @@ class _NativeVisualEditorState extends State<NativeVisualEditor> {
     _leaving = true;
     final discard = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Leave editor?'),
-        content: const Text(
-          'Save your changes before leaving, or discard them.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep editing'),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          title: Text(appTr('Leave editor?')),
+          content: Text(
+            appTr('Save your changes before leaving, or discard them.'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Discard'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(appTr('Keep editing')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(appTr('Discard')),
+            ),
+          ],
+        );
+      },
     );
     _leaving = false;
     if (discard == true && mounted) {
@@ -251,11 +259,15 @@ class _NativeVisualEditorState extends State<NativeVisualEditor> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (defaultTargetPlatform != TargetPlatform.android || kIsWeb) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(24),
-          child: Text('This visual editor is available in the Android app.'),
+          child: Text(
+            appTr('This visual editor is available in the Android app.'),
+          ),
         ),
       );
     }
@@ -276,7 +288,7 @@ class _NativeVisualEditorState extends State<NativeVisualEditor> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        _dirty ? 'Unsaved changes' : 'Editor',
+                        appTr(_dirty ? 'Unsaved changes' : 'Editor'),
                         style: const TextStyle(color: Colors.white70),
                       ),
                     ),
@@ -288,18 +300,20 @@ class _NativeVisualEditorState extends State<NativeVisualEditor> {
                               ? Icons.save_outlined
                               : Icons.file_download_outlined,
                         ),
-                        label: Text(command == 'save' ? 'Save' : 'Export'),
+                        label: Text(
+                          appTr(command == 'save' ? 'Save' : 'Export'),
+                        ),
                       ),
                   ],
                 ),
               ),
             if (_error != null)
               MaterialBanner(
-                content: Text(_error!),
+                content: Text(appTr(_error!)),
                 actions: [
                   TextButton(
                     onPressed: _dirty ? null : _load,
-                    child: const Text('Retry'),
+                    child: Text(appTr('Retry')),
                   ),
                 ],
               ),

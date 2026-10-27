@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -6,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../theme/brand_config.dart';
+import 'language_picker.dart';
 
 /// Tokens shared by the native sign-in, registration and launch experience.
 class AuthPalette {
@@ -70,34 +73,42 @@ class _AuthSceneState extends State<AuthScene> with TickerProviderStateMixin {
   }
 
   @override
-  Widget build(BuildContext context) => _AuthMotion(
-    entrance: entrance,
-    ambient: ambient,
-    child: Stack(
-      fit: StackFit.expand,
-      children: [
-        RepaintBoundary(
-          child: IgnorePointer(
-            child: CustomPaint(
-              painter: AuthBackdropPainter(AuthPalette.of(context), ambient),
-            ),
-          ),
-        ),
-        Theme(
-          data: Theme.of(context).copyWith(
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: AuthPalette.of(context).link,
-                textStyle: Theme.of(context).textTheme.labelLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return _AuthMotion(
+      entrance: entrance,
+      ambient: ambient,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          RepaintBoundary(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: AuthBackdropPainter(AuthPalette.of(context), ambient),
               ),
             ),
           ),
-          child: widget.child,
-        ),
-      ],
-    ),
-  );
+          Theme(
+            data: Theme.of(context).copyWith(
+              textButtonTheme: TextButtonThemeData(
+                style: TextButton.styleFrom(
+                  foregroundColor: AuthPalette.of(context).link,
+                  textStyle: Theme.of(context).textTheme.labelLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+            child: widget.child,
+          ),
+          const PositionedDirectional(
+            top: 12,
+            end: 12,
+            child: SafeArea(child: LanguagePicker()),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _AuthMotion extends InheritedWidget {
@@ -131,6 +142,8 @@ class AuthEntrance extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final animation =
         _AuthMotion.of(context)?.entrance ??
         const AlwaysStoppedAnimation<double>(1);
@@ -138,6 +151,7 @@ class AuthEntrance extends StatelessWidget {
       animation: animation,
       child: child,
       builder: (context, child) {
+        AppLocalizations.watch(context);
         final start = math.min(.55, index * .055);
         final raw = ((animation.value - start) / (1 - start)).clamp(0.0, 1.0);
         final value = Curves.easeOutCubic.transform(raw);
@@ -286,6 +300,8 @@ class AuthBrandLogo extends StatelessWidget {
   static MemoryImage? _image;
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_image == null || _encoded != BrandConfig.logoBase64) {
       _encoded = BrandConfig.logoBase64;
       _image = MemoryImage(base64Decode(_encoded));
@@ -298,6 +314,8 @@ class AuthMark extends StatelessWidget {
   const AuthMark({super.key});
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AuthPalette.of(context);
     final phase = authAmbient(context);
     return ExcludeSemantics(
@@ -305,43 +323,46 @@ class AuthMark extends StatelessWidget {
         springIn: true,
         child: AnimatedBuilder(
           animation: phase,
-          builder: (context, _) => Container(
-            width: 76,
-            height: 76,
-            decoration: BoxDecoration(
-              gradient: colors.gradient,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: colors.base.onPrimary.withValues(alpha: .3),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: colors.indigo.withValues(
-                    alpha: .28 + .12 * math.sin(phase.value * math.pi * 8),
+          builder: (context, _) {
+            AppLocalizations.watch(context);
+            return Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                gradient: colors.gradient,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: colors.base.onPrimary.withValues(alpha: .3),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.indigo.withValues(
+                      alpha: .28 + .12 * math.sin(phase.value * math.pi * 8),
+                    ),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
                   ),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: CustomPaint(
-                foregroundPainter: MagicShinePainter(phase.value * 4 % 1),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: BrandConfig.logoBase64.isEmpty
-                      ? CustomPaint(
-                          painter: MagicSparklePainter(
-                            color: colors.base.onPrimary,
-                            twinkle: phase.value * 4,
-                          ),
-                        )
-                      : const AuthBrandLogo(),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: CustomPaint(
+                  foregroundPainter: MagicShinePainter(phase.value * 4 % 1),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: BrandConfig.logoBase64.isEmpty
+                        ? CustomPaint(
+                            painter: MagicSparklePainter(
+                              color: colors.base.onPrimary,
+                              twinkle: phase.value * 4,
+                            ),
+                          )
+                        : const AuthBrandLogo(),
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -384,84 +405,92 @@ class AuthPrimaryButton extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AuthPalette.of(context);
     final phase = authAmbient(context);
     return LayoutBuilder(
-      builder: (context, constraints) => Center(
-        child: AnimatedContainer(
-          duration: Duration(
-            milliseconds: MediaQuery.disableAnimationsOf(context) ? 0 : 400,
-          ),
-          curve: Curves.easeInOutCubic,
-          width: busy ? 56 : constraints.maxWidth,
-          height: 56,
-          decoration: BoxDecoration(
-            gradient: colors.gradient,
-            borderRadius: BorderRadius.circular(busy ? 28 : 18),
-            boxShadow: [
-              BoxShadow(
-                color: colors.indigo.withValues(alpha: .26),
-                blurRadius: 25,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(busy ? 28 : 18),
-            child: AnimatedBuilder(
-              animation: phase,
-              builder: (_, child) => CustomPaint(
-                foregroundPainter: MagicShinePainter(phase.value * 4 % 1),
-                child: child,
-              ),
-              child: FilledButton(
-                onPressed: busy ? null : onPressed,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  disabledBackgroundColor: Colors.transparent,
-                  foregroundColor: colors.base.onPrimary,
-                  disabledForegroundColor: colors.base.onPrimary,
-                  shadowColor: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(busy ? 28 : 18),
-                  ),
+      builder: (context, constraints) {
+        AppLocalizations.watch(context);
+        return Center(
+          child: AnimatedContainer(
+            duration: Duration(
+              milliseconds: MediaQuery.disableAnimationsOf(context) ? 0 : 400,
+            ),
+            curve: Curves.easeInOutCubic,
+            width: busy ? 56 : constraints.maxWidth,
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: colors.gradient,
+              borderRadius: BorderRadius.circular(busy ? 28 : 18),
+              boxShadow: [
+                BoxShadow(
+                  color: colors.indigo.withValues(alpha: .26),
+                  blurRadius: 25,
+                  offset: const Offset(0, 10),
                 ),
-                child: busy
-                    ? Semantics(
-                        label: busyLabel,
-                        liveRegion: true,
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: colors.base.onPrimary,
-                          ),
-                        ),
-                      )
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              label,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(busy ? 28 : 18),
+              child: AnimatedBuilder(
+                animation: phase,
+                builder: (localizationContext, child) {
+                  AppLocalizations.watch(localizationContext);
+                  return CustomPaint(
+                    foregroundPainter: MagicShinePainter(phase.value * 4 % 1),
+                    child: child,
+                  );
+                },
+                child: FilledButton(
+                  onPressed: busy ? null : onPressed,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    disabledBackgroundColor: Colors.transparent,
+                    foregroundColor: colors.base.onPrimary,
+                    disabledForegroundColor: colors.base.onPrimary,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(busy ? 28 : 18),
+                    ),
+                  ),
+                  child: busy
+                      ? Semantics(
+                          label: busyLabel,
+                          liveRegion: true,
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: colors.base.onPrimary,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          const Icon(Icons.arrow_forward_rounded, size: 20),
-                        ],
-                      ),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                appTr(label),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Icon(Icons.arrow_forward_rounded, size: 20),
+                          ],
+                        ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -502,6 +531,8 @@ class _AuthInputState extends State<AuthInput> {
   bool focused = false;
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AuthPalette.of(context);
     final phase = authAmbient(context);
     return Focus(
@@ -510,25 +541,28 @@ class _AuthInputState extends State<AuthInput> {
       onFocusChange: (value) => setState(() => focused = value),
       child: AnimatedBuilder(
         animation: focused ? phase : const AlwaysStoppedAnimation<double>(0),
-        builder: (_, child) => DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: focused
-                ? [
-                    BoxShadow(
-                      color: Color.lerp(
-                        colors.indigo,
-                        colors.cyan,
-                        .5 + .5 * math.sin(phase.value * math.pi * 8),
-                      )!.withValues(alpha: .18),
-                      blurRadius: 14,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : [],
-          ),
-          child: child,
-        ),
+        builder: (localizationContext, child) {
+          AppLocalizations.watch(localizationContext);
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: focused
+                  ? [
+                      BoxShadow(
+                        color: Color.lerp(
+                          colors.indigo,
+                          colors.cyan,
+                          .5 + .5 * math.sin(phase.value * math.pi * 8),
+                        )!.withValues(alpha: .18),
+                        blurRadius: 14,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : [],
+            ),
+            child: child,
+          );
+        },
         child: TextFormField(
           focusNode: widget.focusNode,
           controller: widget.controller,
@@ -555,7 +589,7 @@ class _AuthInputState extends State<AuthInput> {
                   ) ??
                   false),
           decoration: InputDecoration(
-            labelText: widget.label,
+            labelText: appTr(widget.label),
             labelStyle: TextStyle(color: colors.muted),
             floatingLabelStyle: TextStyle(color: colors.link),
             filled: true,
@@ -632,6 +666,8 @@ class _AuthSuccessState extends State<AuthSuccess>
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AuthPalette.of(context);
     return Center(
       child: SingleChildScrollView(
@@ -641,14 +677,17 @@ class _AuthSuccessState extends State<AuthSuccess>
           children: [
             AnimatedBuilder(
               animation: controller,
-              builder: (_, _) => CustomPaint(
-                painter: _SuccessPainter(colors, controller.value),
-                child: const SizedBox(width: 160, height: 160),
-              ),
+              builder: (localizationContext, _) {
+                AppLocalizations.watch(localizationContext);
+                return CustomPaint(
+                  painter: _SuccessPainter(colors, controller.value),
+                  child: const SizedBox(width: 160, height: 160),
+                );
+              },
             ),
             const SizedBox(height: 22),
             Text(
-              widget.title,
+              appTr(widget.title),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: colors.text,
@@ -658,7 +697,7 @@ class _AuthSuccessState extends State<AuthSuccess>
             ),
             const SizedBox(height: 10),
             Text(
-              widget.message,
+              appTr(widget.message),
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.muted, height: 1.5),
             ),
@@ -666,7 +705,7 @@ class _AuthSuccessState extends State<AuthSuccess>
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 300),
               child: AuthPrimaryButton(
-                label: 'Continue',
+                label: appTr('Continue'),
                 onPressed: widget.onContinue,
               ),
             ),

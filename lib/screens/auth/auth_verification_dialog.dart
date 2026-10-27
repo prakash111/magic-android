@@ -1,3 +1,5 @@
+import '../../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -48,6 +50,8 @@ class _AuthVerificationDialogState extends State<AuthVerificationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AuthPalette.of(context);
     return Dialog(
       backgroundColor: colors.page,
@@ -85,7 +89,7 @@ class _AuthVerificationDialogState extends State<AuthVerificationDialog> {
               ),
               const SizedBox(height: 22),
               Text(
-                'Verify your sign-in',
+                appTr('Verify your sign-in'),
                 style: TextStyle(
                   color: colors.text,
                   fontSize: 26,
@@ -94,7 +98,7 @@ class _AuthVerificationDialogState extends State<AuthVerificationDialog> {
               ),
               const SizedBox(height: 10),
               Text(
-                'Enter the 6-digit code from your authenticator app.',
+                appTr('Enter the 6-digit code from your authenticator app.'),
                 style: TextStyle(color: colors.muted, height: 1.5),
               ),
               const SizedBox(height: 24),
@@ -106,7 +110,9 @@ class _AuthVerificationDialogState extends State<AuthVerificationDialog> {
                       child: Padding(
                         padding: EdgeInsets.only(right: index == 5 ? 0 : 6),
                         child: Semantics(
-                          label: 'Authenticator code digit ${index + 1} of 6',
+                          label: appTr("Authenticator code digit :value of 6", {
+                            "value": index + 1,
+                          }),
                           child: TextField(
                             key: ValueKey('auth-code-$index'),
                             controller: fields[index],
@@ -148,17 +154,17 @@ class _AuthVerificationDialogState extends State<AuthVerificationDialog> {
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
-                    error!,
+                    appTr(error!),
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
                     ),
                   ),
                 ),
               const SizedBox(height: 24),
-              AuthPrimaryButton(label: 'Verify', onPressed: submit),
+              AuthPrimaryButton(label: appTr('Verify'), onPressed: submit),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text(appTr('Cancel')),
               ),
             ],
           ),

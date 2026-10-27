@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -129,19 +131,22 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
   }) async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => NativeRecordForm(
-          service: _service,
-          operation: operation,
-          title: title,
-          fields: fields,
-          recordId: int.tryParse('${record?['id']}'),
-          dateField: operation == 'save_task'
-              ? 'due_date'
-              : operation == 'save_agent_post'
-              ? 'scheduled_at'
-              : null,
-          scheduledAt: scheduledAt,
-        ),
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return NativeRecordForm(
+            service: _service,
+            operation: operation,
+            title: appTr(title),
+            fields: fields,
+            recordId: int.tryParse('${record?['id']}'),
+            dateField: operation == 'save_task'
+                ? 'due_date'
+                : operation == 'save_agent_post'
+                ? 'scheduled_at'
+                : null,
+            scheduledAt: scheduledAt,
+          );
+        },
       ),
     );
     if (saved == true && mounted) await _load();
@@ -157,20 +162,23 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
     if (confirm) {
       final accepted = await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Delete this item?'),
-          content: const Text('This change cannot be undone.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
+        builder: (context) {
+          AppLocalizations.watch(context);
+          return AlertDialog(
+            title: Text(appTr('Delete this item?')),
+            content: Text(appTr('This change cannot be undone.')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(appTr('Cancel')),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(appTr('Delete')),
+              ),
+            ],
+          );
+        },
       );
       if (accepted != true || !mounted) return;
     }
@@ -189,41 +197,45 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
         await showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
-          builder: (context) => SafeArea(
-            child: SizedBox(
-              height: MediaQuery.sizeOf(context).height * .7,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Text(
-                    'Run history',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  if (_maps(result['data']).isEmpty)
-                    const WorkspaceEmptyState(
-                      icon: Icons.history,
-                      title: 'No runs yet',
-                      message:
-                          'Agent activity appears here after a trigger runs.',
+          builder: (context) {
+            AppLocalizations.watch(context);
+            return SafeArea(
+              child: SizedBox(
+                height: MediaQuery.sizeOf(context).height * .7,
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    Text(
+                      appTr('Run history'),
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
-                  for (final run in _maps(result['data']))
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.history),
-                        title: Text(_label('${run['status']}')),
-                        subtitle: Text(
-                          [
-                            _time(run['started_at']),
-                            if (run['error_message'] != null)
-                              '${run['error_message']}',
-                          ].join('\n'),
+                    if (_maps(result['data']).isEmpty)
+                      WorkspaceEmptyState(
+                        icon: Icons.history,
+                        title: appTr('No runs yet'),
+                        message: appTr(
+                          'Agent activity appears here after a trigger runs.',
                         ),
                       ),
-                    ),
-                ],
+                    for (final run in _maps(result['data']))
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.history),
+                          title: Text(appTr(_label('${run['status']}'))),
+                          subtitle: Text(
+                            [
+                              _time(run['started_at']),
+                              if (run['error_message'] != null)
+                                '${run['error_message']}',
+                            ].join('\n'),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       } else {
         await _load();
@@ -267,15 +279,18 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
-        builder: (context) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: AgentTemplateSelector(
-            templates: _maps(_data?['templates']),
-            api: widget.api,
-          ),
-        ),
+        builder: (context) {
+          AppLocalizations.watch(context);
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: AgentTemplateSelector(
+              templates: _maps(_data?['templates']),
+              api: widget.api,
+            ),
+          );
+        },
       );
       if (config == null || !mounted) return;
     } else {
@@ -283,12 +298,15 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
     }
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => AgentSetupScreen(
-          service: _service,
-          config: config!,
-          actions: _map(_data?['actions']),
-          channels: _maps(_data?['channels']),
-        ),
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return AgentSetupScreen(
+            service: _service,
+            config: config!,
+            actions: _map(_data?['actions']),
+            channels: _maps(_data?['channels']),
+          );
+        },
       ),
     );
     if (saved == true && mounted) await _load();
@@ -387,19 +405,21 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
     scheduledAt: DateTime.tryParse('${row?['scheduled_at']}')?.toLocal(),
   );
 
-  Widget _badge(String text) =>
-      Chip(label: Text(_label(text)), visualDensity: VisualDensity.compact);
+  Widget _badge(String text) => Chip(
+    label: Text(appTr(_label(text))),
+    visualDensity: VisualDensity.compact,
+  );
   List<Widget> _content() {
     if (_kind == 'fashion_settings') {
       final values = _map(_data?['settings']);
       return [
         Text(
-          'Generation settings',
+          appTr('Generation settings'),
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 12),
-        const Text(
-          'Choose the defaults used by your Fashion Studio photoshoots.',
+        Text(
+          appTr('Choose the defaults used by your Fashion Studio photoshoots.'),
         ),
         const SizedBox(height: 16),
         NativeSchemaForm(
@@ -463,7 +483,7 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
                 _error = null;
               });
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Photoshoot settings saved.')),
+                SnackBar(content: Text(appTr('Photoshoot settings saved.'))),
               );
             } catch (error) {
               if (mounted) setState(() => _error = error.toString());
@@ -480,13 +500,15 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
         children: [
           Expanded(
             child: Text(
-              _kind == 'ai_agents'
-                  ? 'Your agents'
-                  : _kind == 'crm_tasks'
-                  ? 'Tasks'
-                  : _calendar
-                  ? 'Content calendar'
-                  : 'Agent posts',
+              appTr(
+                _kind == 'ai_agents'
+                    ? 'Your agents'
+                    : _kind == 'crm_tasks'
+                    ? 'Tasks'
+                    : _calendar
+                    ? 'Content calendar'
+                    : 'Agent posts',
+              ),
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
@@ -501,11 +523,13 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
                         : _post(),
               icon: const Icon(Icons.add),
               label: Text(
-                _kind == 'ai_agents'
-                    ? 'New Agent'
-                    : _kind == 'crm_tasks'
-                    ? 'New task'
-                    : 'New post',
+                appTr(
+                  _kind == 'ai_agents'
+                      ? 'New Agent'
+                      : _kind == 'crm_tasks'
+                      ? 'New task'
+                      : 'New post',
+                ),
               ),
             ),
         ],
@@ -530,7 +554,7 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
                           style: Theme.of(context).textTheme.headlineSmall,
                         ),
                         const SizedBox(height: 8),
-                        Text('${metric['label']}'),
+                        Text(appTr((metric['label']).toString())),
                       ],
                     ),
                   ),
@@ -557,8 +581,8 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
       const SizedBox(height: 12),
       TextField(
         controller: _search,
-        decoration: const InputDecoration(
-          labelText: 'Search',
+        decoration: InputDecoration(
+          labelText: appTr('Search'),
           prefixIcon: Icon(Icons.search),
         ),
         onChanged: (_) {
@@ -580,7 +604,7 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
                 Padding(
                   padding: const EdgeInsets.only(right: 8, top: 12, bottom: 12),
                   child: ChoiceChip(
-                    label: Text(_label(status)),
+                    label: Text(appTr(_label(status))),
                     selected: _status == status,
                     onSelected: _busy
                         ? null
@@ -600,24 +624,30 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
               : _kind == 'crm_tasks'
               ? Icons.task_alt
               : Icons.event_note,
-          title: _search.text.isNotEmpty
-              ? 'No matching results'
-              : _kind == 'ai_agents'
-              ? 'Create your first agent'
-              : _kind == 'crm_tasks'
-              ? 'No tasks yet'
-              : 'No posts in this view',
-          message: _kind == 'ai_agents'
-              ? 'Start with a workflow template or build your own.'
-              : _kind == 'crm_tasks'
-              ? 'Add a task to track your next action.'
-              : 'Try another month or status to see your posts.',
+          title: appTr(
+            _search.text.isNotEmpty
+                ? 'No matching results'
+                : _kind == 'ai_agents'
+                ? 'Create your first agent'
+                : _kind == 'crm_tasks'
+                ? 'No tasks yet'
+                : 'No posts in this view',
+          ),
+          message: appTr(
+            _kind == 'ai_agents'
+                ? 'Start with a workflow template or build your own.'
+                : _kind == 'crm_tasks'
+                ? 'Add a task to track your next action.'
+                : 'Try another month or status to see your posts.',
+          ),
         ),
         if (_kind == 'ai_agents' || _kind == 'crm_tasks')
           TextButton.icon(
             onPressed: () => _kind == 'ai_agents' ? _agent() : _task(),
             icon: const Icon(Icons.add),
-            label: Text(_kind == 'ai_agents' ? 'Add Agent' : 'Create task'),
+            label: Text(
+              appTr(_kind == 'ai_agents' ? 'Add Agent' : 'Create task'),
+            ),
           ),
       ],
       for (final row in _rows)
@@ -634,7 +664,9 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.smart_toy_outlined),
                       title: Text('${row['name'] ?? 'Agent'}'),
-                      subtitle: Text('${row['description'] ?? ''}'),
+                      subtitle: Text(
+                        appTr((row['description'] ?? '').toString()),
+                      ),
                       onTap: () => _agent(row),
                     ),
                     Wrap(
@@ -649,24 +681,26 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
                       children: [
                         TextButton(
                           onPressed: _busy ? null : () => _agent(row),
-                          child: const Text('Configure'),
+                          child: Text(appTr('Configure')),
                         ),
                         TextButton(
                           onPressed: _busy
                               ? null
                               : () => _action('toggle_agent', row),
                           child: Text(
-                            row['status'] == 'active' ? 'Pause' : 'Activate',
+                            appTr(
+                              row['status'] == 'active' ? 'Pause' : 'Activate',
+                            ),
                           ),
                         ),
                         TextButton(
                           onPressed: _busy
                               ? null
                               : () => _action('agent_runs', row),
-                          child: const Text('Run history'),
+                          child: Text(appTr('Run history')),
                         ),
                         IconButton(
-                          tooltip: 'Delete agent',
+                          tooltip: appTr('Delete agent'),
                           onPressed: _busy
                               ? null
                               : () =>
@@ -680,13 +714,15 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
                       contentPadding: EdgeInsets.zero,
                       title: Text('${row['title'] ?? 'Task'}'),
                       subtitle: Text(
-                        [
-                          if ('${row['description'] ?? ''}'.isNotEmpty)
-                            '${row['description']}',
-                          if ('${row['contact'] ?? ''}'.isNotEmpty)
-                            '${row['contact']}',
-                          if (row['due_date'] != null) _time(row['due_date']),
-                        ].join('\n'),
+                        appTr(
+                          [
+                            if ('${row['description'] ?? ''}'.isNotEmpty)
+                              '${row['description']}',
+                            if ('${row['contact'] ?? ''}'.isNotEmpty)
+                              '${row['contact']}',
+                            if (row['due_date'] != null) _time(row['due_date']),
+                          ].join('\n'),
+                        ),
                       ),
                       onTap: () => _task(row),
                     ),
@@ -712,17 +748,19 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
                                   },
                                 ),
                           child: Text(
-                            row['status'] == 'completed'
-                                ? 'Reopen'
-                                : 'Complete',
+                            appTr(
+                              row['status'] == 'completed'
+                                  ? 'Reopen'
+                                  : 'Complete',
+                            ),
                           ),
                         ),
                         TextButton(
                           onPressed: _busy ? null : () => _task(row),
-                          child: const Text('Edit'),
+                          child: Text(appTr('Edit')),
                         ),
                         IconButton(
-                          tooltip: 'Delete task',
+                          tooltip: appTr('Delete task'),
                           onPressed: _busy
                               ? null
                               : () =>
@@ -758,8 +796,13 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
                               '$url',
                               height: 180,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, error, stack) =>
-                                  const Icon(Icons.broken_image_outlined),
+                              errorBuilder:
+                                  (localizationContext, error, stack) {
+                                    AppLocalizations.watch(localizationContext);
+                                    return const Icon(
+                                      Icons.broken_image_outlined,
+                                    );
+                                  },
                             ),
                           ),
                         ),
@@ -768,17 +811,17 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
                         if (row['status'] != 'published')
                           TextButton(
                             onPressed: _busy ? null : () => _post(row),
-                            child: const Text('Edit / schedule'),
+                            child: Text(appTr('Edit / schedule')),
                           ),
                         if (row['status'] == 'draft')
                           TextButton(
                             onPressed: _busy
                                 ? null
                                 : () => _action('approve_agent_post', row),
-                            child: const Text('Approve'),
+                            child: Text(appTr('Approve')),
                           ),
                         IconButton(
-                          tooltip: 'Delete post',
+                          tooltip: appTr('Delete post'),
                           onPressed: _busy
                               ? null
                               : () => _action(
@@ -800,28 +843,30 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
           (int.tryParse('${_data?['last_page']}') ?? 1))
         TextButton(
           onPressed: _busy ? null : () => _load(more: true),
-          child: const Text('Load more'),
+          child: Text(appTr('Load more')),
         ),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_data == null) {
       return _error == null
           ? const Center(child: CircularProgressIndicator())
-          : RetryPanel(message: _error!, retry: _load);
+          : RetryPanel(message: appTr(_error!), retry: _load);
     }
     return Column(
       children: [
         if (_busy) const LinearProgressIndicator(),
         if (_error != null)
           MaterialBanner(
-            content: Text(_error!),
+            content: Text(appTr(_error!)),
             actions: [
               TextButton(
                 onPressed: _busy ? null : _load,
-                child: const Text('Retry'),
+                child: Text(appTr('Retry')),
               ),
             ],
           ),
@@ -868,125 +913,133 @@ class _NativeRecordFormState extends State<NativeRecordForm> {
   String _request = SocialPostService.requestId();
   late DateTime? _date = widget.scheduledAt;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    resizeToAvoidBottomInset: true,
-    appBar: AppBar(title: Text(widget.title)),
-    body: ListView(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.all(20),
-      children: [
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(title: Text(appTr(widget.title))),
+      body: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.all(20),
+        children: [
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                appTr(_error!),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ),
-          ),
-        if (widget.dateField != null)
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.event),
-              title: Text(
-                _date == null
-                    ? 'Choose date and time'
-                    : DateFormat.yMMMd().add_jm().format(_date!),
-              ),
-              subtitle: Text(
-                widget.dateField == 'due_date'
-                    ? 'Due date (optional)'
-                    : 'Schedule in your local timezone',
-              ),
-              trailing: _date == null
-                  ? null
-                  : IconButton(
-                      tooltip: 'Clear date',
-                      onPressed: _busy
-                          ? null
-                          : () => setState(() => _date = null),
-                      icon: const Icon(Icons.close),
-                    ),
-              onTap: _busy
-                  ? null
-                  : () async {
-                      final day = await showDatePicker(
-                        context: context,
-                        initialDate: _date ?? DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (day == null || !context.mounted) return;
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.fromDateTime(
-                          _date ?? DateTime.now(),
-                        ),
-                      );
-                      if (time != null && mounted) {
-                        setState(
-                          () => _date = DateTime(
-                            day.year,
-                            day.month,
-                            day.day,
-                            time.hour,
-                            time.minute,
+          if (widget.dateField != null)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.event),
+                title: Text(
+                  appTr(
+                    _date == null
+                        ? 'Choose date and time'
+                        : DateFormat.yMMMd().add_jm().format(_date!),
+                  ),
+                ),
+                subtitle: Text(
+                  appTr(
+                    widget.dateField == 'due_date'
+                        ? 'Due date (optional)'
+                        : 'Schedule in your local timezone',
+                  ),
+                ),
+                trailing: _date == null
+                    ? null
+                    : IconButton(
+                        tooltip: appTr('Clear date'),
+                        onPressed: _busy
+                            ? null
+                            : () => setState(() => _date = null),
+                        icon: const Icon(Icons.close),
+                      ),
+                onTap: _busy
+                    ? null
+                    : () async {
+                        final day = await showDatePicker(
+                          context: context,
+                          initialDate: _date ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                        );
+                        if (day == null || !context.mounted) return;
+                        final time = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.fromDateTime(
+                            _date ?? DateTime.now(),
                           ),
                         );
-                      }
-                    },
+                        if (time != null && mounted) {
+                          setState(
+                            () => _date = DateTime(
+                              day.year,
+                              day.month,
+                              day.day,
+                              time.hour,
+                              time.minute,
+                            ),
+                          );
+                        }
+                      },
+              ),
             ),
-          ),
-        NativeSchemaForm(
-          definition: {
-            'title':
-                widget.operation == 'save_agent_post' && widget.recordId == null
-                ? 'Schedule post'
-                : 'Save',
-            'fields': widget.fields,
-          },
-          busy: _busy,
-          submit: (inputs, _) async {
-            if (widget.operation == 'save_agent_post' &&
-                widget.recordId == null &&
-                _date == null) {
-              setState(
-                () => _error = 'Choose a future date and time for your post.',
-              );
-              return;
-            }
-            setState(() {
-              _busy = true;
-              _error = null;
-            });
-            try {
-              await widget.service.call(
-                widget.operation,
-                requestId: _request,
-                values: {'record_id': ?widget.recordId},
-                inputs: {
-                  for (final entry in inputs.entries)
-                    entry.key: entry.value.isEmpty ? null : entry.value,
-                  if (widget.dateField != null)
-                    widget.dateField!: _date?.toUtc().toIso8601String(),
-                },
-              );
-              if (context.mounted) Navigator.pop(context, true);
-            } catch (error) {
-              if (error is ApiFailure &&
-                  error.status >= 400 &&
-                  error.status < 500 &&
-                  ![408, 409, 429].contains(error.status)) {
-                _request = SocialPostService.requestId();
+          NativeSchemaForm(
+            definition: {
+              'title':
+                  widget.operation == 'save_agent_post' &&
+                      widget.recordId == null
+                  ? 'Schedule post'
+                  : 'Save',
+              'fields': widget.fields,
+            },
+            busy: _busy,
+            submit: (inputs, _) async {
+              if (widget.operation == 'save_agent_post' &&
+                  widget.recordId == null &&
+                  _date == null) {
+                setState(
+                  () => _error = 'Choose a future date and time for your post.',
+                );
+                return;
               }
-              if (mounted) setState(() => _error = error.toString());
-            } finally {
-              if (mounted) setState(() => _busy = false);
-            }
-          },
-        ),
-      ],
-    ),
-  );
+              setState(() {
+                _busy = true;
+                _error = null;
+              });
+              try {
+                await widget.service.call(
+                  widget.operation,
+                  requestId: _request,
+                  values: {'record_id': ?widget.recordId},
+                  inputs: {
+                    for (final entry in inputs.entries)
+                      entry.key: entry.value.isEmpty ? null : entry.value,
+                    if (widget.dateField != null)
+                      widget.dateField!: _date?.toUtc().toIso8601String(),
+                  },
+                );
+                if (context.mounted) Navigator.pop(context, true);
+              } catch (error) {
+                if (error is ApiFailure &&
+                    error.status >= 400 &&
+                    error.status < 500 &&
+                    ![408, 409, 429].contains(error.status)) {
+                  _request = SocialPostService.requestId();
+                }
+                if (mounted) setState(() => _error = error.toString());
+              } finally {
+                if (mounted) setState(() => _busy = false);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class AgentTemplateSelector extends StatefulWidget {
@@ -1062,177 +1115,189 @@ class _AgentTemplateSelectorState extends State<AgentTemplateSelector> {
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: MediaQuery.sizeOf(context).height * .9,
-    child: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Add Agent',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-              ),
-              IconButton(
-                tooltip: 'Close',
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Search templates',
-              prefixIcon: Icon(Icons.search),
-            ),
-            onChanged: (value) => setState(() => _query = value),
-          ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * .9,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
               children: [
-                for (final category in _categories)
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      top: 12,
-                      bottom: 12,
-                      right: 8,
-                    ),
-                    child: ChoiceChip(
-                      label: Text(category),
-                      selected: _category == category,
-                      onSelected: (_) => setState(() => _category = category),
-                    ),
+                Expanded(
+                  child: Text(
+                    appTr('Add Agent'),
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
+                ),
+                IconButton(
+                  tooltip: appTr('Close'),
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
               ],
             ),
-          ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final rows = [
-                  if (_category == 'All' &&
-                      'start from scratch'.contains(
-                        _query.toLowerCase().trim(),
-                      ))
-                    <String, dynamic>{
-                      'key': 'scratch',
-                      'label': 'Start From Scratch',
-                      'description': 'Create a custom workflow with your own trigger and actions.',
-                      'config': {
-                        'name': '',
-                        'trigger_type': 'schedule',
-                        'trigger_config': {'cron': '0 9 * * *'},
-                        'steps': [],
+            const SizedBox(height: 12),
+            TextField(
+              decoration: InputDecoration(
+                labelText: appTr('Search templates'),
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) => setState(() => _query = value),
+            ),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final category in _categories)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        top: 12,
+                        bottom: 12,
+                        right: 8,
+                      ),
+                      child: ChoiceChip(
+                        label: Text(appTr(category)),
+                        selected: _category == category,
+                        onSelected: (_) => setState(() => _category = category),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  AppLocalizations.watch(context);
+                  final rows = [
+                    if (_category == 'All' &&
+                        'start from scratch'.contains(
+                          _query.toLowerCase().trim(),
+                        ))
+                      <String, dynamic>{
+                        'key': 'scratch',
+                        'label': 'Start From Scratch',
+                        'description': 'Create a custom workflow with your own trigger and actions.',
+                        'config': {
+                          'name': '',
+                          'trigger_type': 'schedule',
+                          'trigger_config': {'cron': '0 9 * * *'},
+                          'steps': [],
+                        },
                       },
-                    },
-                  ...widget.templates.where(_matches),
-                ];
-                if (rows.isEmpty) {
-                  return const WorkspaceEmptyState(
-                    icon: Icons.search_off,
-                    title: 'No templates found',
-                    message: 'Try another category or search term.',
-                  );
-                }
-                return GridView.builder(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: constraints.maxWidth >= 620
-                        ? 3
-                        : constraints.maxWidth >= 420
-                        ? 2
-                        : 1,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    mainAxisExtent: MediaQuery.textScalerOf(context).scale(190),
-                  ),
-                  itemCount: rows.length,
-                  itemBuilder: (context, index) {
-                    final row = rows[index];
-                    return Card(
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () => Navigator.pop(
-                          context,
-                          _map(jsonDecode(jsonEncode(row['config']))),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    row['key'] == 'scratch'
-                                        ? Icons.add_circle_outline
-                                        : Icons.auto_awesome_outlined,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
-                                  ),
-                                  const Spacer(),
-                                  if (row['key'] != 'scratch')
-                                    IconButton(
-                                      tooltip: 'Favorite template',
-                                      isSelected: _favorites.contains(
-                                        row['key'],
-                                      ),
-                                      selectedIcon: const Icon(Icons.star),
-                                      icon: const Icon(Icons.star_border),
-                                      onPressed: () async {
-                                        final key = '${row['key']}';
-                                        setState(
-                                          () => _favorites.contains(key)
-                                              ? _favorites.remove(key)
-                                              : _favorites.add(key),
-                                        );
-                                        try {
-                                          await widget.api.store.write(
-                                            'agent_template_favorites',
-                                            jsonEncode(_favorites.toList()),
-                                          );
-                                        } catch (_) {
-                                          /* The current selection is retained for this session. */
-                                        }
-                                      },
+                    ...widget.templates.where(_matches),
+                  ];
+                  if (rows.isEmpty) {
+                    return WorkspaceEmptyState(
+                      icon: Icons.search_off,
+                      title: appTr('No templates found'),
+                      message: appTr('Try another category or search term.'),
+                    );
+                  }
+                  return GridView.builder(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: constraints.maxWidth >= 620
+                          ? 3
+                          : constraints.maxWidth >= 420
+                          ? 2
+                          : 1,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      mainAxisExtent: MediaQuery.textScalerOf(context)
+                          .scale(190),
+                    ),
+                    itemCount: rows.length,
+                    itemBuilder: (context, index) {
+                      AppLocalizations.watch(context);
+                      final row = rows[index];
+                      return Card(
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () => Navigator.pop(
+                            context,
+                            _map(jsonDecode(jsonEncode(row['config']))),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      row['key'] == 'scratch'
+                                          ? Icons.add_circle_outline
+                                          : Icons.auto_awesome_outlined,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
                                     ),
-                                ],
-                              ),
-                              Text(
-                                '${row['label']}',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 8),
-                              Expanded(
-                                child: Text(
-                                  '${row['description'] ?? ''}',
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall,
+                                    const Spacer(),
+                                    if (row['key'] != 'scratch')
+                                      IconButton(
+                                        tooltip: appTr('Favorite template'),
+                                        isSelected: _favorites.contains(
+                                          row['key'],
+                                        ),
+                                        selectedIcon: const Icon(Icons.star),
+                                        icon: const Icon(Icons.star_border),
+                                        onPressed: () async {
+                                          final key = '${row['key']}';
+                                          setState(
+                                            () => _favorites.contains(key)
+                                                ? _favorites.remove(key)
+                                                : _favorites.add(key),
+                                          );
+                                          try {
+                                            await widget.api.store.write(
+                                              'agent_template_favorites',
+                                              jsonEncode(_favorites.toList()),
+                                            );
+                                          } catch (_) {
+                                            /* The current selection is retained for this session. */
+                                          }
+                                        },
+                                      ),
+                                  ],
                                 ),
-                              ),
-                            ],
+                                Text(
+                                  appTr((row['label']).toString()),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                Expanded(
+                                  child: Text(
+                                    appTr(
+                                      (row['description'] ?? '').toString(),
+                                    ),
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                );
-              },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class AgentSetupScreen extends StatefulWidget {
@@ -1295,233 +1360,262 @@ class _AgentSetupScreenState extends State<AgentSetupScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    resizeToAvoidBottomInset: true,
-    appBar: AppBar(
-      title: Text(_values['id'] == null ? 'Set up agent' : 'Configure agent'),
-    ),
-    body: Form(
-      key: _form,
-      child: ListView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.all(20),
-        children: [
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        title: Text(
+          appTr(_values['id'] == null ? 'Set up agent' : 'Configure agent'),
+        ),
+      ),
+      body: Form(
+        key: _form,
+        child: ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.all(20),
+          children: [
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  appTr(_error!),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
-            ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextFormField(
-                    initialValue: '${_values['name'] ?? ''}',
-                    decoration: const InputDecoration(labelText: 'Agent name'),
-                    maxLength: 255,
-                    validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Enter an agent name.'
-                        : null,
-                    onSaved: (value) => _values['name'] = value!.trim(),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    initialValue: '${_values['description'] ?? ''}',
-                    decoration: const InputDecoration(labelText: 'Description'),
-                    maxLines: 3,
-                    onSaved: (value) => _values['description'] = value,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: '${_values['trigger_type'] ?? 'schedule'}',
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Trigger'),
-                    items: [
-                      for (final value in [
-                        'schedule',
-                        'channel_message',
-                        'webhook',
-                      ])
-                        DropdownMenuItem(
-                          value: value,
-                          child: Text(_label(value)),
-                        ),
-                    ],
-                    onChanged: _busy
-                        ? null
-                        : (value) => setState(() {
-                            _values['trigger_type'] = value;
-                            _trigger = value == 'schedule'
-                                ? {'cron': '0 9 * * *'}
-                                : value == 'channel_message'
-                                ? {'channel_id': null, 'keyword_pattern': ''}
-                                : {};
-                          }),
-                  ),
-                  const SizedBox(height: 16),
-                  if ((_values['trigger_type'] ?? 'schedule') == 'schedule')
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
                     TextFormField(
-                      key: const ValueKey('cron'),
-                      initialValue: '${_trigger['cron'] ?? '0 9 * * *'}',
-                      decoration: const InputDecoration(
-                        labelText: 'Schedule (cron)',
-                        helperText: 'Example: 0 9 * * * runs every day at 09:00 server time.',
+                      initialValue: '${_values['name'] ?? ''}',
+                      decoration: InputDecoration(
+                        labelText: appTr('Agent name'),
                       ),
+                      maxLength: 255,
                       validator: (value) =>
-                          (value ?? '').trim().split(RegExp(r'\s+')).length != 5
-                          ? 'Enter a five-part cron schedule.'
+                          value == null || value.trim().isEmpty
+                          ? appTr('Enter an agent name.')
                           : null,
-                      onChanged: (value) => _trigger['cron'] = value,
-                    ),
-                  if (_values['trigger_type'] == 'channel_message') ...[
-                    DropdownButtonFormField<String>(
-                      initialValue:
-                          widget.channels.any(
-                            (row) =>
-                                '${row['id']}' == '${_trigger['channel_id']}',
-                          )
-                          ? '${_trigger['channel_id']}'
-                          : '',
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Channel'),
-                      items: [
-                        const DropdownMenuItem(
-                          value: '',
-                          child: Text('Any connected channel'),
-                        ),
-                        for (final row in widget.channels)
-                          DropdownMenuItem(
-                            value: '${row['id']}',
-                            child: Text(
-                              '${row['name']}',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                      ],
-                      onChanged: (value) =>
-                          _trigger['channel_id'] = int.tryParse('$value'),
+                      onSaved: (value) => _values['name'] = value!.trim(),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
-                      initialValue: '${_trigger['keyword_pattern'] ?? ''}',
-                      decoration: const InputDecoration(
-                        labelText: 'Keyword pattern (optional)',
+                      initialValue: '${_values['description'] ?? ''}',
+                      decoration: InputDecoration(
+                        labelText: appTr('Description'),
                       ),
-                      onChanged: (value) => _trigger['keyword_pattern'] = value,
+                      maxLines: 3,
+                      onSaved: (value) => _values['description'] = value,
                     ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text('Workflow steps', style: Theme.of(context).textTheme.titleLarge),
-          for (final (index, step) in _steps.indexed)
-            Card(
-              key: ObjectKey(step),
-              child: ExpansionTile(
-                title: Text(
-                  '${index + 1}. ${_label('${step['action'] ?? step['type'] ?? 'Action'}')}',
-                ),
-                trailing: IconButton(
-                  tooltip: 'Remove step',
-                  onPressed: _busy
-                      ? null
-                      : () => setState(() => _steps.removeAt(index)),
-                  icon: const Icon(Icons.delete_outline),
-                ),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: NativeConfigFields(
-                      value: _map(step['config']),
-                      schema: _map(
-                        [
-                              for (final group in widget.actions.values)
-                                ..._maps(group),
-                            ]
-                            .where((action) => action['key'] == step['type'])
-                            .firstOrNull?['config_schema'],
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: '${_values['trigger_type'] ?? 'schedule'}',
+                      isExpanded: true,
+                      decoration: InputDecoration(labelText: appTr('Trigger')),
+                      items: [
+                        for (final value in [
+                          'schedule',
+                          'channel_message',
+                          'webhook',
+                        ])
+                          DropdownMenuItem(
+                            value: value,
+                            child: Text(appTr(_label(value))),
+                          ),
+                      ],
+                      onChanged: _busy
+                          ? null
+                          : (value) => setState(() {
+                              _values['trigger_type'] = value;
+                              _trigger = value == 'schedule'
+                                  ? {'cron': '0 9 * * *'}
+                                  : value == 'channel_message'
+                                  ? {'channel_id': null, 'keyword_pattern': ''}
+                                  : {};
+                            }),
+                    ),
+                    const SizedBox(height: 16),
+                    if ((_values['trigger_type'] ?? 'schedule') == 'schedule')
+                      TextFormField(
+                        key: const ValueKey('cron'),
+                        initialValue: '${_trigger['cron'] ?? '0 9 * * *'}',
+                        decoration: InputDecoration(
+                          labelText: appTr('Schedule (cron)'),
+                          helperText: appTr(
+                            'Example: 0 9 * * * runs every day at 09:00 server time.',
+                          ),
+                        ),
+                        validator: (value) =>
+                            (value ?? '').trim().split(RegExp(r'\s+')).length !=
+                                5
+                            ? appTr('Enter a five-part cron schedule.')
+                            : null,
+                        onChanged: (value) => _trigger['cron'] = value,
                       ),
-                      onChanged: (value) => step['config'] = value,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          OutlinedButton.icon(
-            onPressed: _busy
-                ? null
-                : () async {
-                    final actions = [
-                      for (final list in widget.actions.values) ..._maps(list),
-                    ];
-                    final selected =
-                        await showModalBottomSheet<Map<String, dynamic>>(
-                          context: context,
-                          isScrollControlled: true,
-                          builder: (context) => SafeArea(
-                            child: SizedBox(
-                              height: MediaQuery.sizeOf(context).height * .65,
-                              child: ListView(
-                                padding: const EdgeInsets.all(20),
-                                children: [
-                                  Text(
-                                    'Add action',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge,
-                                  ),
-                                  for (final action in actions)
-                                    ListTile(
-                                      title: Text('${action['label']}'),
-                                      subtitle: Text(
-                                        '${action['description'] ?? ''}',
-                                      ),
-                                      onTap: () =>
-                                          Navigator.pop(context, action),
-                                    ),
-                                ],
+                    if (_values['trigger_type'] == 'channel_message') ...[
+                      DropdownButtonFormField<String>(
+                        initialValue:
+                            widget.channels.any(
+                              (row) =>
+                                  '${row['id']}' == '${_trigger['channel_id']}',
+                            )
+                            ? '${_trigger['channel_id']}'
+                            : '',
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: appTr('Channel'),
+                        ),
+                        items: [
+                          DropdownMenuItem(
+                            value: '',
+                            child: Text(appTr('Any connected channel')),
+                          ),
+                          for (final row in widget.channels)
+                            DropdownMenuItem(
+                              value: '${row['id']}',
+                              child: Text(
+                                '${row['name']}',
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                          ),
+                        ],
+                        onChanged: (value) =>
+                            _trigger['channel_id'] = int.tryParse('$value'),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        initialValue: '${_trigger['keyword_pattern'] ?? ''}',
+                        decoration: InputDecoration(
+                          labelText: appTr('Keyword pattern (optional)'),
+                        ),
+                        onChanged: (value) =>
+                            _trigger['keyword_pattern'] = value,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              appTr('Workflow steps'),
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            for (final (index, step) in _steps.indexed)
+              Card(
+                key: ObjectKey(step),
+                child: ExpansionTile(
+                  title: Text(
+                    '${index + 1}. ${_label('${step['action'] ?? step['type'] ?? 'Action'}')}',
+                  ),
+                  trailing: IconButton(
+                    tooltip: appTr('Remove step'),
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _steps.removeAt(index)),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: NativeConfigFields(
+                        value: _map(step['config']),
+                        schema: _map(
+                          [
+                                for (final group in widget.actions.values)
+                                  ..._maps(group),
+                              ]
+                              .where((action) => action['key'] == step['type'])
+                              .firstOrNull?['config_schema'],
+                        ),
+                        onChanged: (value) => step['config'] = value,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            OutlinedButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () async {
+                      final actions = [
+                        for (final list in widget.actions.values)
+                          ..._maps(list),
+                      ];
+                      final selected =
+                          await showModalBottomSheet<Map<String, dynamic>>(
+                            context: context,
+                            isScrollControlled: true,
+                            builder: (context) {
+                              AppLocalizations.watch(context);
+                              return SafeArea(
+                                child: SizedBox(
+                                  height:
+                                      MediaQuery.sizeOf(context).height * .65,
+                                  child: ListView(
+                                    padding: const EdgeInsets.all(20),
+                                    children: [
+                                      Text(
+                                        appTr('Add action'),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge,
+                                      ),
+                                      for (final action in actions)
+                                        ListTile(
+                                          title: Text(
+                                            appTr((action['label']).toString()),
+                                          ),
+                                          subtitle: Text(
+                                            appTr(
+                                              (action['description'] ?? '')
+                                                  .toString(),
+                                            ),
+                                          ),
+                                          onTap: () =>
+                                              Navigator.pop(context, action),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                      if (selected != null && mounted) {
+                        setState(
+                          () => _steps.add({
+                            'type': selected['key'],
+                            'app': selected['category'],
+                            'action': selected['key'],
+                            'config': _schemaDefault(
+                              _map(selected['config_schema']),
+                            ),
+                            'order': _steps.length,
+                          }),
                         );
-                    if (selected != null && mounted) {
-                      setState(
-                        () => _steps.add({
-                          'type': selected['key'],
-                          'app': selected['category'],
-                          'action': selected['key'],
-                          'config': _schemaDefault(
-                            _map(selected['config_schema']),
-                          ),
-                          'order': _steps.length,
-                        }),
-                      );
-                    }
-                  },
-            icon: const Icon(Icons.add),
-            label: const Text('Add step'),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: _busy ? null : _save,
-            icon: _busy
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check),
-            label: const Text('Save agent'),
-          ),
-        ],
+                      }
+                    },
+              icon: const Icon(Icons.add),
+              label: Text(appTr('Add step')),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: _busy ? null : _save,
+              icon: _busy
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check),
+              label: Text(appTr('Save agent')),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class NativeConfigFields extends StatefulWidget {
@@ -1547,7 +1641,7 @@ class _NativeConfigFieldsState extends State<NativeConfigFields> {
   ) {
     if (current is Map) {
       return ExpansionTile(
-        title: Text(_label(name)),
+        title: Text(appTr(_label(name))),
         children: [
           NativeConfigFields(
             value: _map(current),
@@ -1559,7 +1653,7 @@ class _NativeConfigFieldsState extends State<NativeConfigFields> {
     }
     if (current is List) {
       return ExpansionTile(
-        title: Text(_label(name)),
+        title: Text(appTr(_label(name))),
         children: [
           for (var i = 0; i < current.length; i++)
             Padding(
@@ -1580,7 +1674,7 @@ class _NativeConfigFieldsState extends State<NativeConfigFields> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: IconButton(
-                      tooltip: 'Remove item',
+                      tooltip: appTr('Remove item'),
                       icon: const Icon(Icons.remove_circle_outline),
                       onPressed: () {
                         setState(() => current.removeAt(i));
@@ -1605,14 +1699,14 @@ class _NativeConfigFieldsState extends State<NativeConfigFields> {
               change(current);
             },
             icon: const Icon(Icons.add),
-            label: const Text('Add item'),
+            label: Text(appTr('Add item')),
           ),
         ],
       );
     }
     if (current is bool) {
       return SwitchListTile(
-        title: Text(_label(name)),
+        title: Text(appTr(_label(name))),
         value: current,
         onChanged: (next) {
           change(next);
@@ -1627,12 +1721,12 @@ class _NativeConfigFieldsState extends State<NativeConfigFields> {
         child: DropdownButtonFormField<String>(
           initialValue: '$current',
           isExpanded: true,
-          decoration: InputDecoration(labelText: _label(name)),
+          decoration: InputDecoration(labelText: appTr(_label(name))),
           items: [
             for (final choice in choices)
               DropdownMenuItem(
                 value: '$choice',
-                child: Text(_label('$choice')),
+                child: Text(appTr(_label('$choice'))),
               ),
           ],
           onChanged: change,
@@ -1644,9 +1738,11 @@ class _NativeConfigFieldsState extends State<NativeConfigFields> {
       child: TextFormField(
         initialValue: current == null ? '' : '$current',
         decoration: InputDecoration(
-          labelText: _label(name),
+          labelText: appTr(_label(name)),
           alignLabelWithHint: true,
-          helperText: schema['description']?.toString(),
+          helperText: schema['description'] == null
+              ? null
+              : appTr(schema['description'].toString()),
         ),
         minLines: 1,
         maxLines: current is num ? 1 : 5,
@@ -1660,19 +1756,22 @@ class _NativeConfigFieldsState extends State<NativeConfigFields> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      for (final entry in _values.entries)
-        _editor(
-          entry.key,
-          entry.value,
-          _map(_map(widget.schema['properties'])[entry.key]),
-          (next) {
-            _values[entry.key] = next;
-            widget.onChanged(_values);
-          },
-        ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final entry in _values.entries)
+          _editor(
+            entry.key,
+            entry.value,
+            _map(_map(widget.schema['properties'])[entry.key]),
+            (next) {
+              _values[entry.key] = next;
+              widget.onChanged(_values);
+            },
+          ),
+      ],
+    );
+  }
 }

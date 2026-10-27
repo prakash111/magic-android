@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+import 'package:intl/intl.dart';
+
+import 'app_localizations.dart';
+
 import 'mobile_api.dart';
 
 class MobileDocument {
@@ -203,50 +207,22 @@ class DocumentService {
 }
 
 String documentTimestamp(DateTime? date, {DateTime? now}) {
-  if (date == null) return 'Date unavailable';
+  if (date == null) return appTr('Date unavailable');
   final age = (now ?? DateTime.now()).difference(date);
-  if (!age.isNegative && age.inMinutes < 1) return 'Just now';
+  if (!age.isNegative && age.inMinutes < 1) return appTr('Just now');
   if (!age.isNegative && age.inHours < 1) {
-    return '${age.inMinutes} ${age.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+    return appTr(':count minute ago|:count minutes ago', {}, age.inMinutes);
   }
   if (!age.isNegative && age.inDays < 1) {
-    return '${age.inHours} ${age.inHours == 1 ? 'hour' : 'hours'} ago';
+    return appTr(':count hour ago|:count hours ago', {}, age.inHours);
   }
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  return DateFormat.yMMMd().format(date);
 }
 
 String generationTimestamp(DateTime? date) {
-  if (date == null) return 'Date unavailable';
-  final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-  final time =
-      '${hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')} ${date.hour < 12 ? 'AM' : 'PM'}';
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${months[date.month - 1]} ${date.day}, ${date.year} • $time';
+  if (date == null) return appTr('Date unavailable');
+  final format = AppLocalizations.current.locale.languageCode == 'en'
+      ? DateFormat('hh:mm a')
+      : DateFormat.jm();
+  return '${DateFormat.yMMMd().format(date)} • ${format.format(date)}';
 }

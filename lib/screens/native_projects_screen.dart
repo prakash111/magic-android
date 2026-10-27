@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../services/mobile_api.dart';
@@ -119,7 +121,10 @@ class _NativeProjectsScreenState extends State<NativeProjectsScreen> {
     ];
     final saved = await Navigator.of(context, rootNavigator: true).push<bool>(
       MaterialPageRoute(
-        builder: (_) => _ProjectForm(service: _service, fields: fields),
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return _ProjectForm(service: _service, fields: fields);
+        },
       ),
     );
     if (saved == true && mounted) await _load();
@@ -128,20 +133,23 @@ class _NativeProjectsScreenState extends State<NativeProjectsScreen> {
   Future<void> _delete(Map record) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete project?'),
-        content: Text('${record['name']}'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          title: Text(appTr('Delete project?')),
+          content: Text('${record['name']}'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(appTr('Delete')),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !mounted) return;
     setState(() => _busy = true);
@@ -160,10 +168,12 @@ class _NativeProjectsScreenState extends State<NativeProjectsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_data == null) {
       return _error == null
           ? const Center(child: CircularProgressIndicator())
-          : RetryPanel(message: _error!, retry: _load);
+          : RetryPanel(message: appTr(_error!), retry: _load);
     }
     final metrics = (_data!['metrics'] as List? ?? [])
         .whereType<Map>()
@@ -175,57 +185,65 @@ class _NativeProjectsScreenState extends State<NativeProjectsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           LayoutBuilder(
-            builder: (context, constraints) => Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                for (final metric in metrics)
-                  SizedBox(
-                    width: (constraints.maxWidth - 12) / 2,
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${metric['value'] ?? 0}',
-                              style: Theme.of(context).textTheme.headlineMedium,
-                            ),
-                            const SizedBox(height: 8),
-                            Text('${metric['label']}'),
-                          ],
+            builder: (context, constraints) {
+              AppLocalizations.watch(context);
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final metric in metrics)
+                    SizedBox(
+                      width: (constraints.maxWidth - 12) / 2,
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${metric['value'] ?? 0}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(appTr((metric['label']).toString())),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _busy ? null : _create,
             icon: const Icon(Icons.add),
-            label: const Text('New Project'),
+            label: Text(appTr('New Project')),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _search,
             decoration: InputDecoration(
-              labelText: 'Search projects',
+              labelText: appTr('Search projects'),
               prefixIcon: const Icon(Icons.search),
               suffixIcon: IconButton(
                 onPressed: _busy ? null : _load,
                 icon: const Icon(Icons.search),
-                tooltip: 'Search projects',
+                tooltip: appTr('Search projects'),
               ),
             ),
             onSubmitted: (_) => _load(),
           ),
           const SizedBox(height: 16),
-          Text('Projects List', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            appTr('Projects List'),
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           if (_busy) const LinearProgressIndicator(),
-          if (_error != null) RetryPanel(message: _error!, retry: _load),
+          if (_error != null) RetryPanel(message: appTr(_error!), retry: _load),
           if (_records.isEmpty && !_busy)
             Card(
               child: Padding(
@@ -234,10 +252,10 @@ class _NativeProjectsScreenState extends State<NativeProjectsScreen> {
                   children: [
                     const Icon(Icons.folder_outlined, size: 48),
                     const SizedBox(height: 12),
-                    const Text('No projects yet'),
+                    Text(appTr('No projects yet')),
                     TextButton(
                       onPressed: _create,
-                      child: const Text('Create your first project'),
+                      child: Text(appTr('Create your first project')),
                     ),
                   ],
                 ),
@@ -249,10 +267,12 @@ class _NativeProjectsScreenState extends State<NativeProjectsScreen> {
                 isThreeLine: true,
                 title: Text('${record['name']}'),
                 subtitle: Text(
-                  '${record['company'] ?? record['contact'] ?? ''}\n${'${record['status'] ?? 'not_started'}'.replaceAll('_', ' ')}${record['due_date'] == null ? '' : ' • Due ${record['due_date']}'}',
+                  appTr(
+                    '${record['company'] ?? record['contact'] ?? ''}\n${'${record['status'] ?? 'not_started'}'.replaceAll('_', ' ')}${record['due_date'] == null ? '' : ' • Due ${record['due_date']}'}',
+                  ),
                 ),
                 trailing: IconButton(
-                  tooltip: 'Delete project',
+                  tooltip: appTr('Delete project'),
                   icon: const Icon(Icons.delete_outline),
                   onPressed: _busy ? null : () => _delete(record),
                 ),
@@ -260,26 +280,34 @@ class _NativeProjectsScreenState extends State<NativeProjectsScreen> {
                   context: context,
                   useSafeArea: true,
                   isScrollControlled: true,
-                  builder: (context) => SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${record['name']}',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 16),
-                        Text('${record['description'] ?? 'No description'}'),
-                        const SizedBox(height: 16),
-                        Text(
-                          '${record['currency'] ?? 'USD'} ${record['budget'] ?? 0}',
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
+                  builder: (context) {
+                    AppLocalizations.watch(context);
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${record['name']}',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            appTr(
+                              (record['description'] ?? 'No description')
+                                  .toString(),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            '${record['currency'] ?? 'USD'} ${record['budget'] ?? 0}',
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -287,7 +315,7 @@ class _NativeProjectsScreenState extends State<NativeProjectsScreen> {
               (int.tryParse('${_data!['last_page']}') ?? 1))
             TextButton(
               onPressed: _busy ? null : () => _load(more: true),
-              child: const Text('Load more projects'),
+              child: Text(appTr('Load more projects')),
             ),
         ],
       ),
@@ -307,39 +335,42 @@ class _ProjectFormState extends State<_ProjectForm> {
   bool _busy = false;
   String? _error;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    resizeToAvoidBottomInset: true,
-    appBar: AppBar(title: const Text('New Project')),
-    body: ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        if (_error != null)
-          Text(
-            _error!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(title: Text(appTr('New Project'))),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (_error != null)
+            Text(
+              appTr(_error!),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          NativeSchemaForm(
+            definition: {'title': 'Save project', 'fields': widget.fields},
+            busy: _busy,
+            submit: (inputs, files) async {
+              setState(() => _busy = true);
+              try {
+                await widget.service.call(
+                  'save_project',
+                  inputs: {
+                    for (final entry in inputs.entries)
+                      if (entry.value.isNotEmpty) entry.key: entry.value,
+                  },
+                );
+                if (mounted) Navigator.pop(this.context, true);
+              } catch (error) {
+                if (mounted) setState(() => _error = error.toString());
+              } finally {
+                if (mounted) setState(() => _busy = false);
+              }
+            },
           ),
-        NativeSchemaForm(
-          definition: {'title': 'Save project', 'fields': widget.fields},
-          busy: _busy,
-          submit: (inputs, files) async {
-            setState(() => _busy = true);
-            try {
-              await widget.service.call(
-                'save_project',
-                inputs: {
-                  for (final entry in inputs.entries)
-                    if (entry.value.isNotEmpty) entry.key: entry.value,
-                },
-              );
-              if (mounted) Navigator.pop(this.context, true);
-            } catch (error) {
-              if (mounted) setState(() => _error = error.toString());
-            } finally {
-              if (mounted) setState(() => _busy = false);
-            }
-          },
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }

@@ -1,3 +1,6 @@
+import '../services/app_localizations.dart';
+import '../widgets/language_picker.dart';
+
 import 'package:flutter/material.dart';
 
 import '../services/mobile_api.dart';
@@ -52,11 +55,13 @@ class _NativeSettingsScreenState extends State<NativeSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_profile == null) {
       return Center(
         child: _error == null
             ? const CircularProgressIndicator()
-            : RetryPanel(message: _error!, retry: _load),
+            : RetryPanel(message: appTr(_error!), retry: _load),
       );
     }
     final theme = ThemeSettings.of(context);
@@ -67,11 +72,11 @@ class _NativeSettingsScreenState extends State<NativeSettingsScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            'Your account',
+            appTr('Your account'),
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
-          const Text('Manage your profile, security and preferences.'),
+          Text(appTr('Manage your profile, security and preferences.')),
           const SizedBox(height: 24),
           Card(
             child: Padding(
@@ -95,6 +100,12 @@ class _NativeSettingsScreenState extends State<NativeSettingsScreen> {
               ),
             ),
           ),
+          Card(
+            child: ListTile(
+              title: Text(appTr('Language')),
+              trailing: const LanguagePicker(),
+            ),
+          ),
           if (theme != null)
             Card(
               child: Padding(
@@ -103,22 +114,22 @@ class _NativeSettingsScreenState extends State<NativeSettingsScreen> {
                   key: ValueKey(theme.mode),
                   initialValue: theme.mode,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Appearance',
+                  decoration: InputDecoration(
+                    labelText: appTr('Appearance'),
                     prefixIcon: Icon(Icons.palette_outlined),
                   ),
-                  items: const [
+                  items: [
                     DropdownMenuItem(
                       value: ThemeMode.dark,
-                      child: Text('Dark'),
+                      child: Text(appTr('Dark')),
                     ),
                     DropdownMenuItem(
                       value: ThemeMode.light,
-                      child: Text('Light'),
+                      child: Text(appTr('Light')),
                     ),
                     DropdownMenuItem(
                       value: ThemeMode.system,
-                      child: Text('System'),
+                      child: Text(appTr('System')),
                     ),
                   ],
                   onChanged: (mode) {
@@ -136,19 +147,23 @@ class _NativeSettingsScreenState extends State<NativeSettingsScreen> {
                   const Icon(Icons.shield_outlined, size: 32),
                   const SizedBox(height: 12),
                   Text(
-                    'Keep your account secure',
+                    appTr('Keep your account secure'),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Update your profile, password and two-factor authentication securely.',
+                  Text(
+                    appTr(
+                      'Update your profile, password and two-factor authentication securely.',
+                    ),
                   ),
                   const SizedBox(height: 16),
                   OutlinedButton.icon(
                     onPressed: _opening ? null : _security,
                     icon: const Icon(Icons.lock_outline),
                     label: Text(
-                      _opening ? 'Opening…' : 'Manage profile & security',
+                      appTr(
+                        _opening ? 'Opening…' : 'Manage profile & security',
+                      ),
                     ),
                   ),
                 ],
@@ -156,7 +171,10 @@ class _NativeSettingsScreenState extends State<NativeSettingsScreen> {
             ),
           ),
           if (_error != null)
-            Padding(padding: const EdgeInsets.all(16), child: Text(_error!)),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(appTr(_error!)),
+            ),
         ],
       ),
     );

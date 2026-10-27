@@ -73,10 +73,7 @@ class ChatService {
     if (query.isNotEmpty) {
       p += '?${query.join('&')}';
     }
-    final response = await api.request(
-      p,
-      method: 'DELETE',
-    );
+    final response = await api.request(p, method: 'DELETE');
     if (response is Map && response['success'] == true) {
       return true;
     }

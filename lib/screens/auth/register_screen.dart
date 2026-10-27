@@ -1,3 +1,5 @@
+import '../../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
@@ -100,7 +102,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       children: [
         const SizedBox(height: 10),
         Semantics(
-          label: 'Password strength: ${labels[strength]}',
+          label: appTr("Password strength: :value", {
+            "value": appTr(labels[strength]),
+          }),
           child: Row(
             children: List.generate(
               4,
@@ -131,11 +135,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           runSpacing: 4,
           children: [
             Text(
-              'Password strength',
+              appTr('Password strength'),
               style: TextStyle(color: colors.muted, fontSize: 12),
             ),
             Text(
-              labels[strength],
+              appTr(labels[strength]),
               style: TextStyle(
                 color: tint,
                 fontSize: 12,
@@ -177,11 +181,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(width: 5),
                   Flexible(
                     child: Text(
-                      [
-                        '8+ characters',
-                        'Upper & lower case',
-                        'A number',
-                      ][index],
+                      appTr(
+                        [
+                          '8+ characters',
+                          'Upper & lower case',
+                          'A number',
+                        ][index],
+                      ),
                       style: TextStyle(
                         color: rules[index] ? colors.success : colors.muted,
                         fontSize: 11,
@@ -199,6 +205,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AuthPalette.of(context);
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -207,13 +215,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: SafeArea(
           child: registered
               ? AuthSuccess(
-                  title: 'You’re all set',
+                  title: appTr('You’re all set'),
                   onContinue: () => Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute<void>(
-                      builder: (_) => HomeScreen(
-                        onThemeChanged: widget.onThemeChanged,
-                        api: widget.api,
-                      ),
+                      builder: (localizationContext) {
+                        AppLocalizations.watch(localizationContext);
+                        return HomeScreen(
+                          onThemeChanged: widget.onThemeChanged,
+                          api: widget.api,
+                        );
+                      },
                     ),
                     (_) => false,
                   ),
@@ -235,7 +246,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 alignment: Alignment.centerLeft,
                                 child: AuthEntrance(
                                   child: IconButton.filledTonal(
-                                    tooltip: 'Back to sign in',
+                                    tooltip: appTr('Back to sign in'),
                                     onPressed: busy
                                         ? null
                                         : () => Navigator.pop(context),
@@ -255,7 +266,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               AuthEntrance(
                                 index: 1,
                                 child: Text(
-                                  'Create your account',
+                                  appTr('Create your account'),
                                   style: TextStyle(
                                     color: colors.text,
                                     fontSize: 29,
@@ -268,7 +279,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               AuthEntrance(
                                 index: 2,
                                 child: Text(
-                                  'Unlock the full suite of AI generation, SEO & social tools.',
+                                  appTr(
+                                    'Unlock the full suite of AI generation, SEO & social tools.',
+                                  ),
                                   style: TextStyle(
                                     color: colors.muted,
                                     fontSize: 14.5,
@@ -294,15 +307,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         ),
                                         curve: Curves.easeOutCubic,
                                         tween: Tween(end: progress),
-                                        builder: (_, value, _) =>
-                                            LinearProgressIndicator(
-                                              value: value,
-                                              minHeight: 6,
-                                              backgroundColor: colors.outline,
-                                              color: colors.cyan,
-                                              semanticsLabel:
+                                        builder:
+                                            (localizationContext, value, _) {
+                                              AppLocalizations.watch(
+                                                localizationContext,
+                                              );
+                                              return LinearProgressIndicator(
+                                                value: value,
+                                                minHeight: 6,
+                                                backgroundColor: colors.outline,
+                                                color: colors.cyan,
+                                                semanticsLabel: appTr(
                                                   'Account form completion',
-                                            ),
+                                                ),
+                                              );
+                                            },
                                       ),
                                     ),
                                     const SizedBox(height: 8),
@@ -310,11 +329,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       children: [
                                         Expanded(
                                           child: Text(
-                                            progress == 1
-                                                ? 'Ready to create your account'
-                                                : progress >= .5
-                                                ? 'Almost there'
-                                                : 'Let’s get started',
+                                            appTr(
+                                              progress == 1
+                                                  ? 'Ready to create your account'
+                                                  : progress >= .5
+                                                  ? 'Almost there'
+                                                  : 'Let’s get started',
+                                            ),
                                             style: TextStyle(
                                               color: colors.muted,
                                               fontSize: 12,
@@ -340,14 +361,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 index: 4,
                                 horizontal: true,
                                 child: LayoutBuilder(
-                                  builder: (_, constraints) {
+                                  builder: (localizationContext, constraints) {
+                                    AppLocalizations.watch(localizationContext);
                                     final names = [
                                       AuthInput(
                                         controller: first,
                                         focusNode: inputFocus[0],
                                         onSubmitted: (_) =>
                                             inputFocus[1].requestFocus(),
-                                        label: 'First Name',
+                                        label: appTr('First Name'),
                                         enabled: !busy,
                                         textInputAction: TextInputAction.next,
                                         autofillHints: const [
@@ -357,7 +379,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         validator: (value) =>
                                             value == null ||
                                                 value.trim().isEmpty
-                                            ? 'Required'
+                                            ? appTr('Required')
                                             : null,
                                       ),
                                       AuthInput(
@@ -365,7 +387,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         focusNode: inputFocus[1],
                                         onSubmitted: (_) =>
                                             inputFocus[2].requestFocus(),
-                                        label: 'Last Name',
+                                        label: appTr('Last Name'),
                                         enabled: !busy,
                                         textInputAction: TextInputAction.next,
                                         autofillHints: const [
@@ -375,7 +397,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         validator: (value) =>
                                             value == null ||
                                                 value.trim().isEmpty
-                                            ? 'Required'
+                                            ? appTr('Required')
                                             : null,
                                       ),
                                     ];
@@ -412,7 +434,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   focusNode: inputFocus[2],
                                   onSubmitted: (_) =>
                                       inputFocus[3].requestFocus(),
-                                  label: 'Email address',
+                                  label: appTr('Email address'),
                                   icon: Icons.mail_outline_rounded,
                                   enabled: !busy,
                                   keyboardType: TextInputType.emailAddress,
@@ -421,7 +443,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   onChanged: changed,
                                   validator: (value) => validEmail(value ?? '')
                                       ? null
-                                      : 'Enter a valid email address.',
+                                      : appTr('Enter a valid email address.'),
                                   suffix: validEmail(email.text)
                                       ? Icon(
                                           Icons.check_rounded,
@@ -439,7 +461,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   focusNode: inputFocus[3],
                                   onSubmitted: (_) =>
                                       inputFocus[4].requestFocus(),
-                                  label: 'Password',
+                                  label: appTr('Password'),
                                   icon: Icons.lock_outline_rounded,
                                   enabled: !busy,
                                   obscure: obscure,
@@ -450,12 +472,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   onChanged: changed,
                                   validator: (value) =>
                                       value == null || value.length < 8
-                                      ? 'Use at least 8 characters.'
+                                      ? appTr('Use at least 8 characters.')
                                       : null,
                                   suffix: IconButton(
-                                    tooltip: obscure
-                                        ? 'Show password'
-                                        : 'Hide password',
+                                    tooltip: appTr(
+                                      obscure
+                                          ? 'Show password'
+                                          : 'Hide password',
+                                    ),
                                     onPressed: busy
                                         ? null
                                         : () => setState(
@@ -479,7 +503,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 child: AuthInput(
                                   controller: confirm,
                                   focusNode: inputFocus[4],
-                                  label: 'Confirm password',
+                                  label: appTr('Confirm password'),
                                   icon: Icons.lock_outline_rounded,
                                   enabled: !busy,
                                   obscure: obscure,
@@ -490,9 +514,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   onChanged: changed,
                                   validator: (value) =>
                                       value == null || value.isEmpty
-                                      ? 'Please confirm your password.'
+                                      ? appTr('Please confirm your password.')
                                       : value != password.text
-                                      ? 'Passwords do not match.'
+                                      ? appTr('Passwords do not match.')
                                       : null,
                                   onSubmitted: (_) => submit(),
                                   suffix:
@@ -508,94 +532,102 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               const SizedBox(height: 12),
                               FormField<bool>(
                                 initialValue: false,
-                                validator: (value) => value == true ? null : 'Please accept the terms and privacy policy.',
-                                builder: (field) => Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Checkbox(
-                                          value: agreed,
-                                          onChanged: busy
-                                              ? null
-                                              : (value) {
-                                                  field.didChange(value);
-                                                  setState(
-                                                    () =>
-                                                        agreed = value ?? false,
-                                                  );
-                                                },
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              6,
+                                validator: (value) => value == true
+                                    ? null
+                                    : appTr(
+                                        'Please accept the terms and privacy policy.',
+                                      ),
+                                builder: (field) {
+                                  AppLocalizations.watch(field.context);
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Checkbox(
+                                            value: agreed,
+                                            onChanged: busy
+                                                ? null
+                                                : (value) {
+                                                    field.didChange(value);
+                                                    setState(
+                                                      () => agreed =
+                                                          value ?? false,
+                                                    );
+                                                  },
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
                                             ),
                                           ),
-                                        ),
-                                        Expanded(
-                                          child: Wrap(
-                                            crossAxisAlignment:
-                                                WrapCrossAlignment.center,
-                                            children: [
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                  top: 12,
+                                          Expanded(
+                                            child: Wrap(
+                                              crossAxisAlignment:
+                                                  WrapCrossAlignment.center,
+                                              children: [
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 12,
+                                                      ),
+                                                  child: Text(
+                                                    appTr('I agree to the '),
+                                                    style: TextStyle(
+                                                      color: colors.muted,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
                                                 ),
-                                                child: Text(
-                                                  'I agree to the ',
+                                                TextButton(
+                                                  onPressed: () => openAuthPage(
+                                                    context,
+                                                    widget.api ??
+                                                        MobileApi.instance,
+                                                    '/terms',
+                                                  ),
+                                                  child: Text(
+                                                    appTr('Terms of Service'),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  appTr('and'),
                                                   style: TextStyle(
                                                     color: colors.muted,
                                                     fontSize: 13,
                                                   ),
                                                 ),
-                                              ),
-                                              TextButton(
-                                                onPressed: () => openAuthPage(
-                                                  context,
-                                                  widget.api ??
-                                                      MobileApi.instance,
-                                                  '/terms',
+                                                TextButton(
+                                                  onPressed: () => openAuthPage(
+                                                    context,
+                                                    widget.api ??
+                                                        MobileApi.instance,
+                                                    '/privacy-policy',
+                                                  ),
+                                                  child: Text(
+                                                    appTr('Privacy Policy'),
+                                                  ),
                                                 ),
-                                                child: const Text(
-                                                  'Terms of Service',
-                                                ),
-                                              ),
-                                              Text(
-                                                'and',
-                                                style: TextStyle(
-                                                  color: colors.muted,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                              TextButton(
-                                                onPressed: () => openAuthPage(
-                                                  context,
-                                                  widget.api ??
-                                                      MobileApi.instance,
-                                                  '/privacy-policy',
-                                                ),
-                                                child: const Text(
-                                                  'Privacy Policy',
-                                                ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (field.hasError)
+                                        Text(
+                                          appTr(field.errorText!),
+                                          style: TextStyle(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .error,
+                                            fontSize: 12,
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                    if (field.hasError)
-                                      Text(
-                                        field.errorText!,
-                                        style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .error,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 16),
                               if (error != null)
@@ -604,7 +636,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   child: Semantics(
                                     liveRegion: true,
                                     child: Text(
-                                      error!,
+                                      appTr(error!),
                                       style: TextStyle(
                                         color: Theme.of(context)
                                             .colorScheme
@@ -616,7 +648,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               AuthEntrance(
                                 index: 8,
                                 child: AuthPrimaryButton(
-                                  label: 'Create Account',
+                                  label: appTr('Create Account'),
                                   busy: busy,
                                   busyLabel: 'Creating your account…',
                                   onPressed: submit,
@@ -628,7 +660,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Text(
-                                    'Already have an account?',
+                                    appTr('Already have an account?'),
                                     style: TextStyle(
                                       color: colors.muted,
                                       fontSize: 14,
@@ -638,7 +670,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     onPressed: busy
                                         ? null
                                         : () => Navigator.pop(context),
-                                    child: const Text('Sign In'),
+                                    child: Text(appTr('Sign In')),
                                   ),
                                 ],
                               ),

@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -66,7 +68,7 @@ class NativeModuleRegistry {
       'social_accounts' => SocialAccountsScreen(api: client, embedded: true),
       'documents' => ServerListScreen(
         path: '/documents',
-        title: 'Documents',
+        title: appTr('Documents'),
         api: client,
       ),
       'tool_directory' => NativeToolDirectory(api: client),
@@ -81,11 +83,14 @@ class NativeModuleScreen extends StatelessWidget {
   final MobileApi? api;
   const NativeModuleScreen({super.key, required this.module, this.api});
   @override
-  Widget build(BuildContext context) => Scaffold(
-    resizeToAvoidBottomInset: true,
-    appBar: AppBar(title: Text(workspaceTitle(module))),
-    body: NativeModuleRegistry.build(module, api: api),
-  );
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(title: Text(appTr(workspaceTitle(module)))),
+      body: NativeModuleRegistry.build(module, api: api),
+    );
+  }
 }
 
 class NativeDashboard extends StatefulWidget {
@@ -123,10 +128,12 @@ class _NativeDashboardState extends State<NativeDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_data == null) {
       return _error == null
           ? const Center(child: CircularProgressIndicator())
-          : RetryPanel(message: _error!, retry: _load);
+          : RetryPanel(message: appTr(_error!), retry: _load);
     }
     final stats = (_data!['stats'] as List? ?? []).whereType<Map>();
     final chart = (_data!['chart'] as List? ?? []).whereType<Map>().toList();
@@ -145,7 +152,7 @@ class _NativeDashboardState extends State<NativeDashboard> {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            'Your work, at a glance',
+            appTr('Your work, at a glance'),
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 20),
@@ -167,7 +174,7 @@ class _NativeDashboardState extends State<NativeDashboard> {
                             style: Theme.of(context).textTheme.headlineMedium,
                           ),
                           const SizedBox(height: 8),
-                          Text('${stat['label']}'),
+                          Text(appTr((stat['label']).toString())),
                         ],
                       ),
                     ),
@@ -189,7 +196,10 @@ class _NativeDashboardState extends State<NativeDashboard> {
                 for (final point in chart)
                   Expanded(
                     child: Semantics(
-                      label: '${point['label']}: ${point['value']}',
+                      label: appTr(":value: :value2", {
+                        "value": point['label'],
+                        "value2": point['value'],
+                      }),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -204,7 +214,7 @@ class _NativeDashboardState extends State<NativeDashboard> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text('${point['label']}'),
+                          Text(appTr((point['label']).toString())),
                         ],
                       ),
                     ),
@@ -213,19 +223,22 @@ class _NativeDashboardState extends State<NativeDashboard> {
             ),
           ),
           const SizedBox(height: 28),
-          Text('Quick actions', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            appTr('Quick actions'),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           for (final shortcut
               in (_data!['shortcuts'] as List? ?? []).whereType<Map>())
             Card(
               child: ListTile(
                 leading: Icon(workspaceIcon('${shortcut['id']}')),
-                title: Text('${shortcut['title']}'),
+                title: Text(appTr((shortcut['title']).toString())),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () =>
                     openModule(context, Map<String, dynamic>.from(shortcut)),
               ),
             ),
-          if (_error != null) Text(_error!),
+          if (_error != null) Text(appTr(_error!)),
         ],
       ),
     );
@@ -263,19 +276,22 @@ class _NativeToolDirectoryState extends State<NativeToolDirectory> {
   }
 
   @override
-  Widget build(BuildContext context) => _data == null
-      ? (_error == null
-            ? const Center(child: CircularProgressIndicator())
-            : RetryPanel(message: _error!, retry: _load))
-      : ToolDirectory(
-          tools: (_data!['tools'] as List? ?? [])
-              .whereType<Map>()
-              .map((item) => Map<String, dynamic>.from(item))
-              .toList(),
-          credits: Map<String, dynamic>.from(_data!['credits'] as Map? ?? {}),
-          dashboard: false,
-          refresh: _load,
-        );
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return _data == null
+        ? (_error == null
+              ? const Center(child: CircularProgressIndicator())
+              : RetryPanel(message: appTr(_error!), retry: _load))
+        : ToolDirectory(
+            tools: (_data!['tools'] as List? ?? [])
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList(),
+            credits: Map<String, dynamic>.from(_data!['credits'] as Map? ?? {}),
+            dashboard: false,
+            refresh: _load,
+          );
+  }
 }
 
 class NativeSchemaScreen extends StatefulWidget {
@@ -336,8 +352,9 @@ class _NativeSchemaScreenState extends State<NativeSchemaScreen> {
       if (mounted) {
         setState(() => _data = data);
         if (data['message'] != null) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('${data['message']}')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(appTr((data['message']).toString()))),
+          );
         }
       }
     } catch (error) {
@@ -351,20 +368,23 @@ class _NativeSchemaScreenState extends State<NativeSchemaScreen> {
     if (item['confirm'] == true) {
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text('${item['title']}?'),
-          content: const Text('This action will update your account data.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Continue'),
-            ),
-          ],
-        ),
+        builder: (context) {
+          AppLocalizations.watch(context);
+          return AlertDialog(
+            title: Text('${item['title']}?'),
+            content: Text(appTr('This action will update your account data.')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(appTr('Cancel')),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(appTr('Continue')),
+              ),
+            ],
+          );
+        },
       );
       if (confirmed != true) return;
     }
@@ -436,7 +456,7 @@ class _NativeSchemaScreenState extends State<NativeSchemaScreen> {
                           Expanded(
                             flex: 2,
                             child: Text(
-                              '${cell['label']}',
+                              appTr((cell['label']).toString()),
                               style: const TextStyle(
                                 color: AppTheme.textMuted,
                                 fontSize: 13,
@@ -464,13 +484,15 @@ class _NativeSchemaScreenState extends State<NativeSchemaScreen> {
     'stat' => Card(
       child: ListTile(
         title: Text('${item['value']}'),
-        subtitle: Text('${item['label']}'),
+        subtitle: Text(appTr((item['label']).toString())),
       ),
     ),
     'image' => Image.network(
       '${item['url']}',
-      errorBuilder: (_, error, stack) =>
-          const Icon(Icons.broken_image_outlined),
+      errorBuilder: (localizationContext, error, stack) {
+        AppLocalizations.watch(localizationContext);
+        return const Icon(Icons.broken_image_outlined);
+      },
     ),
     'group' => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -479,30 +501,32 @@ class _NativeSchemaScreenState extends State<NativeSchemaScreen> {
           _component(child),
       ],
     ),
-    _ => const Card(
+    _ => Card(
       child: Padding(
         padding: EdgeInsets.all(16),
-        child: Text('This tool will be available soon.'),
+        child: Text(appTr('This tool will be available soon.')),
       ),
     ),
   };
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_data == null) {
       return _error == null
           ? const Center(child: CircularProgressIndicator())
-          : RetryPanel(message: _error!, retry: _load);
+          : RetryPanel(message: appTr(_error!), retry: _load);
     }
     return Column(
       children: [
         if (_busy) const LinearProgressIndicator(),
         if (_error != null)
           MaterialBanner(
-            content: Text(_error!),
+            content: Text(appTr(_error!)),
             actions: [
               TextButton(
                 onPressed: _busy ? null : () => _load(),
-                child: const Text('Reload'),
+                child: Text(appTr('Reload')),
               ),
             ],
           ),
@@ -606,228 +630,263 @@ class _NativeSchemaFormState extends State<NativeSchemaForm> {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _form,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final field
-                in (widget.definition['fields'] as List? ?? [])
-                    .whereType<Map>())
-              Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: switch (field['type']) {
-                  'file' => FormField<void>(
-                    validator: (_) =>
-                        field['required'] == true &&
-                            !_files.containsKey(field['name'])
-                        ? 'Choose ${field['label']}'
-                        : null,
-                    builder: (state) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (_files[field['name']] != null)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: '${field['accept']}'.startsWith('image/')
-                                ? Image.memory(
-                                    Uint8List.fromList(
-                                      base64Decode(
-                                        _files[field['name']]['bytes'],
-                                      ),
-                                    ),
-                                    width: 48,
-                                    height: 48,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, e, s) =>
-                                        const Icon(Icons.image_outlined),
-                                  )
-                                : const Icon(Icons.attach_file),
-                            title: Text(
-                              '${_files[field['name']]['name']}',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: IconButton(
-                              tooltip: 'Remove attachment',
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _form,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final field
+                  in (widget.definition['fields'] as List? ?? [])
+                      .whereType<Map>())
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: switch (field['type']) {
+                    'file' => FormField<void>(
+                      validator: (_) =>
+                          field[appTr('required')] == true &&
+                              !_files.containsKey(field[appTr('name')])
+                          ? 'Choose ${field[appTr('label')]}'
+                          : null,
+                      builder: (state) {
+                        AppLocalizations.watch(state.context);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (_files[field['name']] != null)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading:
+                                    '${field['accept']}'.startsWith('image/')
+                                    ? Image.memory(
+                                        Uint8List.fromList(
+                                          base64Decode(
+                                            _files[field['name']]['bytes'],
+                                          ),
+                                        ),
+                                        width: 48,
+                                        height: 48,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (localizationContext, e, s) {
+                                              AppLocalizations.watch(
+                                                localizationContext,
+                                              );
+                                              return const Icon(
+                                                Icons.image_outlined,
+                                              );
+                                            },
+                                      )
+                                    : const Icon(Icons.attach_file),
+                                title: Text(
+                                  '${_files[field['name']]['name']}',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: IconButton(
+                                  tooltip: appTr('Remove attachment'),
+                                  onPressed: widget.busy
+                                      ? null
+                                      : () => setState(
+                                          () => _files.remove(field['name']),
+                                        ),
+                                  icon: const Icon(Icons.close),
+                                ),
+                              ),
+                            OutlinedButton.icon(
                               onPressed: widget.busy
                                   ? null
-                                  : () => setState(
-                                      () => _files.remove(field['name']),
-                                    ),
-                              icon: const Icon(Icons.close),
-                            ),
-                          ),
-                        OutlinedButton.icon(
-                          onPressed: widget.busy ? null : () => _pick(field),
-                          icon: const Icon(Icons.attach_file),
-                          label: Text(
-                            _files.containsKey(field['name'])
-                                ? 'Replace ${field['label']}'
-                                : '${field['label']}',
-                          ),
-                        ),
-                        if (state.hasError)
-                          Text(
-                            state.errorText!,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  'select' => DropdownButtonFormField<String>(
-                    initialValue:
-                        (field['options'] as List? ?? []).whereType<Map>().any(
-                          (option) =>
-                              '${option['value']}' == _values[field['name']],
-                        )
-                        ? _values[field['name']]
-                        : null,
-                    isExpanded: true,
-                    decoration: InputDecoration(labelText: '${field['label']}'),
-                    items: (field['options'] as List? ?? [])
-                        .whereType<Map>()
-                        .map(
-                          (option) => DropdownMenuItem(
-                            value: '${option['value']}',
-                            child: Text(
-                              '${option['label']}',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: widget.busy
-                        ? null
-                        : (value) {
-                            if (value != null) {
-                              _values['${field['name']}'] = value;
-                            }
-                          },
-                    validator: (value) =>
-                        field['required'] == true &&
-                            (value == null || value.isEmpty)
-                        ? 'Required'
-                        : null,
-                  ),
-                  'date' => FormField<String>(
-                    initialValue:
-                        _values['${field['name']}'] ??
-                        '${field['value'] ?? ''}',
-                    validator: (value) =>
-                        field['required'] == true && (value?.isEmpty ?? true)
-                        ? 'Required'
-                        : null,
-                    onSaved: (value) =>
-                        _values['${field['name']}'] = value ?? '',
-                    builder: (state) => InkWell(
-                      onTap: widget.busy
-                          ? null
-                          : () async {
-                              final current =
-                                  DateTime.tryParse(state.value ?? '') ??
-                                  DateTime.now();
-                              final date = await showDatePicker(
-                                context: context,
-                                initialDate: current,
-                                firstDate: DateTime(1900),
-                                lastDate: DateTime(2200),
-                              );
-                              if (date == null || !mounted) return;
-                              final value =
-                                  '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-                              state.didChange(value);
-                              _values['${field['name']}'] = value;
-                            },
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          labelText: '${field['label']}',
-                          errorText: state.errorText,
-                          suffixIcon: const Icon(Icons.calendar_today_outlined),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            state.value?.isNotEmpty == true
-                                ? state.value!
-                                : 'Choose date',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  'checkbox' => CheckboxListTile(
-                    title: Text('${field['label']}'),
-                    value: _values[field['name']] == '1',
-                    onChanged: widget.busy
-                        ? null
-                        : (value) => setState(
-                            () => _values['${field['name']}'] = value == true
-                                ? '1'
-                                : '0',
-                          ),
-                  ),
-                  _ => TextFormField(
-                    initialValue: '${field['value'] ?? ''}',
-                    enabled: !widget.busy,
-                    maxLines: field['type'] == 'textarea' ? 4 : 1,
-                    obscureText:
-                        field['type'] == 'secret' &&
-                        !_visibleSecrets.contains('${field['name']}'),
-                    keyboardType: switch (field['type']) {
-                      'email' => TextInputType.emailAddress,
-                      'number' => TextInputType.number,
-                      _ => TextInputType.text,
-                    },
-                    decoration: InputDecoration(
-                      labelText: '${field['label']}',
-                      suffixIcon: field['type'] == 'secret'
-                          ? IconButton(
-                              tooltip: 'Show or hide token',
-                              onPressed: () => setState(() {
-                                final name = '${field['name']}';
-                                if (!_visibleSecrets.remove(name)) {
-                                  _visibleSecrets.add(name);
-                                }
-                              }),
-                              icon: Icon(
-                                _visibleSecrets.contains('${field['name']}')
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
+                                  : () => _pick(field),
+                              icon: const Icon(Icons.attach_file),
+                              label: Text(
+                                appTr(
+                                  _files.containsKey(field['name'])
+                                      ? 'Replace ${field['label']}'
+                                      : '${field['label']}',
+                                ),
                               ),
-                            )
+                            ),
+                            if (state.hasError)
+                              Text(
+                                appTr(state.errorText!),
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                    'select' => DropdownButtonFormField<String>(
+                      initialValue:
+                          (field['options'] as List? ?? [])
+                              .whereType<Map>()
+                              .any(
+                                (option) =>
+                                    '${option['value']}' ==
+                                    _values[field['name']],
+                              )
+                          ? _values[field['name']]
+                          : null,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: appTr((field['label']).toString()),
+                      ),
+                      items: (field['options'] as List? ?? [])
+                          .whereType<Map>()
+                          .map(
+                            (option) => DropdownMenuItem(
+                              value: '${option['value']}',
+                              child: Text(
+                                appTr((option['label']).toString()),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: widget.busy
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                _values['${field['name']}'] = value;
+                              }
+                            },
+                      validator: (value) =>
+                          field[appTr('required')] == true &&
+                              (value == null || value.isEmpty)
+                          ? appTr('Required')
                           : null,
                     ),
-                    validator: (value) =>
-                        field['required'] == true &&
-                            (value?.trim().isEmpty ?? true)
-                        ? 'Required'
-                        : null,
-                    onSaved: (value) =>
-                        _values['${field['name']}'] = value ?? '',
-                  ),
-                },
+                    'date' => FormField<String>(
+                      initialValue:
+                          _values['${field['name']}'] ??
+                          '${field['value'] ?? ''}',
+                      validator: (value) =>
+                          field[appTr('required')] == true &&
+                              (value?.isEmpty ?? true)
+                          ? appTr('Required')
+                          : null,
+                      onSaved: (value) =>
+                          _values['${field['name']}'] = value ?? '',
+                      builder: (state) {
+                        AppLocalizations.watch(state.context);
+                        return InkWell(
+                          onTap: widget.busy
+                              ? null
+                              : () async {
+                                  final current =
+                                      DateTime.tryParse(state.value ?? '') ??
+                                      DateTime.now();
+                                  final date = await showDatePicker(
+                                    context: context,
+                                    initialDate: current,
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime(2200),
+                                  );
+                                  if (date == null || !mounted) return;
+                                  final value =
+                                      '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                                  state.didChange(value);
+                                  _values['${field['name']}'] = value;
+                                },
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: appTr((field['label']).toString()),
+                              errorText: state.errorText == null
+                                  ? null
+                                  : appTr(state.errorText!),
+                              suffixIcon: const Icon(
+                                Icons.calendar_today_outlined,
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                appTr(
+                                  state.value?.isNotEmpty == true
+                                      ? state.value!
+                                      : 'Choose date',
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    'checkbox' => CheckboxListTile(
+                      title: Text(appTr((field['label']).toString())),
+                      value: _values[field['name']] == '1',
+                      onChanged: widget.busy
+                          ? null
+                          : (value) => setState(
+                              () => _values['${field['name']}'] = value == true
+                                  ? '1'
+                                  : '0',
+                            ),
+                    ),
+                    _ => TextFormField(
+                      initialValue: '${field['value'] ?? ''}',
+                      enabled: !widget.busy,
+                      maxLines: field['type'] == 'textarea' ? 4 : 1,
+                      obscureText:
+                          field['type'] == 'secret' &&
+                          !_visibleSecrets.contains('${field['name']}'),
+                      keyboardType: switch (field['type']) {
+                        'email' => TextInputType.emailAddress,
+                        'number' => TextInputType.number,
+                        _ => TextInputType.text,
+                      },
+                      decoration: InputDecoration(
+                        labelText: appTr((field['label']).toString()),
+                        suffixIcon: field['type'] == 'secret'
+                            ? IconButton(
+                                tooltip: appTr('Show or hide token'),
+                                onPressed: () => setState(() {
+                                  final name = '${field['name']}';
+                                  if (!_visibleSecrets.remove(name)) {
+                                    _visibleSecrets.add(name);
+                                  }
+                                }),
+                                icon: Icon(
+                                  _visibleSecrets.contains('${field['name']}')
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                ),
+                              )
+                            : null,
+                      ),
+                      validator: (value) =>
+                          field[appTr('required')] == true &&
+                              (value?.trim().isEmpty ?? true)
+                          ? appTr('Required')
+                          : null,
+                      onSaved: (value) =>
+                          _values['${field['name']}'] = value ?? '',
+                    ),
+                  },
+                ),
+              if (_error != null) Text(appTr(_error!)),
+              FilledButton(
+                onPressed: widget.busy
+                    ? null
+                    : () async {
+                        if (_form.currentState!.validate()) {
+                          _form.currentState!.save();
+                          await widget.submit(_values, _files);
+                        }
+                      },
+                child: Text(
+                  appTr((widget.definition['title'] ?? 'Save').toString()),
+                ),
               ),
-            if (_error != null) Text(_error!),
-            FilledButton(
-              onPressed: widget.busy
-                  ? null
-                  : () async {
-                      if (_form.currentState!.validate()) {
-                        _form.currentState!.save();
-                        await widget.submit(_values, _files);
-                      }
-                    },
-              child: Text('${widget.definition['title'] ?? 'Save'}'),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

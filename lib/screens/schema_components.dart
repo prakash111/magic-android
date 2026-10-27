@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -95,7 +97,7 @@ List<Widget> buildStyledComponents(
           children: [
             for (final s in stats)
               SchemaTile(
-                label: '${s['label'] ?? ''}',
+                label: appTr((s['label'] ?? '').toString()),
                 value: s['value'] == null ? null : '${s['value']}',
               ),
           ],
@@ -177,43 +179,49 @@ class SchemaIntro extends StatelessWidget {
   final String text;
   const SchemaIntro({super.key, required this.text});
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(
-      text,
-      style: Theme.of(context).textTheme.bodyLarge
-          ?.copyWith(color: _muted(context), height: 1.4),
-    ),
-  );
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodyLarge
+            ?.copyWith(color: _muted(context), height: 1.4),
+      ),
+    );
+  }
 }
 
 class SchemaSectionHeader extends StatelessWidget {
   final String title;
   const SchemaSectionHeader({super.key, required this.title});
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 22, bottom: 10),
-    child: Row(
-      children: [
-        Container(
-          width: 4,
-          height: 18,
-          decoration: BoxDecoration(
-            color: AppTheme.primary,
-            borderRadius: BorderRadius.circular(2),
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 22, bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 18,
+            decoration: BoxDecoration(
+              color: AppTheme.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              appTr(title),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class SchemaStatusSection extends StatelessWidget {
@@ -227,58 +235,64 @@ class SchemaStatusSection extends StatelessWidget {
     required this.lines,
   });
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 18),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                    const SizedBox(width: 8),
+                    Text(
+                      appTr(title),
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        if (lines.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 4),
-            child: Text(
-              'Nothing here yet',
-              style: TextStyle(color: _muted(context), fontSize: 13),
-            ),
-          )
-        else
-          SchemaInfoCard(lines: lines, accent: color),
-      ],
-    ),
-  );
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (lines.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 4),
+              child: Text(
+                appTr('Nothing here yet'),
+                style: TextStyle(color: _muted(context), fontSize: 13),
+              ),
+            )
+          else
+            SchemaInfoCard(lines: lines, accent: color),
+        ],
+      ),
+    );
+  }
 }
 
 class SchemaTextBlock extends StatelessWidget {
@@ -286,6 +300,8 @@ class SchemaTextBlock extends StatelessWidget {
   const SchemaTextBlock({super.key, required this.lines});
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (lines.length >= 2 && lines.every(_isLabelOnly)) {
       return _TwoColumn(
         children: [for (final l in lines) SchemaTile(label: l)],
@@ -309,40 +325,47 @@ class SchemaInfoCard extends StatelessWidget {
   final Color? accent;
   const SchemaInfoCard({super.key, required this.lines, this.accent});
   @override
-  Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 8),
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (var k = 0; k < lines.length; k++)
-            Padding(
-              padding: EdgeInsets.only(bottom: k == lines.length - 1 ? 0 : 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    _rowIcon(lines[k], k),
-                    size: 18,
-                    color: accent ?? AppTheme.textMuted,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      lines[k],
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: k == 0 ? FontWeight.w600 : FontWeight.w400,
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var k = 0; k < lines.length; k++)
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: k == lines.length - 1 ? 0 : 10,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      _rowIcon(lines[k], k),
+                      size: 18,
+                      color: accent ?? AppTheme.textMuted,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        lines[k],
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: k == 0
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class SchemaTile extends StatelessWidget {
@@ -350,86 +373,98 @@ class SchemaTile extends StatelessWidget {
   final String? value;
   const SchemaTile({super.key, required this.label, this.value});
   @override
-  Widget build(BuildContext context) => Card(
-    margin: EdgeInsets.zero,
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(_tileIcon(label), size: 18, color: AppTheme.primary),
             ),
-            child: Icon(_tileIcon(label), size: 18, color: AppTheme.primary),
-          ),
-          const SizedBox(height: 12),
-          if (value != null) ...[
+            const SizedBox(height: 12),
+            if (value != null) ...[
+              Text(
+                value!,
+                style: Theme.of(context).textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+            ],
             Text(
-              value!,
-              style: Theme.of(context).textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              appTr(label),
+              style: TextStyle(
+                color: value == null ? null : _muted(context),
+                fontSize: 13,
+                fontWeight: value == null ? FontWeight.w600 : FontWeight.w400,
+              ),
             ),
-            const SizedBox(height: 2),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              color: value == null ? null : _muted(context),
-              fontSize: 13,
-              fontWeight: value == null ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _TwoColumn extends StatelessWidget {
   final List<Widget> children;
   const _TwoColumn({required this.children});
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, box) {
-      final width = (box.maxWidth - 12) / 2;
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
-          for (final child in children) SizedBox(width: width, child: child),
-        ],
-      );
-    },
-  );
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return LayoutBuilder(
+      builder: (context, box) {
+        AppLocalizations.watch(context);
+        final width = (box.maxWidth - 12) / 2;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final child in children) SizedBox(width: width, child: child),
+          ],
+        );
+      },
+    );
+  }
 }
 
 /// Friendly replacement for the plain "workspace is ready" text.
 class SchemaEmptyState extends StatelessWidget {
   const SchemaEmptyState({super.key});
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-    child: Column(
-      children: [
-        Icon(Icons.inbox_outlined, size: 48, color: _muted(context)),
-        const SizedBox(height: 12),
-        Text(
-          'Nothing here yet',
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'New tools and data will appear here as they become available.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _muted(context)),
-        ),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+      child: Column(
+        children: [
+          Icon(Icons.inbox_outlined, size: 48, color: _muted(context)),
+          const SizedBox(height: 12),
+          Text(
+            appTr('Nothing here yet'),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            appTr(
+              'New tools and data will appear here as they become available.',
+            ),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _muted(context)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class StatusGroup {
@@ -459,6 +494,8 @@ class _SchemaStatusTabsState extends State<SchemaStatusTabs> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final groups = widget.groups;
     final index = _selected.clamp(0, groups.length - 1);
     final group = groups[index];
@@ -500,7 +537,7 @@ class _SchemaStatusTabsState extends State<SchemaStatusTabs> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  groups[k].title,
+                                  appTr(groups[k].title),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -541,7 +578,7 @@ class _SchemaStatusTabsState extends State<SchemaStatusTabs> {
                   Icon(Icons.inbox_outlined, size: 36, color: _muted(context)),
                   const SizedBox(height: 8),
                   Text(
-                    'Nothing here yet',
+                    appTr('Nothing here yet'),
                     style: TextStyle(color: _muted(context)),
                   ),
                 ],

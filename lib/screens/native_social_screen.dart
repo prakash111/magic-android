@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -105,7 +107,10 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
   Future<void> _compose() async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => SocialPostComposer(api: _api, accounts: _accounts),
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return SocialPostComposer(api: _api, accounts: _accounts);
+        },
       ),
     );
     if (saved == true && mounted) await _load();
@@ -114,20 +119,23 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
   Future<void> _delete(Map post) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete post?'),
-        content: const Text('This removes the post from your workspace.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          title: Text(appTr('Delete post?')),
+          content: Text(appTr('This removes the post from your workspace.')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(appTr('Delete')),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !mounted) return;
     try {
@@ -140,11 +148,13 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_posts == null) {
       return Center(
         child: _error == null
             ? const CircularProgressIndicator()
-            : RetryPanel(message: _error!, retry: _load),
+            : RetryPanel(message: appTr(_error!), retry: _load),
       );
     }
     return Column(
@@ -159,7 +169,7 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 Text(
-                  'Posts & scheduling',
+                  appTr('Posts & scheduling'),
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 16),
@@ -169,7 +179,7 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
                   children: [
                     for (final status in _statuses.entries)
                       ChoiceChip(
-                        label: Text(status.value),
+                        label: Text(appTr(status.value)),
                         selected: _status == status.key,
                         onSelected: (_) => _filter(status.key),
                       ),
@@ -185,13 +195,16 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
                         await Navigator.push(
                           context,
                           MaterialPageRoute<void>(
-                            builder: (_) => SocialAccountsScreen(api: _api),
+                            builder: (localizationContext) {
+                              AppLocalizations.watch(localizationContext);
+                              return SocialAccountsScreen(api: _api);
+                            },
                           ),
                         );
                         if (mounted) await _load();
                       },
                       icon: const Icon(Icons.hub_outlined),
-                      label: const Text('Connected accounts'),
+                      label: Text(appTr('Connected accounts')),
                     ),
                     OutlinedButton.icon(
                       onPressed: _status == 'draft'
@@ -208,7 +221,9 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
                             ? Icons.view_list_outlined
                             : Icons.calendar_month_outlined,
                       ),
-                      label: Text(_calendar ? 'Show all dates' : 'Calendar'),
+                      label: Text(
+                        appTr(_calendar ? 'Show all dates' : 'Calendar'),
+                      ),
                     ),
                   ],
                 ),
@@ -229,17 +244,17 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
                 FilledButton.icon(
                   onPressed: _loading ? null : _compose,
                   icon: const Icon(Icons.add),
-                  label: const Text('Create post'),
+                  label: Text(appTr('Create post')),
                 ),
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Column(
                       children: [
-                        Text(_error!),
+                        Text(appTr(_error!)),
                         TextButton(
                           onPressed: _loading ? null : _load,
-                          child: const Text('Retry'),
+                          child: Text(appTr('Retry')),
                         ),
                       ],
                     ),
@@ -248,9 +263,11 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
                   Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      _calendar
-                          ? 'No posts on this date.'
-                          : 'No ${_status == 'all' ? 'posts' : _statuses[_status]!.toLowerCase()} yet.',
+                      appTr(
+                        _calendar
+                            ? 'No posts on this date.'
+                            : 'No ${_status == 'all' ? 'posts' : _statuses[_status]!.toLowerCase()} yet.',
+                      ),
                     ),
                   ),
                 for (final post in _posts!)
@@ -263,10 +280,12 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
                       ),
                       title: Text('${post['caption']}'),
                       subtitle: Text(
-                        '${post['status']} · ${(post['platforms'] as List? ?? []).join(', ')}${_postDate(post)}',
+                        appTr(
+                          '${post['status']} · ${(post['platforms'] as List? ?? []).join(', ')}${_postDate(post)}',
+                        ),
                       ),
                       trailing: IconButton(
-                        tooltip: 'Delete post',
+                        tooltip: appTr('Delete post'),
                         onPressed: _loading ? null : () => _delete(post),
                         icon: const Icon(Icons.delete_outline),
                       ),
@@ -275,7 +294,9 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
                 if (_page < _lastPage)
                   OutlinedButton(
                     onPressed: _loading ? null : () => _load(more: true),
-                    child: Text(_loading ? 'Loading…' : 'Load more posts'),
+                    child: Text(
+                      appTr(_loading ? 'Loading…' : 'Load more posts'),
+                    ),
                   ),
               ],
             ),
@@ -476,197 +497,225 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    resizeToAvoidBottomInset: true,
-    appBar: AppBar(title: const Text('Create a post')),
-    body: SafeArea(
-      child: Column(
-        children: [
-          if (_saving || _uploading || _generating)
-            const LinearProgressIndicator(),
-          Expanded(
-            child: Form(
-              key: _form,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                children: [
-                  TextFormField(
-                    controller: _caption,
-                    enabled: !_saving && !_generating,
-                    minLines: 3,
-                    maxLines: 6,
-                    onChanged: (_) => _changed(),
-                    decoration: const InputDecoration(labelText: 'Post body'),
-                    validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Write your post.'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: _saving || _uploading || _generating
-                          ? null
-                          : _generateCaption,
-                      icon: const Icon(Icons.auto_awesome),
-                      label: Text(
-                        _generating
-                            ? 'Generating caption…'
-                            : 'Generate AI caption',
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(title: Text(appTr('Create a post'))),
+      body: SafeArea(
+        child: Column(
+          children: [
+            if (_saving || _uploading || _generating)
+              const LinearProgressIndicator(),
+            Expanded(
+              child: Form(
+                key: _form,
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  children: [
+                    TextFormField(
+                      controller: _caption,
+                      enabled: !_saving && !_generating,
+                      minLines: 3,
+                      maxLines: 6,
+                      onChanged: (_) => _changed(),
+                      decoration: InputDecoration(
+                        labelText: appTr('Post body'),
                       ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? appTr('Write your post.')
+                          : null,
                     ),
-                  ),
-                  TextFormField(
-                    controller: _media,
-                    enabled: !_saving && !_uploading,
-                    onChanged: (_) => _changed(),
-                    decoration: const InputDecoration(
-                      labelText: 'Media URL (optional)',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) return null;
-                      final url = Uri.tryParse(value.trim());
-                      return url != null &&
-                              url.scheme == 'https' &&
-                              url.host.isNotEmpty &&
-                              url.userInfo.isEmpty
-                          ? null
-                          : 'Use a valid HTTPS media URL.';
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    key: ValueKey(_mediaType),
-                    initialValue: _mediaType,
-                    decoration: const InputDecoration(labelText: 'Media type'),
-                    items: const [
-                      DropdownMenuItem(value: 'image', child: Text('Image')),
-                      DropdownMenuItem(value: 'video', child: Text('Video')),
-                    ],
-                    onChanged: _saving || _uploading
-                        ? null
-                        : (value) => setState(() {
-                            _mediaType = value!;
-                            _changed();
-                          }),
-                  ),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    children: [
-                      TextButton.icon(
-                        onPressed: _saving || _uploading
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _saving || _uploading || _generating
                             ? null
-                            : () => _pick('image'),
-                        icon: const Icon(Icons.image_outlined),
-                        label: const Text('Attach image'),
-                      ),
-                      TextButton.icon(
-                        onPressed: _saving || _uploading
-                            ? null
-                            : () => _pick('video'),
-                        icon: const Icon(Icons.video_library_outlined),
-                        label: const Text('Attach video'),
-                      ),
-                    ],
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Save as draft'),
-                    value: _draft,
-                    onChanged: _saving
-                        ? null
-                        : (value) => setState(() {
-                            _draft = value;
-                            _selected.removeWhere(
-                              (id) => !_available.any(
-                                (account) => '${account['id']}' == id,
-                              ),
-                            );
-                            _changed();
-                          }),
-                  ),
-                  if (!_draft)
-                    OutlinedButton.icon(
-                      onPressed: _saving ? null : _time,
-                      icon: const Icon(Icons.schedule),
-                      label: Text(
-                        'Publish: ${DateFormat.yMMMd().add_jm().format(_scheduled)}',
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _draft
-                        ? 'Choose platforms or accounts'
-                        : 'Choose connected accounts',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  if (_available.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Text(
-                        'Connect an account before scheduling. You can still save a draft.',
-                      ),
-                    ),
-                  for (final account in _available)
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        '${account['displayName']} ${account['handle'] ?? ''}',
-                      ),
-                      subtitle: account['isConnected'] == true
-                          ? null
-                          : const Text(
-                              'Draft only · connect before scheduling',
-                            ),
-                      value: _selected.contains('${account['id']}'),
-                      onChanged: _saving
-                          ? null
-                          : (value) => setState(() {
-                              if (value == true) {
-                                _selected.add('${account['id']}');
-                              } else {
-                                _selected.remove('${account['id']}');
-                              }
-                              _changed();
-                            }),
-                    ),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                            : _generateCaption,
+                        icon: const Icon(Icons.auto_awesome),
+                        label: Text(
+                          appTr(
+                            _generating
+                                ? 'Generating caption…'
+                                : 'Generate AI caption',
+                          ),
                         ),
                       ),
                     ),
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _saving || _uploading || _generating ? null : _save,
-                icon: const Icon(Icons.check),
-                label: Text(
-                  _saving
-                      ? 'Saving…'
-                      : _draft
-                      ? 'Save draft'
-                      : 'Schedule post',
+                    TextFormField(
+                      controller: _media,
+                      enabled: !_saving && !_uploading,
+                      onChanged: (_) => _changed(),
+                      decoration: InputDecoration(
+                        labelText: appTr('Media URL (optional)'),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) return null;
+                        final url = Uri.tryParse(value.trim());
+                        return url != null &&
+                                url.scheme == appTr('https') &&
+                                url.host.isNotEmpty &&
+                                url.userInfo.isEmpty
+                            ? null
+                            : appTr('Use a valid HTTPS media URL.');
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      key: ValueKey(_mediaType),
+                      initialValue: _mediaType,
+                      decoration: InputDecoration(
+                        labelText: appTr('Media type'),
+                      ),
+                      items: [
+                        DropdownMenuItem(
+                          value: 'image',
+                          child: Text(appTr('Image')),
+                        ),
+                        DropdownMenuItem(
+                          value: 'video',
+                          child: Text(appTr('Video')),
+                        ),
+                      ],
+                      onChanged: _saving || _uploading
+                          ? null
+                          : (value) => setState(() {
+                              _mediaType = value!;
+                              _changed();
+                            }),
+                    ),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        TextButton.icon(
+                          onPressed: _saving || _uploading
+                              ? null
+                              : () => _pick('image'),
+                          icon: const Icon(Icons.image_outlined),
+                          label: Text(appTr('Attach image')),
+                        ),
+                        TextButton.icon(
+                          onPressed: _saving || _uploading
+                              ? null
+                              : () => _pick('video'),
+                          icon: const Icon(Icons.video_library_outlined),
+                          label: Text(appTr('Attach video')),
+                        ),
+                      ],
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(appTr('Save as draft')),
+                      value: _draft,
+                      onChanged: _saving
+                          ? null
+                          : (value) => setState(() {
+                              _draft = value;
+                              _selected.removeWhere(
+                                (id) => !_available.any(
+                                  (account) => '${account['id']}' == id,
+                                ),
+                              );
+                              _changed();
+                            }),
+                    ),
+                    if (!_draft)
+                      OutlinedButton.icon(
+                        onPressed: _saving ? null : _time,
+                        icon: const Icon(Icons.schedule),
+                        label: Text(
+                          appTr("Publish: :value", {
+                            "value": DateFormat.yMMMd().add_jm().format(
+                              _scheduled,
+                            ),
+                          }),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    Text(
+                      appTr(
+                        _draft
+                            ? 'Choose platforms or accounts'
+                            : 'Choose connected accounts',
+                      ),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    if (_available.isEmpty)
+                      Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          appTr(
+                            'Connect an account before scheduling. You can still save a draft.',
+                          ),
+                        ),
+                      ),
+                    for (final account in _available)
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          '${account['displayName']} ${account['handle'] ?? ''}',
+                        ),
+                        subtitle: account['isConnected'] == true
+                            ? null
+                            : Text(
+                                appTr('Draft only · connect before scheduling'),
+                              ),
+                        value: _selected.contains('${account['id']}'),
+                        onChanged: _saving
+                            ? null
+                            : (value) => setState(() {
+                                if (value == true) {
+                                  _selected.add('${account['id']}');
+                                } else {
+                                  _selected.remove('${account['id']}');
+                                }
+                                _changed();
+                              }),
+                      ),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          appTr(_error!),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _saving || _uploading || _generating
+                      ? null
+                      : _save,
+                  icon: const Icon(Icons.check),
+                  label: Text(
+                    appTr(
+                      _saving
+                          ? 'Saving…'
+                          : _draft
+                          ? 'Save draft'
+                          : 'Schedule post',
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -50,20 +52,28 @@ Future<void> openModule(
   if (module['available'] != true) {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const PlansScreen()),
+      MaterialPageRoute(
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return const PlansScreen();
+        },
+      ),
     );
     return;
   }
   try {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => NativeModuleScreen(module: module, api: api),
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return NativeModuleScreen(module: module, api: api);
+        },
       ),
     );
   } catch (error) {
     if (context.mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
+          .showSnackBar(SnackBar(content: Text(appTr(error.toString()))));
     }
   }
 }
@@ -161,7 +171,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     final selected = grid == _grid;
     return IconButton(
       key: ValueKey(grid ? 'explore-grid-toggle' : 'explore-list-toggle'),
-      tooltip: grid ? 'Grid view' : 'List view',
+      tooltip: appTr(grid ? 'Grid view' : 'List view'),
       isSelected: selected,
       style: IconButton.styleFrom(
         minimumSize: const Size(48, 48),
@@ -183,7 +193,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       color: colors.toolAccent('${module['id']}'),
     );
     final title = Text(
-      workspaceTitle(module),
+      appTr(workspaceTitle(module)),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
@@ -194,7 +204,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       ),
     );
     final subtitle = Text(
-      locked ? 'Upgrade to unlock' : '${module['description'] ?? ''}',
+      appTr(locked ? 'Upgrade to unlock' : '${module['description'] ?? ''}'),
       maxLines: grid ? 2 : 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(color: colors.muted, fontSize: 12, height: 1.3),
@@ -256,6 +266,8 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AppColors.of(context);
     final categories = [
       'All',
@@ -293,7 +305,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                     Row(
                       children: [
                         Semantics(
-                          label: 'Open account',
+                          label: appTr('Open account'),
                           button: widget.openAccount != null,
                           child: InkWell(
                             onTap: widget.openAccount,
@@ -314,7 +326,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Explore',
+                            appTr('Explore'),
                             style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(
                                   fontWeight: FontWeight.w700,
@@ -346,7 +358,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                               onChanged: (value) =>
                                   setState(() => _query = value),
                               decoration: InputDecoration(
-                                hintText: 'Search tools...',
+                                hintText: appTr('Search tools...'),
                                 hintStyle: TextStyle(
                                   color: colors.inputHint,
                                   fontSize: 14,
@@ -398,28 +410,33 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: categories.length,
-                        separatorBuilder: (_, index) =>
-                            const SizedBox(width: 8),
-                        itemBuilder: (_, index) => ChoiceChip(
-                          label: Text(categories[index]),
-                          selected: selectedCategory == categories[index],
-                          selectedColor: colors.primary,
-                          backgroundColor: colors.surface,
-                          side: BorderSide(
-                            color: selectedCategory == categories[index]
-                                ? colors.primary
-                                : colors.outline,
-                          ),
-                          shape: const StadiumBorder(),
-                          labelStyle: TextStyle(
-                            color: selectedCategory == categories[index]
-                                ? colors.onPrimary
-                                : colors.text,
-                          ),
-                          showCheckmark: false,
-                          onSelected: (_) =>
-                              setState(() => _category = categories[index]),
-                        ),
+                        separatorBuilder: (localizationContext, index) {
+                          AppLocalizations.watch(localizationContext);
+                          return const SizedBox(width: 8);
+                        },
+                        itemBuilder: (localizationContext, index) {
+                          AppLocalizations.watch(localizationContext);
+                          return ChoiceChip(
+                            label: Text(appTr(categories[index])),
+                            selected: selectedCategory == categories[index],
+                            selectedColor: colors.primary,
+                            backgroundColor: colors.surface,
+                            side: BorderSide(
+                              color: selectedCategory == categories[index]
+                                  ? colors.primary
+                                  : colors.outline,
+                            ),
+                            shape: const StadiumBorder(),
+                            labelStyle: TextStyle(
+                              color: selectedCategory == categories[index]
+                                  ? colors.onPrimary
+                                  : colors.text,
+                            ),
+                            showCheckmark: false,
+                            onSelected: (_) =>
+                                setState(() => _category = categories[index]),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -431,7 +448,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(30),
                   child: Text(
-                    'No workspaces match your search.',
+                    appTr('No workspaces match your search.'),
                     style: TextStyle(color: colors.muted),
                   ),
                 ),
@@ -448,7 +465,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                           child: Semantics(
                             header: true,
                             child: Text(
-                              section.key,
+                              appTr(section.key),
                               key: ValueKey('workspace-section-${section.key}'),
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(
@@ -460,7 +477,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '${section.value.length} tool${section.value.length == 1 ? '' : 's'}',
+                          appTr(":length tool:value", {
+                            "length": section.value.length,
+                            "value": section.value.length == 1 ? '' : 's',
+                          }),
                           style: TextStyle(color: colors.muted, fontSize: 12),
                         ),
                       ],
@@ -473,6 +493,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                 sliver: _grid
                     ? SliverLayoutBuilder(
                         builder: (context, constraints) {
+                          AppLocalizations.watch(context);
                           final width = (constraints.crossAxisExtent - 10) / 2;
                           return SliverGrid.builder(
                             gridDelegate:
@@ -486,17 +507,26 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                                   ),
                                 ),
                             itemCount: section.value.length,
-                            itemBuilder: (_, index) =>
-                                _toolCard(section.value[index], grid: true),
+                            itemBuilder: (localizationContext, index) {
+                              AppLocalizations.watch(localizationContext);
+                              return _toolCard(
+                                section.value[index],
+                                grid: true,
+                              );
+                            },
                           );
                         },
                       )
                     : SliverList.separated(
                         itemCount: section.value.length,
-                        separatorBuilder: (_, index) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (_, index) =>
-                            _toolCard(section.value[index], grid: false),
+                        separatorBuilder: (localizationContext, index) {
+                          AppLocalizations.watch(localizationContext);
+                          return const SizedBox(height: 10);
+                        },
+                        itemBuilder: (localizationContext, index) {
+                          AppLocalizations.watch(localizationContext);
+                          return _toolCard(section.value[index], grid: false);
+                        },
                       ),
               ),
             ],
@@ -543,7 +573,7 @@ class StudioDashboard extends StatelessWidget {
         ),
       ),
       Text(
-        label,
+        appTr(label),
         style: const TextStyle(color: Colors.white70, fontSize: 12.5),
       ),
     ],
@@ -551,6 +581,8 @@ class StudioDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final name = (user['name']?.toString() ?? '').split(' ').first;
     final suggestions =
         [
@@ -574,14 +606,16 @@ class StudioDashboard extends StatelessWidget {
         children: [
           if (name.isNotEmpty)
             Text(
-              '${_greeting()}, $name',
+              '${appTr(_greeting())}, $name',
               style: TextStyle(color: mutedText(context), fontSize: 14),
             ),
           const SizedBox(height: 2),
           Text(
-            name.isEmpty
-                ? 'Your next big idea starts here.'
-                : 'What will you\ncreate today?',
+            appTr(
+              name.isEmpty
+                  ? 'Your next big idea starts here.'
+                  : 'What will you\ncreate today?',
+            ),
             style: Theme.of(context).textTheme.headlineMedium
                 ?.copyWith(fontWeight: FontWeight.w700, height: 1.15),
           ),
@@ -615,7 +649,9 @@ class StudioDashboard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          '${credits['plan'] ?? 'Free'} workspace',
+                          appTr(":value workspace", {
+                            "value": credits['plan'] ?? 'Free',
+                          }),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -661,30 +697,38 @@ class StudioDashboard extends StatelessWidget {
                     ),
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const PlansScreen()),
+                      MaterialPageRoute(
+                        builder: (localizationContext) {
+                          AppLocalizations.watch(localizationContext);
+                          return const PlansScreen();
+                        },
+                      ),
                     ),
-                    child: const Text('Explore plans'),
+                    child: Text(appTr('Explore plans')),
                   ),
                 ),
               ],
             ),
           ),
           SectionHeader(
-            title: 'Create something new',
+            title: appTr('Create something new'),
             action: 'All tools',
             onAction: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => Scaffold(
-                  appBar: AppBar(title: const Text('All tools')),
-                  body: ToolDirectory(
-                    api: api,
-                    tools: tools,
-                    credits: credits,
-                    dashboard: false,
-                    refresh: refresh,
-                  ),
-                ),
+                builder: (localizationContext) {
+                  AppLocalizations.watch(localizationContext);
+                  return Scaffold(
+                    appBar: AppBar(title: Text(appTr('All tools'))),
+                    body: ToolDirectory(
+                      api: api,
+                      tools: tools,
+                      credits: credits,
+                      dashboard: false,
+                      refresh: refresh,
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -702,8 +746,10 @@ class StudioDashboard extends StatelessWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              DynamicToolScreen(tool: tool, api: api),
+                          builder: (localizationContext) {
+                            AppLocalizations.watch(localizationContext);
+                            return DynamicToolScreen(tool: tool, api: api);
+                          },
                         ),
                       ),
                       child: Padding(
@@ -719,7 +765,7 @@ class StudioDashboard extends StatelessWidget {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                tool['title'].toString(),
+                                appTr(tool['title'].toString()),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -737,20 +783,20 @@ class StudioDashboard extends StatelessWidget {
                 ),
             ],
           ),
-          const SectionHeader(title: 'Your creative toolkit'),
+          SectionHeader(title: appTr('Your creative toolkit')),
           for (final module in suggestions)
             ToolRow(
               icon: workspaceIcon('${module['id']}'),
               color: accentFor('${module['id']}'),
-              title: module['title'].toString(),
+              title: appTr(module['title'].toString()),
               subtitle: module['category'].toString(),
               onTap: () => openModule(context, module),
             ),
           if (suggestions.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Text(
-                'Open Explore to discover your available workspaces.',
+                appTr('Open Explore to discover your available workspaces.'),
               ),
             ),
         ],
@@ -808,9 +854,11 @@ class _PlansScreenState extends State<PlansScreen> with WidgetsBindingObserver {
         .toList();
     if (gateways.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Payment methods are temporarily unavailable. Please try again later.',
+            appTr(
+              'Payment methods are temporarily unavailable. Please try again later.',
+            ),
           ),
         ),
       );
@@ -818,26 +866,29 @@ class _PlansScreenState extends State<PlansScreen> with WidgetsBindingObserver {
     }
     final gateway = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(20),
-          children: [
-            Text(
-              'Choose a payment method',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            for (final item in gateways)
-              ListTile(
-                leading: const Icon(Icons.lock_outline),
-                title: Text((item['title'] ?? item['code']).toString()),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.pop(context, item['code'].toString()),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(20),
+            children: [
+              Text(
+                appTr('Choose a payment method'),
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 16),
+              for (final item in gateways)
+                ListTile(
+                  leading: const Icon(Icons.lock_outline),
+                  title: Text((item['title'] ?? item['code']).toString()),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.pop(context, item['code'].toString()),
+                ),
+            ],
+          ),
+        );
+      },
     );
     if (gateway == null) return;
     setState(() => _busy = int.parse(plan['id'].toString()));
@@ -860,116 +911,131 @@ class _PlansScreenState extends State<PlansScreen> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Plans & credits')),
-    body: _data == null
-        ? Center(
-            child: _error == null
-                ? const CircularProgressIndicator()
-                : RetryPanel(message: _error!, retry: _load),
-          )
-        : RefreshIndicator(
-            onRefresh: _load,
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Text(
-                  'More room to create.',
-                  style: Theme.of(context).textTheme.headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Choose a subscription or top up your credits. Your balance updates after payment is confirmed.',
-                ),
-                const SizedBox(height: 24),
-                if (_error != null)
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(appTr('Plans & credits'))),
+      body: _data == null
+          ? Center(
+              child: _error == null
+                  ? const CircularProgressIndicator()
+                  : RetryPanel(message: appTr(_error!), retry: _load),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
                   Text(
-                    _error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+                    appTr('More room to create.'),
+                    style: Theme.of(context).textTheme.headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    appTr(
+                      'Choose a subscription or top up your credits. Your balance updates after payment is confirmed.',
                     ),
                   ),
-                if ((_data!['data'] as List).isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'No plans are available right now. Pull down to check again.',
+                  const SizedBox(height: 24),
+                  if (_error != null)
+                    Text(
+                      appTr(_error!),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
-                  ),
-                for (final plan in (_data!['data'] as List).whereType<Map>())
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(22),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            plan['name'].toString(),
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            '${plan['currency'] ?? 'USD'} ${plan['price']}',
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                          Text(
-                            plan['type'] == 'prepaid'
-                                ? 'One-time credit pack'
-                                : plan['frequency'].toString(),
-                          ),
-                          if ((plan['description']?.toString() ?? '')
-                              .isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Text(
-                                plan['description'].toString().replaceAll(
-                                  RegExp(r'<[^>]*>'),
-                                  '',
+                  if ((_data!['data'] as List).isEmpty)
+                    Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        appTr(
+                          'No plans are available right now. Pull down to check again.',
+                        ),
+                      ),
+                    ),
+                  for (final plan in (_data!['data'] as List).whereType<Map>())
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(22),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              plan['name'].toString(),
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '${plan['currency'] ?? 'USD'} ${plan['price']}',
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                            Text(
+                              appTr(
+                                plan['type'] == 'prepaid'
+                                    ? 'One-time credit pack'
+                                    : plan['frequency'].toString(),
+                              ),
+                            ),
+                            if ((plan['description']?.toString() ?? '')
+                                .isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                child: Text(
+                                  appTr(
+                                    plan['description'].toString().replaceAll(
+                                      RegExp(r'<[^>]*>'),
+                                      '',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                onPressed: _busy != null
+                                    ? null
+                                    : () => _buy(plan),
+                                child: Text(
+                                  appTr(
+                                    _busy == plan['id']
+                                        ? 'Opening checkout…'
+                                        : 'Continue to checkout',
+                                  ),
                                 ),
                               ),
                             ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              onPressed: _busy != null
-                                  ? null
-                                  : () => _buy(plan),
-                              child: Text(
-                                _busy == plan['id']
-                                    ? 'Opening checkout…'
-                                    : 'Continue to checkout',
-                              ),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                TextButton(
-                  onPressed: () async {
-                    try {
-                      await WorkspaceService().open(
-                        destination: 'subscription',
-                        title: 'Manage billing',
-                        browser: true,
-                      );
-                    } catch (error) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(error.toString())),
+                  TextButton(
+                    onPressed: () async {
+                      try {
+                        await WorkspaceService().open(
+                          destination: 'subscription',
+                          title: 'Manage billing',
+                          browser: true,
                         );
+                      } catch (error) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(appTr(error.toString()))),
+                          );
+                        }
                       }
-                    }
-                  },
-                  child: const Text('Manage existing subscription'),
-                ),
-              ],
+                    },
+                    child: Text(appTr('Manage existing subscription')),
+                  ),
+                ],
+              ),
             ),
-          ),
-  );
+    );
+  }
 }
 
 class SocialAccountsScreen extends StatefulWidget {
@@ -1040,129 +1106,146 @@ class _SocialAccountsScreenState extends State<SocialAccountsScreen>
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    resizeToAvoidBottomInset: true,
-    appBar: widget.embedded
-        ? null
-        : AppBar(title: const Text('Connected accounts')),
-    body: _accounts == null
-        ? Center(
-            child: _error == null
-                ? const CircularProgressIndicator()
-                : RetryPanel(message: _error!, retry: _load),
-          )
-        : RefreshIndicator(
-            onRefresh: _load,
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Text(
-                  'One place. Every account.',
-                  style: Theme.of(context).textTheme.headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Connect multiple profiles and choose the right audience for every post.',
-                ),
-                const SizedBox(height: 20),
-                if (_error != null) Text(_error!),
-                for (final account in _accounts!)
-                  Card(
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(16),
-                      leading: CircleAvatar(
-                        child: Icon(
-                          account['isConnected'] == true
-                              ? Icons.check
-                              : Icons.link,
-                        ),
-                      ),
-                      title: Text('${account['displayName']}'),
-                      subtitle: Text(
-                        account['isConnected'] == true
-                            ? '${account['handle']} · ${account['followers']} followers'
-                            : (int.tryParse(account['id'].toString()) != null
-                                  ? 'Reconnect ${account['handle']}'
-                                  : 'Connect your first profile'),
-                      ),
-                      trailing: account['isConnected'] != true
-                          ? IconButton(
-                              icon: const Icon(Icons.add_link),
-                              onPressed: _busy
-                                  ? null
-                                  : () => _connect(
-                                      account['platform'].toString(),
-                                      account:
-                                          int.tryParse(
-                                                account['id'].toString(),
-                                              ) !=
-                                              null
-                                          ? account['id'].toString()
-                                          : null,
-                                    ),
-                            )
-                          : PopupMenuButton<String>(
-                              onSelected: (value) async {
-                                if (value == 'add') {
-                                  await _connect(
-                                    account['platform'].toString(),
-                                  );
-                                  return;
-                                }
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text(
-                                      'Disconnect this account?',
-                                    ),
-                                    content: const Text(
-                                      'You can reconnect it any time. Scheduled posts using this account may need updating.',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, false),
-                                        child: const Text('Keep account'),
-                                      ),
-                                      FilledButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, true),
-                                        child: const Text('Disconnect'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm != true) return;
-                                try {
-                                  await (widget.api ?? MobileApi.instance).request(
-                                    '/social-media/platforms/${account['id']}',
-                                    method: 'DELETE',
-                                  );
-                                  await _load();
-                                } catch (error) {
-                                  if (mounted) {
-                                    setState(() => _error = error.toString());
-                                  }
-                                }
-                              },
-                              itemBuilder: (_) => [
-                                const PopupMenuItem(
-                                  value: 'add',
-                                  child: Text('Add another account'),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'remove',
-                                  child: Text('Disconnect'),
-                                ),
-                              ],
-                            ),
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: widget.embedded
+          ? null
+          : AppBar(title: Text(appTr('Connected accounts'))),
+      body: _accounts == null
+          ? Center(
+              child: _error == null
+                  ? const CircularProgressIndicator()
+                  : RetryPanel(message: appTr(_error!), retry: _load),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text(
+                    appTr('One place. Every account.'),
+                    style: Theme.of(context).textTheme.headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    appTr(
+                      'Connect multiple profiles and choose the right audience for every post.',
                     ),
                   ),
-              ],
+                  const SizedBox(height: 20),
+                  if (_error != null) Text(appTr(_error!)),
+                  for (final account in _accounts!)
+                    Card(
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(16),
+                        leading: CircleAvatar(
+                          child: Icon(
+                            account['isConnected'] == true
+                                ? Icons.check
+                                : Icons.link,
+                          ),
+                        ),
+                        title: Text('${account['displayName']}'),
+                        subtitle: Text(
+                          appTr(
+                            account['isConnected'] == true
+                                ? '${account['handle']} · ${account['followers']} followers'
+                                : (int.tryParse(account['id'].toString()) !=
+                                          null
+                                      ? 'Reconnect ${account['handle']}'
+                                      : 'Connect your first profile'),
+                          ),
+                        ),
+                        trailing: account['isConnected'] != true
+                            ? IconButton(
+                                icon: const Icon(Icons.add_link),
+                                onPressed: _busy
+                                    ? null
+                                    : () => _connect(
+                                        account['platform'].toString(),
+                                        account:
+                                            int.tryParse(
+                                                  account['id'].toString(),
+                                                ) !=
+                                                null
+                                            ? account['id'].toString()
+                                            : null,
+                                      ),
+                              )
+                            : PopupMenuButton<String>(
+                                onSelected: (value) async {
+                                  if (value == 'add') {
+                                    await _connect(
+                                      account['platform'].toString(),
+                                    );
+                                    return;
+                                  }
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) {
+                                      AppLocalizations.watch(context);
+                                      return AlertDialog(
+                                        title: Text(
+                                          appTr('Disconnect this account?'),
+                                        ),
+                                        content: Text(
+                                          appTr(
+                                            'You can reconnect it any time. Scheduled posts using this account may need updating.',
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: Text(appTr('Keep account')),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: Text(appTr('Disconnect')),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                  if (confirm != true) return;
+                                  try {
+                                    await (widget.api ?? MobileApi.instance)
+                                        .request(
+                                          '/social-media/platforms/${account['id']}',
+                                          method: 'DELETE',
+                                        );
+                                    await _load();
+                                  } catch (error) {
+                                    if (mounted) {
+                                      setState(() => _error = error.toString());
+                                    }
+                                  }
+                                },
+                                itemBuilder: (localizationContext) {
+                                  AppLocalizations.watch(localizationContext);
+                                  return [
+                                    PopupMenuItem(
+                                      value: 'add',
+                                      child: Text(appTr('Add another account')),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'remove',
+                                      child: Text(appTr('Disconnect')),
+                                    ),
+                                  ];
+                                },
+                              ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-  );
+    );
+  }
 }
 
 class AccountHub extends StatelessWidget {
@@ -1180,104 +1263,125 @@ class AccountHub extends StatelessWidget {
     this.refresh,
   });
   @override
-  Widget build(BuildContext context) => RefreshIndicator(
-    onRefresh: refresh ?? () async {},
-    child: ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(20),
-      children: [
-        const SizedBox(height: 8),
-        CircleAvatar(
-          radius: 38,
-          child: Text(
-            (user['name']?.toString().isNotEmpty ?? false)
-                ? user['name'].toString()[0].toUpperCase()
-                : 'M',
-            style: const TextStyle(fontSize: 30),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          user['name']?.toString() ?? BrandConfig.name,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        Text(user['email']?.toString() ?? '', textAlign: TextAlign.center),
-        const SizedBox(height: 26),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.workspace_premium_outlined),
-            title: Text('${credits['plan'] ?? 'Free'} plan'),
-            subtitle: const Text('Subscription, payments & credit packs'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PlansScreen()),
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return RefreshIndicator(
+      onRefresh: refresh ?? () async {},
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        children: [
+          const SizedBox(height: 8),
+          CircleAvatar(
+            radius: 38,
+            child: Text(
+              (user['name']?.toString().isNotEmpty ?? false)
+                  ? user['name'].toString()[0].toUpperCase()
+                  : 'M',
+              style: const TextStyle(fontSize: 30),
             ),
           ),
-        ),
-        Card(
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.hub_outlined),
-                title: const Text('Connected accounts'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SocialAccountsScreen(),
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.description_outlined),
-                title: const Text('My documents'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => Scaffold(
-                      appBar: AppBar(title: const Text('Documents')),
-                      body: ServerListScreen(
-                        api: api,
-                        path: '/documents',
-                        title: 'Documents',
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.manage_accounts_outlined),
-                title: const Text('Profile & security'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => Scaffold(
-                      resizeToAvoidBottomInset: true,
-                      appBar: AppBar(title: const Text('Account settings')),
-                      body: NativeSettingsScreen(api: MobileApi.instance),
-                    ),
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.brightness_6_outlined),
-                title: const Text('Switch appearance'),
-                onTap: toggleTheme,
-              ),
-            ],
+          const SizedBox(height: 16),
+          Text(
+            user['name']?.toString() ?? BrandConfig.name,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-        ),
-        const SizedBox(height: 16),
-        OutlinedButton.icon(
-          onPressed: logout,
-          icon: const Icon(Icons.logout),
-          label: const Text('Sign out'),
-        ),
-      ],
-    ),
-  );
+          Text(user['email']?.toString() ?? '', textAlign: TextAlign.center),
+          const SizedBox(height: 26),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.workspace_premium_outlined),
+              title: Text(
+                appTr(":value plan", {"value": credits['plan'] ?? 'Free'}),
+              ),
+              subtitle: Text(appTr('Subscription, payments & credit packs')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (localizationContext) {
+                    AppLocalizations.watch(localizationContext);
+                    return const PlansScreen();
+                  },
+                ),
+              ),
+            ),
+          ),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.hub_outlined),
+                  title: Text(appTr('Connected accounts')),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (localizationContext) {
+                        AppLocalizations.watch(localizationContext);
+                        return const SocialAccountsScreen();
+                      },
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.description_outlined),
+                  title: Text(appTr('My documents')),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (localizationContext) {
+                        AppLocalizations.watch(localizationContext);
+                        return Scaffold(
+                          appBar: AppBar(title: Text(appTr('Documents'))),
+                          body: ServerListScreen(
+                            api: api,
+                            path: '/documents',
+                            title: appTr('Documents'),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.manage_accounts_outlined),
+                  title: Text(appTr('Profile & security')),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (localizationContext) {
+                        AppLocalizations.watch(localizationContext);
+                        return Scaffold(
+                          resizeToAvoidBottomInset: true,
+                          appBar: AppBar(
+                            title: Text(appTr('Account settings')),
+                          ),
+                          body: NativeSettingsScreen(api: MobileApi.instance),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.brightness_6_outlined),
+                  title: Text(appTr('Switch appearance')),
+                  onTap: toggleTheme,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: logout,
+            icon: const Icon(Icons.logout),
+            label: Text(appTr('Sign out')),
+          ),
+        ],
+      ),
+    );
+  }
 }

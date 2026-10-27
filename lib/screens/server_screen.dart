@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -24,17 +26,20 @@ class RetryPanel extends StatelessWidget {
   final Future<void> Function() retry;
   const RetryPanel({super.key, required this.message, required this.retry});
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    padding: const EdgeInsets.all(24),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(message, textAlign: TextAlign.center),
-        const SizedBox(height: 16),
-        FilledButton(onPressed: retry, child: const Text('Retry')),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(appTr(message), textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: retry, child: Text(appTr('Retry'))),
+        ],
+      ),
+    );
+  }
 }
 
 class ToolDirectory extends StatelessWidget {
@@ -52,76 +57,106 @@ class ToolDirectory extends StatelessWidget {
     required this.refresh,
   });
   @override
-  Widget build(BuildContext context) => RefreshIndicator(
-    onRefresh: refresh,
-    child: ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        if (dashboard) ...[
-          Text(
-            'Your MagicAI workspace',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${credits['plan'] ?? 'Free'} plan'),
-                  Text(
-                    '${credits['words'] ?? '—'} words • ${credits['images'] ?? '—'} images',
-                  ),
-                  if (credits['shared'] != null)
-                    Text('${credits['shared']} shared credits'),
-                  if ((num.tryParse(
-                            '${credits['shared'] ?? credits['words']}',
-                          ) ??
-                          1) <=
-                      0)
-                    const Text(
-                      'No credits remaining. Upgrade to keep creating.',
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    return RefreshIndicator(
+      onRefresh: refresh,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (dashboard) ...[
+            Text(
+              appTr('Your MagicAI workspace'),
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      appTr(":value plan", {
+                        "value": credits['plan'] ?? 'Free',
+                      }),
                     ),
-                  TextButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const PlansScreen()),
+                    Text(
+                      appTr(":value words • :value2 images", {
+                        "value": credits['words'] ?? '—',
+                        "value2": credits['images'] ?? '—',
+                      }),
                     ),
-                    child: const Text('View upgrades'),
-                  ),
-                ],
+                    if (credits['shared'] != null)
+                      Text(
+                        appTr(":value shared credits", {
+                          "value": credits['shared'],
+                        }),
+                      ),
+                    if ((num.tryParse(
+                              '${credits['shared'] ?? credits['words']}',
+                            ) ??
+                            1) <=
+                        0)
+                      Text(
+                        appTr(
+                          'No credits remaining. Upgrade to keep creating.',
+                        ),
+                      ),
+                    TextButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (localizationContext) {
+                            AppLocalizations.watch(localizationContext);
+                            return const PlansScreen();
+                          },
+                        ),
+                      ),
+                      child: Text(appTr('View upgrades')),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
+          if (tools.isEmpty)
+            Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                appTr('No tools are enabled for your license and plan.'),
+              ),
+            ),
+          for (final tool in tools.where((tool) => tool['component'] == 'form'))
+            Card(
+              child: ListTile(
+                title: Text(
+                  appTr(tool['title']?.toString() ?? tool['id'].toString()),
+                ),
+                subtitle: Text(
+                  appTr(
+                    tool['description']?.toString() ?? 'Create with MagicAI',
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (localizationContext) {
+                        AppLocalizations.watch(localizationContext);
+                        return DynamicToolScreen(tool: tool, api: api);
+                      },
+                    ),
+                  );
+                  await refresh();
+                },
+              ),
+            ),
         ],
-        if (tools.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(24),
-            child: Text('No tools are enabled for your license and plan.'),
-          ),
-        for (final tool in tools.where((tool) => tool['component'] == 'form'))
-          Card(
-            child: ListTile(
-              title: Text(tool['title']?.toString() ?? tool['id'].toString()),
-              subtitle: Text(
-                tool['description']?.toString() ?? 'Create with MagicAI',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DynamicToolScreen(tool: tool, api: api),
-                  ),
-                );
-                await refresh();
-              },
-            ),
-          ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class DynamicToolScreen extends StatefulWidget {
@@ -346,6 +381,8 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final fields = (widget.tool['fields'] as List? ?? []).whereType<Map>();
     final generator = ListView(
       key: const ValueKey('generator-form-list'),
@@ -367,13 +404,13 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
                           isExpanded: true,
                           initialValue: _inputs[field['name'].toString()],
                           decoration: InputDecoration(
-                            labelText: field['label'].toString(),
+                            labelText: appTr(field['label'].toString()),
                           ),
                           items: (field['options'] as List)
                               .map(
                                 (option) => DropdownMenuItem(
                                   value: option.toString(),
-                                  child: Text(option.toString()),
+                                  child: Text(appTr(option.toString())),
                                 ),
                               )
                               .toList(),
@@ -382,9 +419,9 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
                               : (value) => _inputs[field['name'].toString()] =
                                     value ?? '',
                           validator: (value) =>
-                              field['required'] == true &&
+                              field[appTr('required')] == true &&
                                   (value == null || value.isEmpty)
-                              ? 'Required'
+                              ? appTr('Required')
                               : null,
                           onSaved: (value) =>
                               _inputs[field['name'].toString()] = value ?? '',
@@ -395,14 +432,14 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
                               _inputs[field['name'].toString()] = value,
                           enabled: !_busy,
                           decoration: InputDecoration(
-                            labelText: field['label'].toString(),
+                            labelText: appTr(field['label'].toString()),
                           ),
                           minLines: field['type'] == 'textarea' ? 3 : 1,
                           maxLines: field['type'] == 'textarea' ? 8 : 1,
                           validator: (value) =>
-                              field['required'] == true &&
+                              field[appTr('required')] == true &&
                                   (value?.trim().isEmpty ?? true)
-                              ? 'Required'
+                              ? appTr('Required')
                               : null,
                           onSaved: (value) =>
                               _inputs[field['name'].toString()] =
@@ -419,14 +456,14 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
                   widget.tool['kind'] == 'writer' && _model == null
               ? null
               : _generate,
-          child: Text(_busy ? 'Generating…' : 'Generate'),
+          child: Text(appTr(_busy ? 'Generating…' : 'Generate')),
         ),
         if (_busy) const LinearProgressIndicator(),
         if (_error != null)
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
-              _error!,
+              appTr(_error!),
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
@@ -439,10 +476,11 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
                     api: _api,
                     documentId: _documentId,
                     documentRevision: _outputRevision,
-                    title:
-                        _outputTitle ??
-                        widget.tool['title']?.toString() ??
-                        'Untitled Document',
+                    title: appTr(
+                      _outputTitle ??
+                          widget.tool['title']?.toString() ??
+                          'Untitled Document',
+                    ),
                     content: _text,
                     generating: _busy,
                     onViewHistory: _generationCompleted ? _viewHistory : null,
@@ -459,107 +497,117 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
             padding: const EdgeInsets.only(top: 16),
             child: Image.network(
               url,
-              errorBuilder: (_, _, _) => const Text('Unable to load image.'),
+              errorBuilder: (localizationContext, _, _) {
+                AppLocalizations.watch(localizationContext);
+                return Text(appTr('Unable to load image.'));
+              },
             ),
           ),
         if (_generationCompleted && widget.tool['kind'] != 'writer')
           OutlinedButton.icon(
             onPressed: _viewHistory,
             icon: const Icon(Icons.history),
-            label: const Text('View in History'),
+            label: Text(appTr('View in History')),
           ),
         if (_audio != null)
           FilledButton(
             onPressed: () =>
                 SecureStore.invokeMethod<void>('openUrl', {'url': _audio}),
-            child: const Text('Play audio'),
+            child: Text(appTr('Play audio')),
           ),
       ],
     );
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(title: Text(widget.tool['title'].toString())),
+      appBar: AppBar(title: Text(appTr(widget.tool['title'].toString()))),
       body: !_supportsHistory
           ? generator
           : LayoutBuilder(
-              builder: (context, constraints) => Column(
-                children: [
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: constraints.maxHeight * .45,
-                    ),
-                    child: SingleChildScrollView(
-                      primary: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if ([
-                              'writer',
-                              'image',
-                            ].contains(widget.tool['kind'])) ...[
-                              AiModelSelector(
-                                models: _models,
-                                selected: _model,
-                                onSelected: _busy ? null : _selectModel,
-                              ),
-                              if (_modelsLoading)
-                                const LinearProgressIndicator(),
-                              if (!_modelsLoading && _models.isEmpty)
-                                TextButton(
-                                  onPressed: _loadModels,
-                                  child: const Text('Retry models'),
+              builder: (context, constraints) {
+                AppLocalizations.watch(context);
+                return Column(
+                  children: [
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: constraints.maxHeight * .45,
+                      ),
+                      child: SingleChildScrollView(
+                        primary: false,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if ([
+                                'writer',
+                                'image',
+                              ].contains(widget.tool['kind'])) ...[
+                                AiModelSelector(
+                                  models: _models,
+                                  selected: _model,
+                                  onSelected: _busy ? null : _selectModel,
                                 ),
-                              const SizedBox(height: 16),
-                            ],
-                            SegmentedButton<int>(
-                              segments: [
-                                const ButtonSegment(
-                                  value: 0,
-                                  label: Text('Generate'),
-                                ),
-                                ButtonSegment(
-                                  value: 1,
-                                  label: Text('History ($_historyCount)'),
-                                ),
+                                if (_modelsLoading)
+                                  const LinearProgressIndicator(),
+                                if (!_modelsLoading && _models.isEmpty)
+                                  TextButton(
+                                    onPressed: _loadModels,
+                                    child: Text(appTr('Retry models')),
+                                  ),
+                                const SizedBox(height: 16),
                               ],
-                              selected: {_tab},
-                              showSelectedIcon: false,
-                              onSelectionChanged: (selected) {
-                                FocusScope.of(context).unfocus();
-                                setState(() => _tab = selected.first);
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                          ],
+                              SegmentedButton<int>(
+                                segments: [
+                                  ButtonSegment(
+                                    value: 0,
+                                    label: Text(appTr('Generate')),
+                                  ),
+                                  ButtonSegment(
+                                    value: 1,
+                                    label: Text(
+                                      appTr("History (:historyCount)", {
+                                        "historyCount": _historyCount,
+                                      }),
+                                    ),
+                                  ),
+                                ],
+                                selected: {_tab},
+                                showSelectedIcon: false,
+                                onSelectionChanged: (selected) {
+                                  FocusScope.of(context).unfocus();
+                                  setState(() => _tab = selected.first);
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: IndexedStack(
-                      index: _tab,
-                      children: [
-                        generator,
-                        DocumentsScreen(
-                          api: _api,
-                          templateId: _historyTemplateId,
-                          refreshVersion: _historyVersion,
-                          onCountChanged: (count) {
-                            if (mounted && _historyCount != count) {
-                              setState(() => _historyCount = count);
-                            }
-                          },
-                          onDocumentUpdated: _historyUpdated,
-                          onDocumentDeleted: _historyDeleted,
-                        ),
-                      ],
+                    Expanded(
+                      child: IndexedStack(
+                        index: _tab,
+                        children: [
+                          generator,
+                          DocumentsScreen(
+                            api: _api,
+                            templateId: _historyTemplateId,
+                            refreshVersion: _historyVersion,
+                            onCountChanged: (count) {
+                              if (mounted && _historyCount != count) {
+                                setState(() => _historyCount = count);
+                              }
+                            },
+                            onDocumentUpdated: _historyUpdated,
+                            onDocumentDeleted: _historyDeleted,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                );
+              },
             ),
     );
   }
@@ -619,12 +667,14 @@ class _ServerListScreenState extends State<ServerListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (widget.path == '/documents') {
       return DocumentsScreen(api: widget.api ?? MobileApi.instance);
     }
     if (_error != null) {
       return Center(
-        child: RetryPanel(message: _error!, retry: _load),
+        child: RetryPanel(message: appTr(_error!), retry: _load),
       );
     }
     if (_items == null) return const Center(child: CircularProgressIndicator());
@@ -633,7 +683,10 @@ class _ServerListScreenState extends State<ServerListScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            appTr(widget.title),
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           if (_items!.isEmpty)
             Card(
               child: Padding(
@@ -643,16 +696,18 @@ class _ServerListScreenState extends State<ServerListScreen> {
                     const Icon(Icons.description_outlined, size: 40),
                     const SizedBox(height: 16),
                     Text(
-                      'No ${widget.title.toLowerCase()} yet',
+                      appTr("No :value yet", {
+                        "value": widget.title.toLowerCase(),
+                      }),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
-                    const Text('Saved items will appear here.'),
+                    Text(appTr('Saved items will appear here.')),
                     const SizedBox(height: 16),
                     OutlinedButton.icon(
                       onPressed: _load,
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Refresh'),
+                      label: Text(appTr('Refresh')),
                     ),
                   ],
                 ),
@@ -669,28 +724,34 @@ class _ServerListScreenState extends State<ServerListScreen> {
                 ),
                 onTap: () => showDialog<void>(
                   context: context,
-                  builder: (_) => AlertDialog(
-                    title: Text('${item['title'] ?? item['name']}'),
-                    content: SingleChildScrollView(
-                      child: SelectableText(
-                        '${item['output'] ?? item['description'] ?? ''}',
-                      ),
-                    ),
-                    actions: [
-                      if (widget.path == '/plans' && _subscriptionUrl != null)
-                        TextButton(
-                          onPressed: () => SecureStore.invokeMethod<void>(
-                            'openUrl',
-                            {'url': _subscriptionUrl},
+                  builder: (localizationContext) {
+                    AppLocalizations.watch(localizationContext);
+                    return AlertDialog(
+                      title: Text('${item['title'] ?? item['name']}'),
+                      content: SingleChildScrollView(
+                        child: SelectableText(
+                          appTr(
+                            (item['output'] ?? item['description'] ?? '')
+                                .toString(),
                           ),
-                          child: const Text('Open subscriptions'),
                         ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Close'),
                       ),
-                    ],
-                  ),
+                      actions: [
+                        if (widget.path == '/plans' && _subscriptionUrl != null)
+                          TextButton(
+                            onPressed: () => SecureStore.invokeMethod<void>(
+                              'openUrl',
+                              {'url': _subscriptionUrl},
+                            ),
+                            child: Text(appTr('Open subscriptions')),
+                          ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(appTr('Close')),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -884,7 +945,7 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
         }
       });
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Chat session deleted')));
+          .showSnackBar(SnackBar(content: Text(appTr('Chat session deleted'))));
     } catch (error) {
       if (mounted) {
         setState(() => _error = error.toString());
@@ -905,7 +966,7 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
         _messages = [];
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All conversation history cleared')),
+        SnackBar(content: Text(appTr('All conversation history cleared'))),
       );
     } catch (error) {
       if (mounted) {
@@ -917,25 +978,30 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
   Future<void> _deleteChat(String id) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Chat'),
-        content: const Text(
-          'Are you sure you want to permanently delete this chat session?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
+      builder: (ctx) {
+        AppLocalizations.watch(ctx);
+        return AlertDialog(
+          title: Text(appTr('Delete Chat')),
+          content: Text(
+            appTr(
+              'Are you sure you want to permanently delete this chat session?',
             ),
-            child: const Text('Delete'),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error,
+              ),
+              child: Text(appTr('Delete')),
+            ),
+          ],
+        );
+      },
     );
     if (confirm != true || !mounted) return;
 
@@ -949,256 +1015,292 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setModalState) {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-          return SafeArea(
-            child: Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.75,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 10, bottom: 6),
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).dividerColor,
-                      borderRadius: BorderRadius.circular(2),
+      builder: (sheetContext) {
+        AppLocalizations.watch(sheetContext);
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            AppLocalizations.watch(context);
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return SafeArea(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.75,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 10, bottom: 6),
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).dividerColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Conversation History',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        if (_chats.isNotEmpty)
-                          TextButton.icon(
-                            key: const ValueKey('clear-all-button'),
-                            onPressed: _busy
-                                ? null
-                                : () async {
-                                    final confirmed = await showDialog<bool>(
-                                      context: context,
-                                      builder: (dialogCtx) => AlertDialog(
-                                        title: const Text(
-                                          'Clear All Conversations',
-                                        ),
-                                        content: const Text(
-                                          'Clear all conversations? This action cannot be undone.',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(dialogCtx)
-                                                    .pop(false),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          FilledButton(
-                                            onPressed: () =>
-                                                Navigator.of(dialogCtx)
-                                                    .pop(true),
-                                            style: FilledButton.styleFrom(
-                                              backgroundColor: const Color(
-                                                0xFFEF4444,
-                                              ),
-                                            ),
-                                            child: const Text('Clear All'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                    if (confirmed == true &&
-                                        sheetContext.mounted &&
-                                        mounted) {
-                                      Navigator.of(sheetContext).pop();
-                                      await _clearAll();
-                                    }
-                                  },
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              size: 18,
-                              color: Color(0xFFEF4444),
-                            ),
-                            label: const Text(
-                              'Clear All',
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              appTr('Conversation History'),
                               style: TextStyle(
-                                color: Color(0xFFEF4444),
-                                fontWeight: FontWeight.w600,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  Flexible(
-                    child: _chats.isEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 36,
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.chat_bubble_outline,
-                                  size: 48,
-                                  color: Theme.of(context).hintColor,
+                          if (_chats.isNotEmpty)
+                            TextButton.icon(
+                              key: const ValueKey('clear-all-button'),
+                              onPressed: _busy
+                                  ? null
+                                  : () async {
+                                      final confirmed = await showDialog<bool>(
+                                        context: context,
+                                        builder: (dialogCtx) {
+                                          AppLocalizations.watch(dialogCtx);
+                                          return AlertDialog(
+                                            title: Text(
+                                              appTr('Clear All Conversations'),
+                                            ),
+                                            content: Text(
+                                              appTr(
+                                                'Clear all conversations? This action cannot be undone.',
+                                              ),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(dialogCtx)
+                                                        .pop(false),
+                                                child: Text(appTr('Cancel')),
+                                              ),
+                                              FilledButton(
+                                                onPressed: () =>
+                                                    Navigator.of(dialogCtx)
+                                                        .pop(true),
+                                                style: FilledButton.styleFrom(
+                                                  backgroundColor: const Color(
+                                                    0xFFEF4444,
+                                                  ),
+                                                ),
+                                                child: Text(appTr('Clear All')),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                      if (confirmed == true &&
+                                          sheetContext.mounted &&
+                                          mounted) {
+                                        Navigator.of(sheetContext).pop();
+                                        await _clearAll();
+                                      }
+                                    },
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: Color(0xFFEF4444),
+                              ),
+                              label: Text(
+                                appTr('Clear All'),
+                                style: TextStyle(
+                                  color: Color(0xFFEF4444),
+                                  fontWeight: FontWeight.w600,
                                 ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'No conversation history yet',
-                                  style: TextStyle(
-                                    fontSize: 15,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Flexible(
+                      child: _chats.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 36,
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.chat_bubble_outline,
+                                    size: 48,
                                     color: Theme.of(context).hintColor,
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                                OutlinedButton.icon(
-                                  onPressed: () {
-                                    Navigator.of(sheetContext).pop();
-                                    _open(null);
-                                  },
-                                  icon: const Icon(Icons.add, size: 18),
-                                  label: const Text('+ New Chat'),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.separated(
-                            shrinkWrap: true,
-                            itemCount: _chats.length,
-                            separatorBuilder: (context, index) =>
-                                const Divider(height: 1, indent: 56),
-                            itemBuilder: (context, index) {
-                              final item = _chats[index];
-                              final id = item['id'].toString();
-                              final isSelected = id == _chat;
-                              final type = item['type']?.toString();
-                              final iconData = type == 'image'
-                                  ? Icons.image_outlined
-                                  : type == 'voice'
-                                  ? Icons.mic_outlined
-                                  : Icons.chat_bubble_outline;
-                              final dateFormatted = _formatDate(
-                                item['updated_at']?.toString() ??
-                                    item['created_at']?.toString(),
-                              );
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    appTr('No conversation history yet'),
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: Theme.of(context).hintColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  OutlinedButton.icon(
+                                    onPressed: () {
+                                      Navigator.of(sheetContext).pop();
+                                      _open(null);
+                                    },
+                                    icon: const Icon(Icons.add, size: 18),
+                                    label: Text(appTr('+ New Chat')),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: _chats.length,
+                              separatorBuilder: (context, index) {
+                                AppLocalizations.watch(context);
+                                return const Divider(height: 1, indent: 56);
+                              },
+                              itemBuilder: (context, index) {
+                                AppLocalizations.watch(context);
+                                final item = _chats[index];
+                                final id = item['id'].toString();
+                                final isSelected = id == _chat;
+                                final type = item['type']?.toString();
+                                final iconData = type == 'image'
+                                    ? Icons.image_outlined
+                                    : type == 'voice'
+                                    ? Icons.mic_outlined
+                                    : Icons.chat_bubble_outline;
+                                final dateFormatted = _formatDate(
+                                  item['updated_at']?.toString() ??
+                                      item['created_at']?.toString(),
+                                );
 
-                              return ListTile(
-                                selected: isSelected,
-                                leading: CircleAvatar(
-                                  radius: 18,
-                                  backgroundColor: isSelected
-                                      ? Theme.of(context)
-                                            .colorScheme
-                                            .primaryContainer
-                                      : (isDark
-                                            ? const Color(0xFF2A2D3A)
-                                            : const Color(0xFFF1F3F9)),
-                                  child: Icon(
-                                    iconData,
-                                    size: 18,
-                                    color: isSelected
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Theme.of(context).hintColor,
+                                return ListTile(
+                                  selected: isSelected,
+                                  leading: CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: isSelected
+                                        ? Theme.of(context)
+                                              .colorScheme
+                                              .primaryContainer
+                                        : (isDark
+                                              ? const Color(0xFF2A2D3A)
+                                              : const Color(0xFFF1F3F9)),
+                                    child: Icon(
+                                      iconData,
+                                      size: 18,
+                                      color: isSelected
+                                          ? Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                          : Theme.of(context).hintColor,
+                                    ),
                                   ),
-                                ),
-                                title: Text(
-                                  item['title']?.toString() ?? 'Untitled Chat',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
+                                  title: Text(
+                                    appTr(
+                                      item['title']?.toString() ??
+                                          'Untitled Chat',
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
                                   ),
-                                ),
-                                subtitle: dateFormatted.isNotEmpty
-                                    ? Text(
-                                        dateFormatted,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Theme.of(context).hintColor,
-                                        ),
-                                      )
-                                    : null,
-                                trailing: IconButton(
-                                  key: ValueKey('delete-session-$id'),
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    size: 20,
-                                    color: Color(0xFF818898),
-                                  ),
-                                  tooltip: 'Delete this conversation',
-                                  onPressed: _busy
-                                      ? null
-                                      : () async {
-                                          final confirmed = await showDialog<bool>(
-                                            context: context,
-                                            builder: (dialogCtx) => AlertDialog(
-                                              title: const Text(
-                                                'Delete Conversation',
-                                              ),
-                                              content: const Text(
-                                                'Delete this conversation?',
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.of(dialogCtx)
-                                                          .pop(false),
-                                                  child: const Text('Cancel'),
-                                                ),
-                                                FilledButton(
-                                                  onPressed: () =>
-                                                      Navigator.of(dialogCtx)
-                                                          .pop(true),
-                                                  style: FilledButton.styleFrom(
-                                                    backgroundColor: Theme.of(
-                                                      dialogCtx,
-                                                    ).colorScheme.error,
+                                  subtitle: dateFormatted.isNotEmpty
+                                      ? Text(
+                                          dateFormatted,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Theme.of(context).hintColor,
+                                          ),
+                                        )
+                                      : null,
+                                  trailing: IconButton(
+                                    key: ValueKey('delete-session-$id'),
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      size: 20,
+                                      color: Color(0xFF818898),
+                                    ),
+                                    tooltip: appTr('Delete this conversation'),
+                                    onPressed: _busy
+                                        ? null
+                                        : () async {
+                                            final confirmed = await showDialog<bool>(
+                                              context: context,
+                                              builder: (dialogCtx) {
+                                                AppLocalizations.watch(
+                                                  dialogCtx,
+                                                );
+                                                return AlertDialog(
+                                                  title: Text(
+                                                    appTr(
+                                                      'Delete Conversation',
+                                                    ),
                                                   ),
-                                                  child: const Text('Delete'),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                          if (confirmed == true && mounted) {
-                                            await _deleteChatDirect(id);
-                                            setModalState(() {});
-                                          }
-                                        },
-                                ),
-                                onTap: () {
-                                  Navigator.of(sheetContext).pop();
-                                  _open(id);
-                                },
-                              );
-                            },
-                          ),
-                  ),
-                ],
+                                                  content: Text(
+                                                    appTr(
+                                                      'Delete this conversation?',
+                                                    ),
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(
+                                                            dialogCtx,
+                                                          ).pop(false),
+                                                      child: Text(
+                                                        appTr('Cancel'),
+                                                      ),
+                                                    ),
+                                                    FilledButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(
+                                                            dialogCtx,
+                                                          ).pop(true),
+                                                      style:
+                                                          FilledButton.styleFrom(
+                                                            backgroundColor:
+                                                                Theme.of(
+                                                                      dialogCtx,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .error,
+                                                          ),
+                                                      child: Text(
+                                                        appTr('Delete'),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                            if (confirmed == true && mounted) {
+                                              await _deleteChatDirect(id);
+                                              setModalState(() {});
+                                            }
+                                          },
+                                  ),
+                                  onTap: () {
+                                    Navigator.of(sheetContext).pop();
+                                    _open(id);
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1265,406 +1367,417 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_personas.isEmpty && _error != null) {
-      return RetryPanel(message: _error!, retry: _load);
+      return RetryPanel(message: appTr(_error!), retry: _load);
     }
     return LayoutBuilder(
-      builder: (context, constraints) => Column(
-        children: [
-          Flexible(
-            flex: 0,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: constraints.maxHeight * .35,
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    if (_models.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          'No chat model is configured. Your conversation history remains available. Contact your administrator to enable a model.',
-                        ),
-                      ),
-                    if (widget.web) ...[
-                      TextField(
-                        controller: _website,
-                        enabled: !_busy && _chat == null,
-                        keyboardType: TextInputType.url,
-                        decoration: const InputDecoration(
-                          labelText: 'Website URL (optional)',
-                          hintText: 'https://example.com',
-                          helperText: 'Leave empty to search the web',
-                          prefixIcon: Icon(Icons.language),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 12,
-                      children: [
-                        SizedBox(
-                          width: constraints.maxWidth < 500
-                              ? constraints.maxWidth - 24
-                              : (constraints.maxWidth - 34) / 2,
-                          child: DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            key: ValueKey('persona-$_persona'),
-                            initialValue: _persona,
-                            decoration: const InputDecoration(
-                              labelText: 'Persona',
+      builder: (context, constraints) {
+        AppLocalizations.watch(context);
+        return Column(
+          children: [
+            Flexible(
+              flex: 0,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: constraints.maxHeight * .35,
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    children: [
+                      if (_models.isEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            appTr(
+                              'No chat model is configured. Your conversation history remains available. Contact your administrator to enable a model.',
                             ),
-                            items: _personas
-                                .map(
-                                  (item) => DropdownMenuItem(
-                                    value: item['id'].toString(),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          item['type'] == 'image'
-                                              ? Icons.image_outlined
-                                              : item['type'] == 'voice'
-                                              ? Icons.mic_outlined
-                                              : Icons.smart_toy_outlined,
-                                          size: 18,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            item['name'].toString(),
-                                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      if (widget.web) ...[
+                        TextField(
+                          controller: _website,
+                          enabled: !_busy && _chat == null,
+                          keyboardType: TextInputType.url,
+                          decoration: InputDecoration(
+                            labelText: appTr('Website URL (optional)'),
+                            hintText: 'https://example.com',
+                            helperText: appTr('Leave empty to search the web'),
+                            prefixIcon: Icon(Icons.language),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 12,
+                        children: [
+                          SizedBox(
+                            width: constraints.maxWidth < 500
+                                ? constraints.maxWidth - 24
+                                : (constraints.maxWidth - 34) / 2,
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              key: ValueKey('persona-$_persona'),
+                              initialValue: _persona,
+                              decoration: InputDecoration(
+                                labelText: appTr('Persona'),
+                              ),
+                              items: _personas
+                                  .map(
+                                    (item) => DropdownMenuItem(
+                                      value: item['id'].toString(),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            item['type'] == 'image'
+                                                ? Icons.image_outlined
+                                                : item['type'] == 'voice'
+                                                ? Icons.mic_outlined
+                                                : Icons.smart_toy_outlined,
+                                            size: 18,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
                                           ),
-                                        ),
-                                        if (item['sub_description'] != null &&
-                                            item['sub_description']
-                                                .toString()
-                                                .isNotEmpty)
-                                          Flexible(
+                                          const SizedBox(width: 8),
+                                          Expanded(
                                             child: Text(
-                                              item['sub_description']
-                                                  .toString(),
-                                              maxLines: 1,
+                                              item['name'].toString(),
                                               overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .hintColor,
-                                                fontSize: 10,
-                                              ),
                                             ),
                                           ),
-                                      ],
+                                          if (item['sub_description'] != null &&
+                                              item['sub_description']
+                                                  .toString()
+                                                  .isNotEmpty)
+                                            Flexible(
+                                              child: Text(
+                                                item['sub_description']
+                                                    .toString(),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  color: Theme.of(context)
+                                                      .hintColor,
+                                                  fontSize: 10,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                                     ),
+                                  )
+                                  .toList(),
+                              onChanged: _busy
+                                  ? null
+                                  : (value) => setState(() {
+                                      _persona = value;
+                                      _chat = null;
+                                      _messages = [];
+                                    }),
+                            ),
+                          ),
+                          SizedBox(
+                            width: constraints.maxWidth < 500
+                                ? constraints.maxWidth - 24
+                                : (constraints.maxWidth - 34) / 2,
+                            child: AiModelSelector(
+                              models: _models,
+                              selected: _model,
+                              onSelected: _busy
+                                  ? null
+                                  : (value) async {
+                                      try {
+                                        await AiModelSelection(_api)
+                                            .select(value, _models);
+                                        if (mounted) {
+                                          setState(() => _model = value);
+                                        }
+                                      } catch (error) {
+                                        if (mounted) {
+                                          setState(
+                                            () => _error = error.toString(),
+                                          );
+                                        }
+                                      }
+                                    },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: _busy
+                                  ? null
+                                  : () => _showConversationHistory(context),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Theme.of(context).dividerColor,
                                   ),
-                                )
-                                .toList(),
-                            onChanged: _busy
-                                ? null
-                                : (value) => setState(() {
-                                    _persona = value;
-                                    _chat = null;
-                                    _messages = [];
-                                  }),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _activeChatType == 'image'
+                                          ? Icons.image_outlined
+                                          : _activeChatType == 'voice'
+                                          ? Icons.mic_outlined
+                                          : Icons.chat_bubble_outline,
+                                      size: 16,
+                                      color: Theme.of(context).hintColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        appTr(
+                                          _activeChatTitle ??
+                                              'Conversation history',
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: _activeChatTitle != null
+                                              ? Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.color
+                                              : Theme.of(context).hintColor,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_drop_down,
+                                      color: Theme.of(context).hintColor,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_chat != null)
+                            IconButton(
+                              key: const ValueKey('delete-chat-button'),
+                              onPressed: _busy
+                                  ? null
+                                  : () => _deleteChat(_chat!),
+                              icon: const Icon(Icons.delete_outline, size: 20),
+                              tooltip: appTr('Delete Chat'),
+                            ),
+                          IconButton(
+                            onPressed: _busy ? null : () => _open(null),
+                            icon: const Icon(Icons.add_comment_outlined),
+                            tooltip: appTr('New conversation'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (widget.crm && _messages.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final prompt in [
+                      'Pipeline summary',
+                      'Overdue tasks',
+                      'Recent contacts',
+                    ])
+                      ActionChip(
+                        label: Text(prompt),
+                        onPressed: _busy
+                            ? null
+                            : () {
+                                _prompt.text = prompt;
+                                _send();
+                              },
+                      ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (_messages.isEmpty && !widget.crm)
+                    ChatEmptyState(
+                      onPick: _busy || _model == null || _persona == null
+                          ? null
+                          : (prompt) {
+                              _prompt.text = prompt;
+                              _send();
+                            },
+                    ),
+                  for (final message in _messages) ...[
+                    if ((message['input']?.toString() ?? '').isNotEmpty)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Container(
+                          margin: const EdgeInsets.only(left: 40, bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: kBrandGradient,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(18),
+                              topRight: Radius.circular(18),
+                              bottomLeft: Radius.circular(18),
+                              bottomRight: Radius.circular(4),
+                            ),
+                          ),
+                          child: Text(
+                            appTr(message['input'].toString()),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
                           ),
                         ),
-                        SizedBox(
-                          width: constraints.maxWidth < 500
-                              ? constraints.maxWidth - 24
-                              : (constraints.maxWidth - 34) / 2,
-                          child: AiModelSelector(
-                            models: _models,
-                            selected: _model,
-                            onSelected: _busy
-                                ? null
-                                : (value) async {
-                                    try {
-                                      await AiModelSelection(_api)
-                                          .select(value, _models);
-                                      if (mounted) {
-                                        setState(() => _model = value);
-                                      }
-                                    } catch (error) {
-                                      if (mounted) {
-                                        setState(
-                                          () => _error = error.toString(),
-                                        );
-                                      }
-                                    }
-                                  },
-                          ),
+                      ),
+                    Card(
+                      color: AppColors.of(context).surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        side: BorderSide(color: AppColors.of(context).outline),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: ChatResponse(
+                          text: message['response']?.toString() ?? '',
+                          isStreaming:
+                              _busy && identical(message, _messages.lastOrNull),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (_error != null)
+              Flexible(
+                flex: 0,
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Expanded(child: Text(appTr(_error!))),
+                        TextButton(
+                          onPressed: _busy ? null : _load,
+                          child: Text(appTr('Retry')),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: _busy
-                                ? null
-                                : () => _showConversationHistory(context),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: Theme.of(context).dividerColor,
+                  ),
+                ),
+              ),
+            if (_busy) const LinearProgressIndicator(),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.only(left: 18, right: 4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _prompt,
+                                enabled: !_busy,
+                                minLines: 1,
+                                maxLines: 4,
+                                decoration: InputDecoration(
+                                  hintText: appTr('Message your assistant'),
+                                  filled: false,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
                                 ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    _activeChatType == 'image'
-                                        ? Icons.image_outlined
-                                        : _activeChatType == 'voice'
-                                        ? Icons.mic_outlined
-                                        : Icons.chat_bubble_outline,
-                                    size: 16,
-                                    color: Theme.of(context).hintColor,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _activeChatTitle ??
-                                          'Conversation history',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: _activeChatTitle != null
-                                            ? Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium
-                                                  ?.color
-                                            : Theme.of(context).hintColor,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.arrow_drop_down,
-                                    color: Theme.of(context).hintColor,
-                                  ),
-                                ],
                               ),
                             ),
-                          ),
+                            IconButton(
+                              tooltip: appTr('Voice input'),
+                              onPressed: _busy
+                                  ? null
+                                  : () async {
+                                      try {
+                                        final text =
+                                            await SecureStore.invokeMethod<
+                                              String
+                                            >('voiceInput');
+                                        if (text != null && mounted) {
+                                          setState(() => _prompt.text = text);
+                                        }
+                                      } catch (_) {
+                                        if (mounted) {
+                                          setState(
+                                            () => _error = 'Voice input is unavailable on this device.',
+                                          );
+                                        }
+                                      }
+                                    },
+                              icon: const Icon(Icons.mic_none),
+                            ),
+                          ],
                         ),
-                        if (_chat != null)
-                          IconButton(
-                            key: const ValueKey('delete-chat-button'),
-                            onPressed: _busy ? null : () => _deleteChat(_chat!),
-                            icon: const Icon(Icons.delete_outline, size: 20),
-                            tooltip: 'Delete Chat',
-                          ),
-                        IconButton(
-                          onPressed: _busy ? null : () => _open(null),
-                          icon: const Icon(Icons.add_comment_outlined),
-                          tooltip: 'New conversation',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Opacity(
+                      opacity: _busy || _model == null || _persona == null
+                          ? 0.5
+                          : 1,
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: kBrandGradient,
                         ),
-                      ],
+                        child: IconButton(
+                          color: Colors.white,
+                          tooltip: appTr('Send message'),
+                          onPressed: _busy || _model == null || _persona == null
+                              ? null
+                              : _send,
+                          icon: const Icon(Icons.send),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-          ),
-          if (widget.crm && _messages.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Wrap(
-                spacing: 8,
-                children: [
-                  for (final prompt in [
-                    'Pipeline summary',
-                    'Overdue tasks',
-                    'Recent contacts',
-                  ])
-                    ActionChip(
-                      label: Text(prompt),
-                      onPressed: _busy
-                          ? null
-                          : () {
-                              _prompt.text = prompt;
-                              _send();
-                            },
-                    ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (_messages.isEmpty && !widget.crm)
-                  ChatEmptyState(
-                    onPick: _busy || _model == null || _persona == null
-                        ? null
-                        : (prompt) {
-                            _prompt.text = prompt;
-                            _send();
-                          },
-                  ),
-                for (final message in _messages) ...[
-                  if ((message['input']?.toString() ?? '').isNotEmpty)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        margin: const EdgeInsets.only(left: 40, bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: kBrandGradient,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(18),
-                            topRight: Radius.circular(18),
-                            bottomLeft: Radius.circular(18),
-                            bottomRight: Radius.circular(4),
-                          ),
-                        ),
-                        child: Text(
-                          message['input'].toString(),
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  Card(
-                    color: AppColors.of(context).surface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      side: BorderSide(color: AppColors.of(context).outline),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: ChatResponse(
-                        text: message['response']?.toString() ?? '',
-                        isStreaming:
-                            _busy && identical(message, _messages.lastOrNull),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (_error != null)
-            Flexible(
-              flex: 0,
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Expanded(child: Text(_error!)),
-                      TextButton(
-                        onPressed: _busy ? null : _load,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          if (_busy) const LinearProgressIndicator(),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.only(left: 18, right: 4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(
-                          color: Theme.of(context).dividerColor,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _prompt,
-                              enabled: !_busy,
-                              minLines: 1,
-                              maxLines: 4,
-                              decoration: const InputDecoration(
-                                hintText: 'Message your assistant',
-                                filled: false,
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                disabledBorder: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: 'Voice input',
-                            onPressed: _busy
-                                ? null
-                                : () async {
-                                    try {
-                                      final text =
-                                          await SecureStore.invokeMethod<
-                                            String
-                                          >('voiceInput');
-                                      if (text != null && mounted) {
-                                        setState(() => _prompt.text = text);
-                                      }
-                                    } catch (_) {
-                                      if (mounted) {
-                                        setState(
-                                          () => _error = 'Voice input is unavailable on this device.',
-                                        );
-                                      }
-                                    }
-                                  },
-                            icon: const Icon(Icons.mic_none),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Opacity(
-                    opacity: _busy || _model == null || _persona == null
-                        ? 0.5
-                        : 1,
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: kBrandGradient,
-                      ),
-                      child: IconButton(
-                        color: Colors.white,
-                        tooltip: 'Send message',
-                        onPressed: _busy || _model == null || _persona == null
-                            ? null
-                            : _send,
-                        icon: const Icon(Icons.send),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1680,6 +1793,8 @@ class ChatEmptyState extends StatelessWidget {
   const ChatEmptyState({super.key, this.onPick});
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     const ideas = [
       ('Write a cold email', Icons.edit_outlined, Color(0xFF6366F1)),
       (
@@ -1715,13 +1830,13 @@ class ChatEmptyState extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Text(
-          'How can I help today?',
+          appTr('How can I help today?'),
           style: Theme.of(context).textTheme.titleLarge
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 4),
         Text(
-          'Ask anything, or start with an idea below.',
+          appTr('Ask anything, or start with an idea below.'),
           style: TextStyle(color: mutedText(context)),
         ),
         const SizedBox(height: 20),

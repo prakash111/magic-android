@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:async';
 import 'dart:math';
 
@@ -270,8 +272,9 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
         _requestId = null;
         _pollStarted = DateTime.now();
       });
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('${result['message']}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(appTr((result['message']).toString()))),
+      );
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -296,22 +299,25 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
     if (_busy || _workflowId == null) return;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Render this video?'),
-        content: const Text(
-          'Rendering uses the video credits configured for your plan.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          title: Text(appTr('Render this video?')),
+          content: Text(
+            appTr('Rendering uses the video credits configured for your plan.'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Render'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(appTr('Render')),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !mounted) return;
     setState(() {
@@ -331,7 +337,11 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
         _history = (result['data'] as List? ?? []).whereType<Map>().toList();
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${result['message'] ?? 'Render submitted'}')),
+        SnackBar(
+          content: Text(
+            appTr((result['message'] ?? 'Render submitted').toString()),
+          ),
+        ),
       );
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -353,13 +363,16 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(switch (_workflowStatus) {
-                'processing' => 'Creating video previews',
-                'ready' => 'Choose a preview to render',
-                'rendering' => 'Your video is rendering',
-                'completed' => 'Your video is ready',
-                _ => 'The provider could not finish this video. Check your URL and provider settings.',
-              }, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                appTr(switch (_workflowStatus) {
+                  'processing' => 'Creating video previews',
+                  'ready' => 'Choose a preview to render',
+                  'rendering' => 'Your video is rendering',
+                  'completed' => 'Your video is ready',
+                  _ => 'The provider could not finish this video. Check your URL and provider settings.',
+                }),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               if (_workflowStatus == 'processing' ||
                   _workflowStatus == 'rendering') ...[
                 const SizedBox(height: 12),
@@ -372,14 +385,14 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                           _refresh();
                         },
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Refresh progress'),
+                  label: Text(appTr('Refresh progress')),
                 ),
               ],
               for (final preview in _previews)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: IconButton(
-                    tooltip: 'Play preview',
+                    tooltip: appTr('Play preview'),
                     onPressed: preview['output_url'] == null
                         ? null
                         : () => _preview({...preview, 'media_type': 'video'}),
@@ -390,7 +403,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                     onPressed: _busy || _workflowStatus != 'ready'
                         ? null
                         : () => _renderPreview(preview),
-                    child: const Text('Render'),
+                    child: Text(appTr('Render')),
                   ),
                 ),
             ],
@@ -429,71 +442,77 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
       if (!mounted) return;
       await showDialog<void>(
         context: context,
-        builder: (context) => Dialog(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: IconButton(
-                  tooltip: 'Close preview',
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
+        builder: (context) {
+          AppLocalizations.watch(context);
+          return Dialog(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    tooltip: appTr('Close preview'),
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
                 ),
-              ),
-              Flexible(
-                child: InteractiveViewer(
-                  child: Image.network(
-                    url.toString(),
-                    errorBuilder: (_, error, stack) => const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('Unable to load this result.'),
+                Flexible(
+                  child: InteractiveViewer(
+                    child: Image.network(
+                      url.toString(),
+                      errorBuilder: (localizationContext, error, stack) {
+                        AppLocalizations.watch(localizationContext);
+                        return Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(appTr('Unable to load this result.')),
+                        );
+                      },
                     ),
                   ),
                 ),
-              ),
-              Wrap(
-                alignment: WrapAlignment.center,
-                children: [
-                  IconButton(
-                    tooltip: 'Save to gallery',
-                    onPressed: () => _download(url),
-                    icon: const Icon(Icons.download_outlined),
-                  ),
-                  IconButton(
-                    tooltip: 'Copy share link',
-                    onPressed: () async {
-                      await Clipboard.setData(
-                        ClipboardData(text: url.toString()),
-                      );
-                      if (mounted) {
-                        ScaffoldMessenger.of(this.context).showSnackBar(
-                          const SnackBar(content: Text('Link copied')),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  children: [
+                    IconButton(
+                      tooltip: appTr('Save to gallery'),
+                      onPressed: () => _download(url),
+                      icon: const Icon(Icons.download_outlined),
+                    ),
+                    IconButton(
+                      tooltip: appTr('Copy share link'),
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: url.toString()),
                         );
-                      }
-                    },
-                    icon: const Icon(Icons.link),
-                  ),
-                  IconButton(
-                    tooltip: 'Share result',
-                    onPressed: () => SharePlus.instance.share(
-                      ShareParams(
-                        uri: url,
-                        sharePositionOrigin: Rect.fromLTWH(
-                          0,
-                          0,
-                          MediaQuery.sizeOf(context).width,
-                          1,
+                        if (mounted) {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(content: Text(appTr('Link copied'))),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.link),
+                    ),
+                    IconButton(
+                      tooltip: appTr('Share result'),
+                      onPressed: () => SharePlus.instance.share(
+                        ShareParams(
+                          uri: url,
+                          sharePositionOrigin: Rect.fromLTWH(
+                            0,
+                            0,
+                            MediaQuery.sizeOf(context).width,
+                            1,
+                          ),
                         ),
                       ),
+                      icon: const Icon(Icons.share_outlined),
                     ),
-                    icon: const Icon(Icons.share_outlined),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
       );
     }
   }
@@ -527,11 +546,14 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                       width: 72,
                       height: 72,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, e, s) => const SizedBox(
-                        width: 72,
-                        height: 72,
-                        child: Icon(Icons.broken_image_outlined),
-                      ),
+                      errorBuilder: (localizationContext, e, s) {
+                        AppLocalizations.watch(localizationContext);
+                        return const SizedBox(
+                          width: 72,
+                          height: 72,
+                          child: Icon(Icons.broken_image_outlined),
+                        );
+                      },
                     ),
             ),
             const SizedBox(width: 12),
@@ -541,23 +563,27 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                 children: [
                   Text(file.name, maxLines: 2, overflow: TextOverflow.ellipsis),
                   Text(
-                    '${(file.bytes.length / 1024).toStringAsFixed(1)} KB',
+                    appTr(":value KB", {
+                      "value": (file.bytes.length / 1024).toStringAsFixed(1),
+                    }),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
             ),
             IconButton(
-              tooltip: field['accept'] == 'video/*'
-                  ? 'Replace video'
-                  : 'Replace photo',
+              tooltip: appTr(
+                field['accept'] == 'video/*'
+                    ? 'Replace video'
+                    : 'Replace photo',
+              ),
               onPressed: _busy ? null : () => _pick(field),
               icon: const Icon(Icons.swap_horiz),
             ),
             IconButton(
-              tooltip: field['accept'] == 'video/*'
-                  ? 'Remove video'
-                  : 'Remove photo',
+              tooltip: appTr(
+                field['accept'] == 'video/*' ? 'Remove video' : 'Remove photo',
+              ),
               onPressed: _busy
                   ? null
                   : () => setState(() {
@@ -578,7 +604,12 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
         .firstOrNull;
     return OutlinedButton.icon(
       icon: const Icon(Icons.photo_library_outlined),
-      label: Text('${field['label']}: ${selected?['label'] ?? 'Choose'}'),
+      label: Text(
+        appTr(":value: :value2", {
+          "value": field['label'],
+          "value2": selected?['label'] ?? 'Choose',
+        }),
+      ),
       onPressed: _busy
           ? null
           : () async {
@@ -595,115 +626,134 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                 context: context,
                 isScrollControlled: true,
                 useSafeArea: true,
-                builder: (context) => StatefulBuilder(
-                  builder: (context, update) {
-                    final filtered = options
-                        .where(
-                          (item) =>
-                              '${item['label']}'.toLowerCase().contains(
-                                query,
-                              ) &&
-                              (filter == 'All' ||
-                                  item['gender'] == filter ||
-                                  item['category'] == filter),
-                        )
-                        .toList();
-                    return SizedBox(
-                      height: MediaQuery.sizeOf(context).height * .8,
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Choose ${field['label']}',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              decoration: const InputDecoration(
-                                hintText: 'Search assets...',
-                                prefixIcon: Icon(Icons.search),
+                builder: (context) {
+                  AppLocalizations.watch(context);
+                  return StatefulBuilder(
+                    builder: (context, update) {
+                      AppLocalizations.watch(context);
+                      final filtered = options
+                          .where(
+                            (item) =>
+                                '${item['label']}'.toLowerCase().contains(
+                                  query,
+                                ) &&
+                                (filter == 'All' ||
+                                    item['gender'] == filter ||
+                                    item['category'] == filter),
+                          )
+                          .toList();
+                      return SizedBox(
+                        height: MediaQuery.sizeOf(context).height * .8,
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              Text(
+                                appTr("Choose :value", {
+                                  "value": field['label'],
+                                }),
+                                style: Theme.of(context).textTheme.titleLarge,
                               ),
-                              onChanged: (value) =>
-                                  update(() => query = value.toLowerCase()),
-                            ),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: filters
-                                    .map(
-                                      (value) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 8,
-                                        ),
-                                        child: ChoiceChip(
-                                          label: Text(value),
-                                          selected: filter == value,
-                                          onSelected: (_) =>
-                                              update(() => filter = value),
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
+                              const SizedBox(height: 16),
+                              TextField(
+                                decoration: InputDecoration(
+                                  hintText: appTr('Search assets...'),
+                                  prefixIcon: Icon(Icons.search),
+                                ),
+                                onChanged: (value) =>
+                                    update(() => query = value.toLowerCase()),
                               ),
-                            ),
-                            Expanded(
-                              child: GridView.builder(
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                      mainAxisSpacing: 12,
-                                      crossAxisSpacing: 12,
-                                      childAspectRatio: .85,
-                                    ),
-                                itemCount: filtered.length,
-                                itemBuilder: (context, index) {
-                                  final item = filtered[index];
-                                  return Card(
-                                    clipBehavior: Clip.antiAlias,
-                                    child: InkWell(
-                                      onTap: () => Navigator.pop(
-                                        context,
-                                        '${item['value']}',
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: filters
+                                      .map(
+                                        (value) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          child: ChoiceChip(
+                                            label: Text(value),
+                                            selected: filter == value,
+                                            onSelected: (_) =>
+                                                update(() => filter = value),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ),
+                              Expanded(
+                                child: GridView.builder(
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        mainAxisSpacing: 12,
+                                        crossAxisSpacing: 12,
+                                        childAspectRatio: .85,
                                       ),
-                                      child: Column(
-                                        children: [
-                                          Expanded(
-                                            child: Image.network(
-                                              widget.api.origin
-                                                  .resolve(
-                                                    '${item['image_url']}',
-                                                  )
-                                                  .toString(),
-                                              fit: BoxFit.cover,
-                                              width: double.infinity,
-                                              errorBuilder: (_, e, s) => const Icon(
-                                                Icons
-                                                    .image_not_supported_outlined,
+                                  itemCount: filtered.length,
+                                  itemBuilder: (context, index) {
+                                    AppLocalizations.watch(context);
+                                    final item = filtered[index];
+                                    return Card(
+                                      clipBehavior: Clip.antiAlias,
+                                      child: InkWell(
+                                        onTap: () => Navigator.pop(
+                                          context,
+                                          '${item['value']}',
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Expanded(
+                                              child: Image.network(
+                                                widget.api.origin
+                                                    .resolve(
+                                                      '${item['image_url']}',
+                                                    )
+                                                    .toString(),
+                                                fit: BoxFit.cover,
+                                                width: double.infinity,
+                                                errorBuilder:
+                                                    (
+                                                      localizationContext,
+                                                      e,
+                                                      s,
+                                                    ) {
+                                                      AppLocalizations.watch(
+                                                        localizationContext,
+                                                      );
+                                                      return const Icon(
+                                                        Icons
+                                                            .image_not_supported_outlined,
+                                                      );
+                                                    },
                                               ),
                                             ),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.all(10),
-                                            child: Text(
-                                              '${item['label']}',
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
+                                            Padding(
+                                              padding: const EdgeInsets.all(10),
+                                              child: Text(
+                                                appTr(
+                                                  (item['label']).toString(),
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  );
+                },
               );
               if (chosen != null && mounted) {
                 setState(() {
@@ -726,6 +776,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
     ),
     itemCount: _history.length,
     itemBuilder: (context, index) {
+      AppLocalizations.watch(context);
       final item = _history[index],
           url = _output('${_history[index]['output_url'] ?? ''}');
       final pending = [
@@ -753,8 +804,10 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                     : Image.network(
                         url.toString(),
                         fit: BoxFit.cover,
-                        errorBuilder: (_, e, s) =>
-                            const Icon(Icons.image_not_supported_outlined),
+                        errorBuilder: (localizationContext, e, s) {
+                          AppLocalizations.watch(localizationContext);
+                          return const Icon(Icons.image_not_supported_outlined);
+                        },
                       ),
               ),
               Padding(
@@ -769,7 +822,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     Text(
-                      '${item['error_message'] ?? item['status']}',
+                      appTr('${item['error_message'] ?? item['status']}'),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall,
@@ -782,13 +835,13 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                 children: [
                   if (url != null)
                     IconButton(
-                      tooltip: 'Open result',
+                      tooltip: appTr('Open result'),
                       onPressed: () => _preview(item),
                       icon: const Icon(Icons.open_in_full),
                     ),
                   if (_definition?['can_delete'] == true)
                     IconButton(
-                      tooltip: 'Delete result',
+                      tooltip: appTr('Delete result'),
                       onPressed: _busy ? null : () => _delete(item),
                       icon: const Icon(Icons.delete_outline),
                     ),
@@ -804,20 +857,23 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
   Future<void> _delete(Map item) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete this item?'),
-        content: const Text('This removes the item from your account.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          title: Text(appTr('Delete this item?')),
+          content: Text(appTr('This removes the item from your account.')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(appTr('Delete')),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !mounted) return;
     setState(() => _busy = true);
@@ -854,9 +910,9 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
         'bytes': response.bodyBytes,
       });
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Image saved to gallery')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(appTr('Image saved to gallery'))),
+        );
       }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -888,38 +944,46 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
           key: ValueKey('$name:${_values[name]}'),
           initialValue: _values[name]?.toString(),
           validator: (_) => required && _values[name] == null
-              ? 'Choose an aspect ratio.'
+              ? appTr('Choose an aspect ratio.')
               : null,
-          builder: (state) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final option in options)
-                    ChoiceChip(
-                      label: Text('${option['label']}'),
-                      selected: _values[name] == '${option['value']}',
-                      onSelected: _busy
-                          ? null
-                          : (_) => setState(() {
-                              _values[name] = '${option['value']}';
-                              _requestId = null;
-                              state.didChange('${option['value']}');
-                            }),
-                    ),
-                ],
-              ),
-              if (state.hasError)
+          builder: (state) {
+            AppLocalizations.watch(state.context);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  state.errorText!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  appTr(label),
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
-            ],
-          ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final option in options)
+                      ChoiceChip(
+                        label: Text(appTr((option['label']).toString())),
+                        selected: _values[name] == '${option['value']}',
+                        onSelected: _busy
+                            ? null
+                            : (_) => setState(() {
+                                _values[name] = '${option['value']}';
+                                _requestId = null;
+                                state.didChange('${option['value']}');
+                              }),
+                      ),
+                  ],
+                ),
+                if (state.hasError)
+                  Text(
+                    appTr(state.errorText!),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       );
     }
@@ -929,37 +993,42 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
         'file' => FormField<WorkflowFile>(
           validator: (_) =>
               required && !_files.containsKey(name) ? 'Choose $label' : null,
-          builder: (state) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_files[name] != null)
-                _attachment(name, field)
-              else
-                OutlinedButton.icon(
-                  onPressed: _busy ? null : () => _pick(field),
-                  icon: const Icon(Icons.add_photo_alternate_outlined),
-                  label: Text(_files[name]?.name ?? label),
-                ),
-              if (state.hasError)
-                Text(
-                  state.errorText!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-            ],
-          ),
+          builder: (state) {
+            AppLocalizations.watch(state.context);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_files[name] != null)
+                  _attachment(name, field)
+                else
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : () => _pick(field),
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    label: Text(_files[name]?.name ?? label),
+                  ),
+                if (state.hasError)
+                  Text(
+                    appTr(state.errorText!),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
         'asset' => _assetField(field, options),
         'select' => DropdownButtonFormField<String>(
           key: ValueKey('$name:${_values[name]}'),
           initialValue: _values[name]?.toString(),
           isExpanded: true,
-          decoration: InputDecoration(labelText: label),
+          decoration: InputDecoration(labelText: appTr(label)),
           items: options
               .map(
                 (option) => DropdownMenuItem(
                   value: '${option['value']}',
                   child: Text(
-                    '${option['label']}',
+                    appTr((option['label']).toString()),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -981,69 +1050,76 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                   });
                   if (field['reload'] == true) _load(reset: true);
                 },
-          validator: (value) => required && value == null ? 'Required' : null,
+          validator: (value) =>
+              required && value == null ? appTr('Required') : null,
         ),
         'multiselect' => FormField<List<String>>(
           validator: (_) => required && (_values[name] as List? ?? []).isEmpty
-              ? 'Choose at least one option'
+              ? appTr('Choose at least one option')
               : null,
-          builder: (state) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final option in options)
-                    FilterChip(
-                      avatar: option['image_url'] == null
-                          ? null
-                          : CircleAvatar(
-                              backgroundImage: NetworkImage(
-                                widget.api.origin
-                                    .resolve('${option['image_url']}')
-                                    .toString(),
+          builder: (state) {
+            AppLocalizations.watch(state.context);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(appTr(label)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final option in options)
+                      FilterChip(
+                        avatar: option['image_url'] == null
+                            ? null
+                            : CircleAvatar(
+                                backgroundImage: NetworkImage(
+                                  widget.api.origin
+                                      .resolve('${option['image_url']}')
+                                      .toString(),
+                                ),
                               ),
-                            ),
-                      label: Text('${option['label']}'),
-                      selected: (_values[name] as List? ?? []).contains(
-                        '${option['value']}',
-                      ),
-                      onSelected: _busy
-                          ? null
-                          : (selected) => setState(() {
-                              final values = List<String>.from(
-                                _values[name] as List? ?? [],
-                              );
-                              if (selected) {
-                                if (name == 'products' && values.length >= 3) {
-                                  return;
+                        label: Text(appTr((option['label']).toString())),
+                        selected: (_values[name] as List? ?? []).contains(
+                          '${option['value']}',
+                        ),
+                        onSelected: _busy
+                            ? null
+                            : (selected) => setState(() {
+                                final values = List<String>.from(
+                                  _values[name] as List? ?? [],
+                                );
+                                if (selected) {
+                                  if (name == 'products' &&
+                                      values.length >= 3) {
+                                    return;
+                                  }
+                                  values.add('${option['value']}');
+                                } else {
+                                  values.remove('${option['value']}');
                                 }
-                                values.add('${option['value']}');
-                              } else {
-                                values.remove('${option['value']}');
-                              }
-                              _values[name] = values;
-                              _requestId = null;
-                            }),
-                    ),
-                ],
-              ),
-              if (state.hasError)
-                Text(
-                  state.errorText!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                                _values[name] = values;
+                                _requestId = null;
+                              }),
+                      ),
+                  ],
                 ),
-            ],
-          ),
+                if (state.hasError)
+                  Text(
+                    appTr(state.errorText!),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
         _ => TextFormField(
           key: ValueKey('$name:$_promptRevision'),
           initialValue: _values[name]?.toString(),
           enabled: !_busy,
-          decoration: InputDecoration(labelText: label),
+          decoration: InputDecoration(labelText: appTr(label)),
           keyboardType: field['type'] == 'url'
               ? TextInputType.url
               : field['type'] == 'number'
@@ -1055,8 +1131,9 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
             _values[name] = value;
             _requestId = null;
           },
-          validator: (value) =>
-              required && (value?.trim().isEmpty ?? true) ? 'Required' : null,
+          validator: (value) => required && (value?.trim().isEmpty ?? true)
+              ? appTr('Required')
+              : null,
         ),
       },
     );
@@ -1064,11 +1141,13 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_definition == null) {
       return Center(
         child: _error == null
             ? const CircularProgressIndicator()
-            : RetryPanel(message: _error!, retry: _load),
+            : RetryPanel(message: appTr(_error!), retry: _load),
       );
     }
     return ColoredBox(
@@ -1078,7 +1157,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
           if (_busy) const LinearProgressIndicator(),
           if (_error != null)
             MaterialBanner(
-              content: Text(_error!),
+              content: Text(appTr(_error!)),
               actions: [
                 TextButton(
                   onPressed: _busy
@@ -1087,7 +1166,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                           _pollStarted = DateTime.now();
                           _refresh();
                         },
-                  child: const Text('Refresh'),
+                  child: Text(appTr('Refresh')),
                 ),
               ],
             ),
@@ -1106,15 +1185,21 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                         child: ListTile(
                           leading: const Icon(Icons.auto_awesome_outlined),
                           title: Text(
-                            '${tool['display_title'] ?? tool['title']}',
+                            appTr(
+                              (tool['display_title'] ?? tool['title'])
+                                  .toString(),
+                            ),
                           ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => NativeModuleScreen(
-                                module: Map<String, dynamic>.from(tool),
-                                api: widget.api,
-                              ),
+                              builder: (localizationContext) {
+                                AppLocalizations.watch(localizationContext);
+                                return NativeModuleScreen(
+                                  module: Map<String, dynamic>.from(tool),
+                                  api: widget.api,
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -1130,7 +1215,11 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                           children: [
                             const Icon(Icons.settings_outlined),
                             const SizedBox(width: 12),
-                            Expanded(child: Text('${_definition!['notice']}')),
+                            Expanded(
+                              child: Text(
+                                appTr((_definition!['notice']).toString()),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1146,7 +1235,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(
-                                '${_definition!['title']}',
+                                appTr((_definition!['title']).toString()),
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
                               const SizedBox(height: 20),
@@ -1166,7 +1255,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                                           if (mounted) _refresh();
                                         },
                                   icon: const Icon(Icons.brush_outlined),
-                                  label: const Text('Advanced editor'),
+                                  label: Text(appTr('Advanced editor')),
                                 ),
                               if ((_definition!['presets'] as List? ?? [])
                                   .isNotEmpty)
@@ -1199,12 +1288,16 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                                 onPressed: _busy ? null : _submit,
                                 icon: const Icon(Icons.auto_awesome),
                                 label: Text(
-                                  _definition!['generate_label']?.toString() ??
-                                      (_definition!['visual'] == null
-                                          ? (_definition!['view'] == 'wardrobe'
-                                                ? 'Upload garment'
-                                                : 'Generate')
-                                          : 'Create project'),
+                                  appTr(
+                                    _definition!['generate_label']
+                                            ?.toString() ??
+                                        (_definition!['visual'] == null
+                                            ? (_definition!['view'] ==
+                                                      'wardrobe'
+                                                  ? 'Upload garment'
+                                                  : 'Generate')
+                                            : 'Create project'),
+                                  ),
                                 ),
                               ),
                             ],
@@ -1215,14 +1308,16 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                   ..._videoProgress(),
                   const SizedBox(height: 24),
                   Text(
-                    'Recent work',
+                    appTr('Recent work'),
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 12),
                   if (_history.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.all(24),
-                      child: Text('Your generated results will appear here.'),
+                      child: Text(
+                        appTr('Your generated results will appear here.'),
+                      ),
                     ),
                   if (_studio) _gallery(),
                   if (!_studio)
@@ -1233,11 +1328,11 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                           children: [
                             ListTile(
                               title: Text('${item['title']}'),
-                              subtitle: Text('${item['status']}'),
+                              subtitle: Text(appTr('${item['status']}')),
                               leading: const Icon(Icons.collections_outlined),
                               trailing: item['visual'] != null
                                   ? IconButton(
-                                      tooltip: 'Edit timeline',
+                                      tooltip: appTr('Edit timeline'),
                                       icon: const Icon(Icons.edit_outlined),
                                       onPressed: _busy
                                           ? null
@@ -1257,7 +1352,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                                     )
                                   : item['output_url'] != null
                                   ? IconButton(
-                                      tooltip: 'Preview result',
+                                      tooltip: appTr('Preview result'),
                                       icon: const Icon(Icons.open_in_full),
                                       onPressed: () => _preview(item),
                                     )
@@ -1267,7 +1362,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: IconButton(
-                                  tooltip: 'Delete item',
+                                  tooltip: appTr('Delete item'),
                                   onPressed: _busy ? null : () => _delete(item),
                                   icon: const Icon(Icons.delete_outline),
                                 ),
@@ -1276,7 +1371,10 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                               Padding(
                                 padding: const EdgeInsets.all(12),
                                 child: Text(
-                                  'Export: ${item['export']['status']} · ${item['export']['progress']}%',
+                                  appTr("Export: :value · :value2%", {
+                                    "value": item['export']['status'],
+                                    "value2": item['export']['progress'],
+                                  }),
                                 ),
                               ),
                             if (item['visual'] != null)
@@ -1287,7 +1385,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                                         exportProject: item['id'] as int,
                                       ),
                                 icon: const Icon(Icons.file_download_outlined),
-                                label: const Text('Render video'),
+                                label: Text(appTr('Render video')),
                               ),
                           ],
                         ),

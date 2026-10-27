@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
@@ -17,10 +19,14 @@ class PromptCreationIntro extends StatelessWidget {
       ((time - start) / (end - start)).clamp(0.0, 1.0);
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
+    final prompt = appTr(PromptCreationIntro.prompt);
     final colors = AuthPalette.of(context);
     return AnimatedBuilder(
       animation: animation,
       builder: (context, _) {
+        AppLocalizations.watch(context);
         final time = animation.value * duration.inMilliseconds / 1000;
         final entry = Curves.easeOutCubic.transform(stage(time, .05, .65));
         final morph = Curves.easeInOutCubic.transform(stage(time, 2.25, 3.2));
@@ -35,6 +41,7 @@ class PromptCreationIntro extends StatelessWidget {
               height: 190,
               child: LayoutBuilder(
                 builder: (context, constraints) {
+                  AppLocalizations.watch(context);
                   final pillWidth = math.min(296.0, constraints.maxWidth - 8);
                   return CustomPaint(
                     painter: _CreationParticles(colors, time, pillWidth),
@@ -188,7 +195,8 @@ class PromptCreationIntro extends StatelessWidget {
                   children: [
                     for (var i = 0; i < BrandConfig.name.length; i++)
                       Builder(
-                        builder: (_) {
+                        builder: (localizationContext) {
+                          AppLocalizations.watch(localizationContext);
                           final value = Curves.easeOutCubic.transform(
                             ((word * 1.5) -
                                     i /
@@ -238,7 +246,7 @@ class PromptCreationIntro extends StatelessWidget {
                   border: Border.all(color: colors.outline),
                 ),
                 child: Text(
-                  'SEO Suite • Generative AI • Social Suite',
+                  appTr('SEO Suite • Generative AI • Social Suite'),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: colors.muted, fontSize: 12),
                 ),
@@ -288,7 +296,7 @@ class _CreationParticles extends CustomPainter {
         canvas.drawCircle(Offset(x, y), 1 + band, paint);
       }
     }
-    const prompt = PromptCreationIntro.prompt;
+    final prompt = appTr(PromptCreationIntro.prompt);
     for (var i = 0; i < prompt.length; i++) {
       if (prompt[i] == ' ') continue;
       final progress = PromptCreationIntro.stage(

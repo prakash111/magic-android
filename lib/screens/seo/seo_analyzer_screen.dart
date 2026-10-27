@@ -1,3 +1,5 @@
+import '../../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -90,7 +92,7 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
   Future<void> _improveWithAI() async {
     if (_contentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter content to improve.')),
+        SnackBar(content: Text(appTr('Please enter content to improve.'))),
       );
       return;
     }
@@ -118,12 +120,14 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
+        AppLocalizations.watch(context);
         return DraggableScrollableSheet(
           initialChildSize: 0.85,
           maxChildSize: 0.95,
           minChildSize: 0.5,
           expand: false,
           builder: (context, scrollController) {
+            AppLocalizations.watch(context);
             return Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -133,8 +137,8 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                     children: [
                       const Icon(Icons.auto_awesome, color: AppTheme.accent),
                       const SizedBox(width: 8),
-                      const Text(
-                        'AI Enhanced Content',
+                      Text(
+                        appTr('AI Enhanced Content'),
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -167,13 +171,13 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                               ClipboardData(text: improvedText),
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Copied to clipboard!'),
+                              SnackBar(
+                                content: Text(appTr('Copied to clipboard!')),
                               ),
                             );
                           },
                           icon: const Icon(Icons.copy, size: 18),
-                          label: const Text('Copy'),
+                          label: Text(appTr('Copy')),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -186,13 +190,15 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                             Navigator.pop(context);
                             _runAnalysis();
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Content replaced in editor!'),
+                              SnackBar(
+                                content: Text(
+                                  appTr('Content replaced in editor!'),
+                                ),
                               ),
                             );
                           },
                           icon: const Icon(Icons.check, size: 18),
-                          label: const Text('Apply to Editor'),
+                          label: Text(appTr('Apply to Editor')),
                         ),
                       ),
                     ],
@@ -223,24 +229,26 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
     await StorageService.saveDocument(doc);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report saved to Documents!')),
+        SnackBar(content: Text(appTr('Report saved to Documents!'))),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SEO Article Optimizer'),
+        title: Text(appTr('SEO Article Optimizer')),
         actions: [
           IconButton(
-            tooltip: 'Save Report',
+            tooltip: appTr('Save Report'),
             icon: const Icon(Icons.bookmark_border),
             onPressed: _saveReport,
           ),
           IconButton(
-            tooltip: 'Load Sample',
+            tooltip: appTr('Load Sample'),
             icon: const Icon(Icons.refresh),
             onPressed: _loadSampleContent,
           ),
@@ -264,13 +272,13 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                           flex: 3,
                           child: TextField(
                             controller: _keywordController,
-                            decoration: const InputDecoration(
-                              labelText: 'Focus Target Keyword',
+                            decoration: InputDecoration(
+                              labelText: appTr('Focus Target Keyword'),
                               prefixIcon: Icon(
                                 Icons.key,
                                 color: AppTheme.primary,
                               ),
-                              hintText: 'e.g. ai tools',
+                              hintText: appTr('e.g. ai tools'),
                             ),
                             onChanged: (_) => _runAnalysis(),
                           ),
@@ -280,17 +288,17 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                           flex: 2,
                           child: DropdownButtonFormField<String>(
                             initialValue: _contentType,
-                            decoration: const InputDecoration(
-                              labelText: 'Type',
+                            decoration: InputDecoration(
+                              labelText: appTr('Type'),
                             ),
-                            items: const [
+                            items: [
                               DropdownMenuItem(
                                 value: 'article',
-                                child: Text('Blog/Article'),
+                                child: Text(appTr('Blog/Article')),
                               ),
                               DropdownMenuItem(
                                 value: 'product',
-                                child: Text('Product Desc'),
+                                child: Text(appTr('Product Desc')),
                               ),
                             ],
                             onChanged: (val) {
@@ -308,8 +316,8 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                       controller: _contentController,
                       maxLines: 8,
                       decoration: InputDecoration(
-                        labelText: 'Article Content / Markdown',
-                        hintText: 'Paste or type your draft here...',
+                        labelText: appTr('Article Content / Markdown'),
+                        hintText: appTr('Paste or type your draft here...'),
                         alignLabelWithHint: true,
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.clear, size: 18),
@@ -340,7 +348,7 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                                     Icons.analytics_outlined,
                                     size: 18,
                                   ),
-                            label: const Text('Analyze Content'),
+                            label: Text(appTr('Analyze Content')),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -360,7 +368,7 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                                     ),
                                   )
                                 : const Icon(Icons.auto_awesome, size: 18),
-                            label: const Text('AI Improve'),
+                            label: Text(appTr('AI Improve')),
                           ),
                         ),
                       ],
@@ -390,11 +398,13 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _result!.percentage >= 75
-                                  ? 'Well-Optimized! 🚀'
-                                  : _result!.percentage >= 50
-                                  ? 'Needs Fine-Tuning ⚠️'
-                                  : 'Low SEO Potential ❌',
+                              appTr(
+                                _result!.percentage >= 75
+                                    ? 'Well-Optimized! 🚀'
+                                    : _result!.percentage >= 50
+                                    ? 'Needs Fine-Tuning ⚠️'
+                                    : 'Low SEO Potential ❌',
+                              ),
                               style: const TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.bold,
@@ -402,7 +412,15 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Target Keyword Density: ${_result!.keywordDensity.toStringAsFixed(1)}% (${_result!.keywordOccurrences}x)',
+                              appTr(
+                                "Target Keyword Density: :value% (:keywordOccurrencesx)",
+                                {
+                                  "value": _result!.keywordDensity
+                                      .toStringAsFixed(1),
+                                  "keywordOccurrences":
+                                      _result!.keywordOccurrences,
+                                },
+                              ),
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: AppTheme.textMuted,
@@ -410,7 +428,14 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Readability: ${_result!.readabilityGrade} (${_result!.readabilityScore.toStringAsFixed(0)}/100)',
+                              appTr(
+                                "Readability: :readabilityGrade (:value/100)",
+                                {
+                                  "readabilityGrade": _result!.readabilityGrade,
+                                  "value": _result!.readabilityScore
+                                      .toStringAsFixed(0),
+                                },
+                              ),
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: AppTheme.textMuted,
@@ -431,7 +456,7 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                 children: [
                   Expanded(
                     child: StatCard(
-                      title: 'Words',
+                      title: appTr('Words'),
                       value: '${_result!.wordCount}',
                       icon: Icons.text_fields,
                       iconColor: AppTheme.primary,
@@ -440,7 +465,7 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                   const SizedBox(width: 8),
                   Expanded(
                     child: StatCard(
-                      title: 'Headings',
+                      title: appTr('Headings'),
                       value: '${_result!.headingCount}',
                       icon: Icons.title,
                       iconColor: AppTheme.accent,
@@ -453,7 +478,7 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                 children: [
                   Expanded(
                     child: StatCard(
-                      title: 'Links',
+                      title: appTr('Links'),
                       value: '${_result!.linkCount}',
                       icon: Icons.link,
                       iconColor: AppTheme.success,
@@ -462,7 +487,7 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                   const SizedBox(width: 8),
                   Expanded(
                     child: StatCard(
-                      title: 'Images',
+                      title: appTr('Images'),
                       value: '${_result!.imageCount}',
                       icon: Icons.image_outlined,
                       iconColor: AppTheme.warning,
@@ -492,9 +517,12 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                     // Checklist Tab
                     ListView.separated(
                       itemCount: _result!.checklist.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 8),
+                      separatorBuilder: (context, index) {
+                        AppLocalizations.watch(context);
+                        return const SizedBox(height: 8);
+                      },
                       itemBuilder: (context, index) {
+                        AppLocalizations.watch(context);
                         final item = _result!.checklist[index];
                         return Card(
                           child: ListTile(
@@ -514,7 +542,7 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                               ),
                             ),
                             subtitle: Text(
-                              item.detail,
+                              appTr(item.detail),
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.textMuted,
@@ -528,8 +556,8 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                     // Keywords Tab
                     ListView(
                       children: [
-                        const Text(
-                          'Recommended Long-Tail Keywords',
+                        Text(
+                          appTr('Recommended Long-Tail Keywords'),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -550,7 +578,7 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                                   Icons.add_circle_outline,
                                   size: 20,
                                 ),
-                                tooltip: 'Insert into text',
+                                tooltip: appTr('Insert into text'),
                                 onPressed: () {
                                   setState(() {
                                     _contentController.text += '\n$kw';
@@ -558,7 +586,11 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                                   _runAnalysis();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Added "$kw" to draft'),
+                                      content: Text(
+                                        appTr("Added \":kw\" to draft", {
+                                          "kw": kw,
+                                        }),
+                                      ),
                                     ),
                                   );
                                 },
@@ -572,8 +604,8 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                     // Competitors Tab
                     ListView(
                       children: [
-                        const Text(
-                          'Top Ranking Competitor Domains',
+                        Text(
+                          appTr('Top Ranking Competitor Domains'),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -594,7 +626,13 @@ Embracing AI content marketing early ensures sustainable organic traffic and pro
                                 onPressed: () {
                                   Clipboard.setData(ClipboardData(text: comp));
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Copied "$comp"')),
+                                    SnackBar(
+                                      content: Text(
+                                        appTr("Copied \":comp\"", {
+                                          "comp": comp,
+                                        }),
+                                      ),
+                                    ),
                                   );
                                 },
                               ),

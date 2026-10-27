@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -62,9 +64,12 @@ class _SplashScreenState extends State<SplashScreen>
           : LoginScreen(onThemeChanged: widget.onThemeChanged, api: widget.api);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) => welcomed
-              ? destination()
-              : WelcomeScreen(destination: destination),
+          builder: (localizationContext) {
+            AppLocalizations.watch(localizationContext);
+            return welcomed
+                ? destination()
+                : WelcomeScreen(destination: destination);
+          },
         ),
       );
     } catch (_) {
@@ -95,35 +100,39 @@ class _SplashScreenState extends State<SplashScreen>
               minHeight: 4,
               backgroundColor: colors.outline,
               color: colors.cyan,
-              semanticsLabel: 'Preparing your workspace',
+              semanticsLabel: appTr('Preparing your workspace'),
             ),
           ),
         ),
       const SizedBox(height: 16),
       Text(
-        retry
-            ? 'Unable to load your workspace. Please check your connection and retry.'
-            : 'Preparing your workspace…',
+        appTr(
+          retry
+              ? 'Unable to load your workspace. Please check your connection and retry.'
+              : 'Preparing your workspace…',
+        ),
         textAlign: TextAlign.center,
         style: TextStyle(color: colors.muted, fontSize: 13),
       ),
       if (retry)
         Padding(
           padding: const EdgeInsets.only(top: 12),
-          child: FilledButton(onPressed: start, child: const Text('Retry')),
+          child: FilledButton(onPressed: start, child: Text(appTr('Retry'))),
         ),
     ],
   );
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AuthPalette.of(context);
     final reduced = MediaQuery.disableAnimationsOf(context);
     final artwork = PromptCreationIntro(
       animation: reduced ? const AlwaysStoppedAnimation(1) : controller,
     );
     final footer = Text(
-      'Powered by ${BrandConfig.name}',
+      appTr("Powered by :value", {"value": BrandConfig.name}),
       textAlign: TextAlign.center,
       style: TextStyle(color: colors.muted, fontSize: 11),
     );
@@ -133,19 +142,23 @@ class _SplashScreenState extends State<SplashScreen>
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
+              AppLocalizations.watch(context);
               final loading = AnimatedBuilder(
                 animation: controller,
                 child: status(colors),
-                builder: (_, child) => Opacity(
-                  opacity: retry || reduced
-                      ? 1
-                      : PromptCreationIntro.stage(
-                          controller.value * 5.4,
-                          4.5,
-                          5.2,
-                        ),
-                  child: child,
-                ),
+                builder: (localizationContext, child) {
+                  AppLocalizations.watch(localizationContext);
+                  return Opacity(
+                    opacity: retry || reduced
+                        ? 1
+                        : PromptCreationIntro.stage(
+                            controller.value * 5.4,
+                            4.5,
+                            5.2,
+                          ),
+                    child: child,
+                  );
+                },
               );
               if (constraints.maxHeight < 700 ||
                   MediaQuery.textScalerOf(context).scale(14) > 19) {

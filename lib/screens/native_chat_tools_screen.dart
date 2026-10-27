@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -96,7 +98,7 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
       if (mounted) {
         setState(() => _data = data);
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Changes saved.')));
+            .showSnackBar(SnackBar(content: Text(appTr('Changes saved.'))));
       }
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
@@ -117,58 +119,63 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
     final key = GlobalKey<FormState>();
     final values = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
-        builder: (context) => Scaffold(
-          resizeToAvoidBottomInset: true,
-          appBar: AppBar(
-            title: Text(
-              operation == 'save'
-                  ? 'Save ${_data!['kind'] == 'categories'
-                        ? 'category'
-                        : _data!['kind'] == 'training'
-                        ? 'chatbot'
-                        : 'template'}'
-                  : 'Add training source',
-            ),
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Form(
-              key: key,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final field in fields)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: TextFormField(
-                        controller: controllers[field.$1],
-                        maxLines: field.$3,
-                        decoration: InputDecoration(
-                          labelText: field.$2,
-                          filled: true,
-                          border: const OutlineInputBorder(),
-                        ),
-                        validator: (v) => v == null || v.trim().isEmpty
-                            ? 'Enter ${field.$2.toLowerCase()}.'
-                            : null,
-                      ),
-                    ),
-                  FilledButton(
-                    onPressed: () {
-                      if (key.currentState!.validate()) {
-                        Navigator.pop(context, {
-                          for (final entry in controllers.entries)
-                            entry.key: entry.value.text.trim(),
-                        });
-                      }
-                    },
-                    child: const Text('Save'),
-                  ),
-                ],
+        builder: (context) {
+          AppLocalizations.watch(context);
+          return Scaffold(
+            resizeToAvoidBottomInset: true,
+            appBar: AppBar(
+              title: Text(
+                appTr(
+                  operation == 'save'
+                      ? 'Save ${_data!['kind'] == 'categories'
+                            ? 'category'
+                            : _data!['kind'] == 'training'
+                            ? 'chatbot'
+                            : 'template'}'
+                      : 'Add training source',
+                ),
               ),
             ),
-          ),
-        ),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: key,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final field in fields)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: TextFormField(
+                          controller: controllers[field.$1],
+                          maxLines: field.$3,
+                          decoration: InputDecoration(
+                            labelText: field.$2,
+                            filled: true,
+                            border: const OutlineInputBorder(),
+                          ),
+                          validator: (v) => v == null || v.trim().isEmpty
+                              ? 'Enter ${field.$2.toLowerCase()}.'
+                              : null,
+                        ),
+                      ),
+                    FilledButton(
+                      onPressed: () {
+                        if (key.currentState!.validate()) {
+                          Navigator.pop(context, {
+                            for (final entry in controllers.entries)
+                              entry.key: entry.value.text.trim(),
+                          });
+                        }
+                      },
+                      child: Text(appTr('Save')),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
     // Route transitions can retain text fields until their animation completes.
@@ -210,20 +217,23 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
   Future<void> _confirmDelete(int id, {bool source = false}) async {
     final approved = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete this item?'),
-        content: const Text('This removes it from your workspace.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          title: Text(appTr('Delete this item?')),
+          content: Text(appTr('This removes it from your workspace.')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(appTr('Delete')),
+            ),
+          ],
+        );
+      },
     );
     if (approved == true) {
       await _action(
@@ -236,10 +246,12 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_data == null) {
       return _error == null
           ? const Center(child: CircularProgressIndicator())
-          : RetryPanel(message: _error!, retry: _load);
+          : RetryPanel(message: appTr(_error!), retry: _load);
     }
     final kind = '${_data!['kind']}';
     final records = (_data!['data'] as List).whereType<Map>().toList();
@@ -254,14 +266,16 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(_error!),
+                child: Text(appTr(_error!)),
               ),
             ),
           TextField(
             controller: _search,
             onSubmitted: (_) => _load(),
             decoration: InputDecoration(
-              hintText: 'Search ${kind == 'training' ? 'chatbots' : kind}',
+              hintText: appTr("Search :value", {
+                "value": kind == 'training' ? 'chatbots' : kind,
+              }),
               prefixIcon: const Icon(Icons.search),
               suffixIcon: IconButton(
                 onPressed: _load,
@@ -289,23 +303,25 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                   ),
             icon: const Icon(Icons.add),
             label: Text(
-              'Create ${kind == 'categories'
-                  ? 'category'
-                  : kind == 'training'
-                  ? 'chatbot'
-                  : 'template'}',
+              appTr("Create :value", {
+                "value": kind == 'categories'
+                    ? 'category'
+                    : kind == 'training'
+                    ? 'chatbot'
+                    : 'template',
+              }),
             ),
           ),
           const SizedBox(height: 16),
           if (records.isEmpty)
-            const Card(
+            Card(
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Column(
                   children: [
                     Icon(Icons.chat_bubble_outline, size: 42),
                     SizedBox(height: 12),
-                    Text('Your library is ready for its first item.'),
+                    Text(appTr('Your library is ready for its first item.')),
                   ],
                 ),
               ),
@@ -327,15 +343,15 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                       title: Text('${record['name'] ?? record['title']}'),
                       subtitle: record['description'] != null
                           ? Text(
-                              '${record['description']}',
+                              appTr((record['description']).toString()),
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                             )
                           : kind == 'training'
-                          ? Text('${record['status'] ?? 'Ready'}')
+                          ? Text(appTr('${record['status'] ?? 'Ready'}'))
                           : null,
                       trailing: IconButton(
-                        tooltip: 'Delete',
+                        tooltip: appTr('Delete'),
                         onPressed: _busy
                             ? null
                             : () => _confirmDelete(record['id'] as int),
@@ -349,26 +365,31 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                             : () => _form('save', [
                                 ('name', 'Name', 1),
                               ], record: record),
-                        child: const Text('Edit category'),
+                        child: Text(appTr('Edit category')),
                       ),
                     if (kind == 'templates')
                       FilledButton.tonal(
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => Scaffold(
-                              resizeToAvoidBottomInset: true,
-                              appBar: AppBar(title: Text('${record['name']}')),
-                              body: ServerChatScreen(
-                                api: widget.api,
-                                initialPersona: '${record['id']}',
-                                initialPrompt:
-                                    '${record['first_message'] ?? ''}',
-                              ),
-                            ),
+                            builder: (localizationContext) {
+                              AppLocalizations.watch(localizationContext);
+                              return Scaffold(
+                                resizeToAvoidBottomInset: true,
+                                appBar: AppBar(
+                                  title: Text('${record['name']}'),
+                                ),
+                                body: ServerChatScreen(
+                                  api: widget.api,
+                                  initialPersona: '${record['id']}',
+                                  initialPrompt:
+                                      '${record['first_message'] ?? ''}',
+                                ),
+                              );
+                            },
                           ),
                         ),
-                        child: const Text('Use template'),
+                        child: Text(appTr('Use template')),
                       ),
                     if (kind == 'training')
                       FilledButton.tonal(
@@ -379,9 +400,11 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                                 _load();
                               },
                         child: Text(
-                          _bot == record['id']
-                              ? 'Selected for training'
-                              : 'Manage knowledge',
+                          appTr(
+                            _bot == record['id']
+                                ? 'Selected for training'
+                                : 'Manage knowledge',
+                          ),
                         ),
                       ),
                   ],
@@ -390,8 +413,8 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
             ),
           if (kind == 'training' && _bot != null) ...[
             const SizedBox(height: 24),
-            const Text(
-              'Knowledge sources',
+            Text(
+              appTr('Knowledge sources'),
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
@@ -400,7 +423,7 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
               runSpacing: 8,
               children: [
                 ActionChip(
-                  label: const Text('Text snippet'),
+                  label: Text(appTr('Text snippet')),
                   onPressed: _busy
                       ? null
                       : () => _form('text', [
@@ -409,7 +432,7 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                         ]),
                 ),
                 ActionChip(
-                  label: const Text('Question & answer'),
+                  label: Text(appTr('Question & answer')),
                   onPressed: _busy
                       ? null
                       : () => _form('qa', [
@@ -418,21 +441,21 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                         ]),
                 ),
                 ActionChip(
-                  label: const Text('Website URL'),
+                  label: Text(appTr('Website URL')),
                   onPressed: _busy
                       ? null
                       : () => _form('url', [('url', 'Public website URL', 1)]),
                 ),
                 ActionChip(
-                  label: const Text('PDF / spreadsheet'),
+                  label: Text(appTr('PDF / spreadsheet')),
                   onPressed: _busy ? null : _upload,
                 ),
               ],
             ),
             if (sources.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Add a source, then train your chatbot.'),
+                child: Text(appTr('Add a source, then train your chatbot.')),
               ),
             for (final source in sources)
               Card(
@@ -442,9 +465,11 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  subtitle: Text('${source['type']} · ${source['status']}'),
+                  subtitle: Text(
+                    appTr('${source['type']} · ${source['status']}'),
+                  ),
                   trailing: IconButton(
-                    tooltip: 'Delete source',
+                    tooltip: appTr('Delete source'),
                     onPressed: _busy
                         ? null
                         : () =>
@@ -470,7 +495,11 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                                   .toList(),
                             },
                           ),
-                    child: Text('Train ${type == 'qa' ? 'Q&A' : type} sources'),
+                    child: Text(
+                      appTr("Train :value sources", {
+                        "value": type == 'qa' ? 'Q&A' : type,
+                      }),
+                    ),
                   ),
                 ),
           ],

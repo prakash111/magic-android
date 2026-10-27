@@ -1,3 +1,5 @@
+import '../services/app_localizations.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -19,6 +21,8 @@ class MagicBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final colors = AppColors.of(context);
     final chatIndex = items.indexWhere((item) => item['component'] == 'chat');
     final barTop = chatIndex < 0 ? 0.0 : 28.0;
@@ -61,89 +65,93 @@ class MagicBottomNavigation extends StatelessWidget {
     return SizedBox(
       height: barTop + height + bottom,
       child: LayoutBuilder(
-        builder: (context, constraints) => Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  key: const ValueKey('navigation-cradle'),
-                  painter: NavigationCradlePainter(
-                    colors: colors,
-                    barTop: barTop,
-                    chatFraction: chatFraction,
+        builder: (context, constraints) {
+          AppLocalizations.watch(context);
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    key: const ValueKey('navigation-cradle'),
+                    painter: NavigationCradlePainter(
+                      colors: colors,
+                      barTop: barTop,
+                      chatFraction: chatFraction,
+                    ),
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              top: barTop,
-              left: 0,
-              right: 0,
-              child: NavigationBarTheme(
-                data: data,
-                child: NavigationBar(
-                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: onSelected,
-                  destinations: [
-                    for (final item in items)
-                      if (item['component'] == 'chat')
-                        NavigationBarTheme(
-                          data: data.copyWith(
-                            indicatorColor: Colors.transparent,
-                            labelTextStyle: WidgetStatePropertyAll(
-                              TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: colors.text,
+              Positioned(
+                top: barTop,
+                left: 0,
+                right: 0,
+                child: NavigationBarTheme(
+                  data: data,
+                  child: NavigationBar(
+                    labelBehavior:
+                        NavigationDestinationLabelBehavior.alwaysShow,
+                    selectedIndex: selectedIndex,
+                    onDestinationSelected: onSelected,
+                    destinations: [
+                      for (final item in items)
+                        if (item['component'] == 'chat')
+                          NavigationBarTheme(
+                            data: data.copyWith(
+                              indicatorColor: Colors.transparent,
+                              labelTextStyle: WidgetStatePropertyAll(
+                                TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.text,
+                                ),
                               ),
                             ),
+                            child: NavigationDestination(
+                              icon: SizedBox(width: 24, height: 24),
+                              label: appTr('Chatbot'),
+                              tooltip: appTr('Open Chatbot'),
+                            ),
+                          )
+                        else
+                          NavigationDestination(
+                            icon: Icon(switch (item['component']) {
+                              'dashboard' => Icons.home_outlined,
+                              'social' => Icons.calendar_today_outlined,
+                              'documents' => Icons.folder_outlined,
+                              'workspace' => Icons.grid_view_outlined,
+                              'account' => Icons.person_outline_rounded,
+                              'plans' => Icons.workspace_premium_outlined,
+                              _ => Icons.auto_awesome_outlined,
+                            }),
+                            selectedIcon: Icon(switch (item['component']) {
+                              'dashboard' => Icons.home_rounded,
+                              'social' => Icons.calendar_today_rounded,
+                              'workspace' => Icons.grid_view_rounded,
+                              'account' => Icons.person_rounded,
+                              _ => Icons.auto_awesome_rounded,
+                            }),
+                            label: appTr(item['label'].toString()),
                           ),
-                          child: const NavigationDestination(
-                            icon: SizedBox(width: 24, height: 24),
-                            label: 'Chatbot',
-                            tooltip: 'Open Chatbot',
-                          ),
-                        )
-                      else
-                        NavigationDestination(
-                          icon: Icon(switch (item['component']) {
-                            'dashboard' => Icons.home_outlined,
-                            'social' => Icons.calendar_today_outlined,
-                            'documents' => Icons.folder_outlined,
-                            'workspace' => Icons.grid_view_outlined,
-                            'account' => Icons.person_outline_rounded,
-                            'plans' => Icons.workspace_premium_outlined,
-                            _ => Icons.auto_awesome_outlined,
-                          }),
-                          selectedIcon: Icon(switch (item['component']) {
-                            'dashboard' => Icons.home_rounded,
-                            'social' => Icons.calendar_today_rounded,
-                            'workspace' => Icons.grid_view_rounded,
-                            'account' => Icons.person_rounded,
-                            _ => Icons.auto_awesome_rounded,
-                          }),
-                          label: item['label'].toString(),
-                        ),
-                  ],
-                ),
-              ),
-            ),
-            if (chatFraction != null)
-              Positioned(
-                left: constraints.maxWidth * chatFraction - 36,
-                top: 0,
-                child: ExcludeSemantics(
-                  child: AnimatedChatbotButton(
-                    colors: colors,
-                    selected: selectedIndex == chatIndex,
-                    onPressed: () => onSelected(chatIndex),
+                    ],
                   ),
                 ),
               ),
-          ],
-        ),
+              if (chatFraction != null)
+                Positioned(
+                  left: constraints.maxWidth * chatFraction - 36,
+                  top: 0,
+                  child: ExcludeSemantics(
+                    child: AnimatedChatbotButton(
+                      colors: colors,
+                      selected: selectedIndex == chatIndex,
+                      onPressed: () => onSelected(chatIndex),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

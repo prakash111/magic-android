@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import '../services/app_localizations.dart';
+import '../widgets/language_picker.dart';
 import '../services/ai_model_selection.dart';
 import '../services/mobile_api.dart';
 import 'auth/login_screen.dart';
@@ -69,6 +71,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _load() async {
     if (_loading) return;
     _loading = true;
+    final translations = AppLocalizations.current;
+    if (identical(translations.api, widget.api ?? MobileApi.instance)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(translations.refresh());
+      });
+    }
     try {
       final data = await (widget.api ?? MobileApi.instance).request(
         '/config',
@@ -103,7 +111,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     MobileApi.failure.value = null;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => LoginScreen(onThemeChanged: widget.onThemeChanged),
+        builder: (localizationContext) {
+          AppLocalizations.watch(localizationContext);
+          return LoginScreen(onThemeChanged: widget.onThemeChanged);
+        },
       ),
       (_) => false,
     );
@@ -111,12 +122,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     if (_config == null) {
       return Scaffold(
         body: Center(
           child: _error == null
               ? const CircularProgressIndicator()
-              : RetryPanel(message: _error!, retry: _load),
+              : RetryPanel(message: appTr(_error!), retry: _load),
         ),
       );
     }
@@ -138,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (navigation.isEmpty) {
       return Scaffold(
         body: RetryPanel(
-          message: 'No supported navigation is enabled.',
+          message: appTr('No supported navigation is enabled.'),
           retry: _load,
         ),
       );
@@ -227,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       'documents' => ServerListScreen(
         api: widget.api,
         path: '/documents',
-        title: 'Documents',
+        title: appTr('Documents'),
       ),
       _ => ToolDirectory(
         api: widget.api,
@@ -243,34 +256,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ? null
           : AppBar(
               title: Text(
-                selected['component'] == 'dashboard'
-                    ? BrandConfig.name
-                    : selected['component'] == 'chat'
-                    ? 'Chatbot'
-                    : selected['label']?.toString() ?? BrandConfig.name,
+                appTr(
+                  selected['component'] == 'dashboard'
+                      ? BrandConfig.name
+                      : selected['component'] == 'chat'
+                      ? 'Chatbot'
+                      : selected['label']?.toString() ?? BrandConfig.name,
+                ),
               ),
               centerTitle: false,
               actions: [
+                const LanguagePicker(),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_horiz),
                   onSelected: _selectSection,
-                  itemBuilder: (_) => allNavigation
-                      .map(
-                        (item) => PopupMenuItem(
-                          value: item['id'].toString(),
-                          child: Text(
-                            item['component'] == 'chat'
-                                ? 'Chatbot'
-                                : item['label'].toString(),
+                  itemBuilder: (localizationContext) {
+                    AppLocalizations.watch(localizationContext);
+                    return allNavigation
+                        .map(
+                          (item) => PopupMenuItem(
+                            value: item['id'].toString(),
+                            child: Text(
+                              appTr(
+                                item['component'] == 'chat'
+                                    ? 'Chatbot'
+                                    : item['label'].toString(),
+                              ),
+                            ),
                           ),
-                        ),
-                      )
-                      .toList(),
+                        )
+                        .toList();
+                  },
                 ),
                 IconButton(
                   onPressed: _load,
                   icon: const Icon(Icons.refresh),
-                  tooltip: 'Refresh',
+                  tooltip: appTr('Refresh'),
                 ),
               ],
             ),
@@ -278,9 +299,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         children: [
           if (_error != null)
             MaterialBanner(
-              content: Text(_error!),
+              content: Text(appTr(_error!)),
               actions: [
-                TextButton(onPressed: _load, child: const Text('Retry')),
+                TextButton(onPressed: _load, child: Text(appTr('Retry'))),
               ],
             ),
           Expanded(

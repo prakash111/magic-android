@@ -1,3 +1,5 @@
+import '../../services/app_localizations.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../models/social_account.dart';
@@ -38,23 +40,33 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
     if (!willConnect) {
       final confirm = await showDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('Disconnect ${account.displayName}?'),
-          content: Text(
-            'Scheduled posts targeting ${account.displayName} will not be published automatically until you reconnect.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+        builder: (ctx) {
+          AppLocalizations.watch(ctx);
+          return AlertDialog(
+            title: Text(
+              appTr("Disconnect :value?", {"value": account.displayName}),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Disconnect'),
+            content: Text(
+              appTr(
+                "Scheduled posts targeting :value will not be published automatically until you reconnect.",
+                {"value": account.displayName},
+              ),
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(appTr('Cancel')),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.error,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(appTr('Disconnect')),
+              ),
+            ],
+          );
+        },
       );
 
       if (confirm != true) return;
@@ -65,7 +77,11 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Disconnected from ${account.displayName}.'),
+            content: Text(
+              appTr("Disconnected from :value.", {
+                "value": account.displayName,
+              }),
+            ),
             backgroundColor: AppTheme.warning,
           ),
         );
@@ -80,38 +96,44 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
 
     final enteredHandle = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Connect ${account.displayName}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Enter your ${account.displayName} username or profile handle to register with your MagicAI account.',
-              style: const TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: handleController,
-              decoration: const InputDecoration(
-                labelText: 'Profile Handle',
-                hintText: '@username',
-                prefixIcon: Icon(Icons.alternate_email, size: 18),
+      builder: (ctx) {
+        AppLocalizations.watch(ctx);
+        return AlertDialog(
+          title: Text(appTr("Connect :value", {"value": account.displayName})),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                appTr(
+                  "Enter your :value username or profile handle to register with your MagicAI account.",
+                  {"value": account.displayName},
+                ),
+                style: const TextStyle(fontSize: 13),
               ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: handleController,
+                decoration: InputDecoration(
+                  labelText: appTr('Profile Handle'),
+                  hintText: appTr('@username'),
+                  prefixIcon: Icon(Icons.alternate_email, size: 18),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(appTr('Cancel')),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, handleController.text.trim()),
+              child: Text(appTr('Connect Account')),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, handleController.text.trim()),
-            child: const Text('Connect Account'),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     if (enteredHandle == null ||
@@ -130,7 +152,9 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Connected to ${account.displayName}!'),
+          content: Text(
+            appTr("Connected to :value!", {"value": account.displayName}),
+          ),
           backgroundColor: AppTheme.success,
         ),
       );
@@ -181,15 +205,17 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+
     final connectedCount = _accounts.where((a) => a.isConnected).length;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Linked Social Accounts'),
+        title: Text(appTr('Linked Social Accounts')),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Sync metrics',
+            tooltip: appTr('Sync metrics'),
             onPressed: _loadAccounts,
           ),
         ],
@@ -232,7 +258,13 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '$connectedCount of ${_accounts.length} Platforms Connected',
+                                appTr(
+                                  ":connectedCount of :value Platforms Connected",
+                                  {
+                                    "connectedCount": connectedCount,
+                                    "value": _accounts.length,
+                                  },
+                                ),
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -241,7 +273,9 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Direct API publishing linked with your MagicAI account.',
+                                appTr(
+                                  'Direct API publishing linked with your MagicAI account.',
+                                ),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.white.withOpacity(0.85),
@@ -256,8 +290,8 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
 
                   const SizedBox(height: 20),
 
-                  const Text(
-                    'Available Channels',
+                  Text(
+                    appTr('Available Channels'),
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
@@ -310,7 +344,7 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
                                               4,
                                             ),
                                           ),
-                                          child: const Row(
+                                          child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               CircleAvatar(
@@ -320,7 +354,7 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
                                               ),
                                               SizedBox(width: 4),
                                               Text(
-                                                'Connected',
+                                                appTr('Connected'),
                                                 style: TextStyle(
                                                   fontSize: 10,
                                                   color: AppTheme.success,
@@ -334,10 +368,12 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
-                                    account.isConnected &&
-                                            account.handle.isNotEmpty
-                                        ? account.handle
-                                        : 'Not connected',
+                                    appTr(
+                                      account.isConnected &&
+                                              account.handle.isNotEmpty
+                                          ? account.handle
+                                          : 'Not connected',
+                                    ),
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: AppTheme.textMuted,
@@ -347,7 +383,16 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
                                       account.followers > 0) ...[
                                     const SizedBox(height: 3),
                                     Text(
-                                      '${account.followers.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} followers',
+                                      appTr(":value followers", {
+                                        "value": account.followers
+                                            .toString()
+                                            .replaceAllMapped(
+                                              RegExp(
+                                                r'(\d{1,3})(?=(\d{3})+(?!\d))',
+                                              ),
+                                              (Match m) => '${m[1]},',
+                                            ),
+                                      }),
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: color,
@@ -378,7 +423,11 @@ class _LinkedAccountsScreenState extends State<LinkedAccountsScreen> {
                               ),
                               onPressed: () => _toggleConnection(account),
                               child: Text(
-                                account.isConnected ? 'Disconnect' : 'Connect',
+                                appTr(
+                                  account.isConnected
+                                      ? 'Disconnect'
+                                      : 'Connect',
+                                ),
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ),
