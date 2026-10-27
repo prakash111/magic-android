@@ -116,7 +116,7 @@ jobs:
         env:
           BUILD_VERSION: ${{ inputs.build_version }}
         run: |
-          flutter build ios --release --no-codesign --build-name="$BUILD_VERSION"
+          flutter build ios --release --no-codesign --build-name="$BUILD_VERSION" --build-number="$GITHUB_RUN_NUMBER"
           python3 .github/scripts/package-magicai.py ios
       - name: Build signed IPA when Apple credentials exist
         if: matrix.platform == 'ios'

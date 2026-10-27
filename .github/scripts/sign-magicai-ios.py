@@ -101,7 +101,7 @@ def sign(root, values):
             configured = source.replace('CODE_SIGN_STYLE = Automatic;', 'CODE_SIGN_STYLE = Manual;')
             configured = re.sub(r'(PRODUCT_BUNDLE_IDENTIFIER = "?' + re.escape(bundle_id) + r'"?;)', lambda match: match[0] + '\nDEVELOPMENT_TEAM = ' + team + ';\nPROVISIONING_PROFILE_SPECIFIER = "' + metadata['UUID'] + '";\nCODE_SIGN_IDENTITY = "' + fingerprint + '";', configured)
             project.write_text(configured)
-            command = ['flutter', 'build', 'ipa', '--release', '--export-options-plist=' + str(export_options), '--build-name=' + values.get('BUILD_VERSION', '1.1.0')]
+            command = ['flutter', 'build', 'ipa', '--release', '--export-options-plist=' + str(export_options), '--build-name=' + values.get('BUILD_VERSION', '1.1.0'), '--build-number=' + values.get('GITHUB_RUN_NUMBER', '1')]
             subprocess.run(command, cwd=root, check=True)
             output = root / 'build/exports'
             output.mkdir(parents=True, exist_ok=True)
