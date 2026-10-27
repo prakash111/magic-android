@@ -236,7 +236,7 @@ class _KeywordResearchScreenState extends State<KeywordResearchScreen> {
                                     ),
                                     _buildPill(
                                       icon: Icons.flag_outlined,
-                                      label: kw.intent,
+                                      label: appTr(kw.intent),
                                       color: AppTheme.textMuted,
                                     ),
                                   ],

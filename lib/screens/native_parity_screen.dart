@@ -268,7 +268,7 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
   String _time(dynamic value) {
     final date = DateTime.tryParse('$value')?.toLocal();
     return date == null
-        ? 'Not scheduled'
+        ? appTr('Not scheduled')
         : DateFormat.yMMMd().add_jm().format(date);
   }
 

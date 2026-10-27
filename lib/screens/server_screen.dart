@@ -3,6 +3,7 @@ import '../services/app_localizations.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../services/ai_model_selection.dart';
 import '../services/document_service.dart';
@@ -904,30 +905,19 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
       final dt = DateTime.parse(raw).toLocal();
       final now = DateTime.now();
       final diff = now.difference(dt);
-      if (diff.inMinutes < 1) return 'Just now';
-      if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-      if (diff.inDays < 1 && dt.day == now.day) {
-        final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-        final minute = dt.minute.toString().padLeft(2, '0');
-        final ampm = dt.hour >= 12 ? 'PM' : 'AM';
-        return '$hour:$minute $ampm';
+      final locale = AppLocalizations.current.localeCode.replaceAll('-', '_');
+      if (diff.inMinutes < 1) return appTr('Just now');
+      if (diff.inHours < 1) {
+        return appTr(
+          ':count minute ago|:count minutes ago',
+          {},
+          diff.inMinutes,
+        );
       }
-      const months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      final month = months[dt.month - 1];
-      return '$month ${dt.day}';
+      if (diff.inDays < 1 && dt.day == now.day) {
+        return DateFormat.jm(locale).format(dt);
+      }
+      return DateFormat.MMMd(locale).format(dt);
     } catch (_) {
       return raw;
     }

@@ -32,7 +32,7 @@ class MobileDocument {
         return value.trim();
       }
     }
-    return 'Untitled Document';
+    return appTr('Untitled Document');
   }
 
   String get content {

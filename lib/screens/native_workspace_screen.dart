@@ -212,7 +212,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
   String _date(dynamic value, {bool time = false}) {
     final date = DateTime.tryParse('$value');
     return date == null
-        ? 'Not scheduled'
+        ? appTr('Not scheduled')
         : (time ? DateFormat.yMMMd().add_jm() : DateFormat.yMMMd()).format(
             date.toLocal(),
           );
