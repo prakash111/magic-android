@@ -9,6 +9,7 @@ class BrandConfig {
   static const supportEmail = String.fromEnvironment('MAGICAI_SUPPORT_EMAIL');
   static const supportPhone = String.fromEnvironment('MAGICAI_SUPPORT_PHONE');
   static const copyright = String.fromEnvironment('MAGICAI_COPYRIGHT');
+  static const logoBase64 = '';
   static const primary = 0xFF6366F1;
   static const secondary = 0xFF4F46E5;
   static const accent = 0xFF8B5CF6;

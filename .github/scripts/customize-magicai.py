@@ -1,3 +1,4 @@
+import base64
 import io
 import json
 import os
@@ -25,11 +26,15 @@ def customize(root, values, bundle=None):
     if not re.fullmatch(r'\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?', version):
         raise ValueError('Version must use major.minor.patch format')
     branding = {}
+    logo = ''
     if bundle is not None:
         with zipfile.ZipFile(io.BytesIO(bundle)) as archive:
             if sum(item.file_size for item in archive.infolist()) > 100 * 1024 * 1024:
                 raise ValueError('Branding archive is too large')
             branding = json.loads(archive.read('branding_config.json'))
+            logo_path = 'brand_logo.png' if 'brand_logo.png' in archive.namelist() else 'assets/assets/images/app_logo.png'
+            if branding.get('has_custom_logo', True) and logo_path in archive.namelist():
+                logo = base64.b64encode(archive.read(logo_path)).decode()
             if branding.get('app_identifier') != 'magicai' or branding.get('server_url') != server:
                 raise ValueError('Branding does not match the licensed MagicAI backend')
             for entry in archive.infolist():
@@ -66,8 +71,8 @@ def customize(root, values, bundle=None):
         'text': ('text_color', '#F8FAFC'),
     }
     lines = ['class BrandConfig {']
-    strings = {'name': name, 'serverUrl': server, 'company': branding.get('company_name', 'Zoom Nearby'),
-               'product': branding.get('product_name', name), 'supportEmail': branding.get('support_email', ''),
+    strings = {'name': name, 'serverUrl': server, 'company': branding.get('company_name', ''),
+               'product': branding.get('product_name', name), 'logoBase64': logo, 'supportEmail': branding.get('support_email', ''),
                'supportPhone': branding.get('support_phone', ''), 'copyright': branding.get('copyright', '')}
     for key, value in strings.items():
         literal = json.dumps(str(value), ensure_ascii=True).replace('$', '\\$')
@@ -128,6 +133,14 @@ def customize(root, values, bundle=None):
         if main.exists():
             literal = json.dumps(name)
             main.write_text(main.read_text().replace('"zoomnearby_mobile"', literal).replace('L"zoomnearby_mobile"', 'L' + literal).replace('"magicai_mobile"', literal))
+
+
+    resource = root / 'windows/runner/Runner.rc'
+    if resource.exists():
+        source = resource.read_text()
+        for field, value in {'CompanyName': strings['company'], 'FileDescription': name, 'ProductName': name, 'LegalCopyright': strings['copyright']}.items():
+            source = re.sub(r'(VALUE "' + field + r'", )"[^"\n]*"', lambda match: match[1] + json.dumps(value), source)
+        resource.write_text(source)
 
 
 def download_bundle(url):

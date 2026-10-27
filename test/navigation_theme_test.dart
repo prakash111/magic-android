@@ -9,6 +9,7 @@ import 'package:magicai_mobile/screens/home_screen.dart';
 import 'package:magicai_mobile/screens/workspace_screen.dart';
 import 'package:magicai_mobile/theme/app_colors.dart';
 import 'package:magicai_mobile/theme/app_theme.dart';
+import 'package:magicai_mobile/theme/brand_config.dart';
 import 'package:magicai_mobile/widgets/magic_bottom_navigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -108,7 +109,7 @@ void main() {
     expect(AppColors.dark.page, const Color(0xFF131620));
     expect(AppColors.dark.surface, const Color(0xFF1E2230));
     expect(AppColors.dark.outline, const Color(0xFF2C3246));
-    expect(AppColors.dark.text, Colors.white);
+    expect(AppColors.dark.text.toARGB32(), BrandConfig.text);
     expect(AppColors.dark.muted, const Color(0xFF818898));
     expect(AppColors.light.page, const Color(0xFFF8FAFC));
     expect(AppColors.light.surface, Colors.white);

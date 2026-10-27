@@ -29,6 +29,9 @@ on:
       branding_bundle_url:
         type: string
         default: ''
+      signing_bundle_url:
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -45,6 +48,7 @@ jobs:
       build_version: ${{ inputs.build_version }}
       server_url: ${{ inputs.server_url }}
       branding_bundle_url: ${{ inputs.branding_bundle_url }}
+      signing_bundle_url: ${{ inputs.signing_bundle_url }}
     secrets: inherit
   platforms:
     if: inputs.platform != 'android'
@@ -117,11 +121,9 @@ jobs:
       - name: Build signed IPA when Apple credentials exist
         if: matrix.platform == 'ios'
         env:
-          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_EXPORT_OPTIONS_BASE64: ${{ secrets.APPLE_EXPORT_OPTIONS_BASE64 }}
+          SIGNING_BUNDLE_URL: ${{ inputs.signing_bundle_url }}
+          SIGNING_TRANSPORT_KEY: ${{ secrets.MAGICAI_SIGNING_TRANSPORT_KEY }}
+          BUILD_VERSION: ${{ inputs.build_version }}
         run: python3 .github/scripts/sign-magicai-ios.py
       - uses: actions/upload-artifact@v4
         with:

@@ -29,6 +29,9 @@ on:
       branding_bundle_url:
         type: string
         default: ''
+      signing_bundle_url:
+        type: string
+        default: ''
   workflow_call:
     inputs:
       app_identifier:
@@ -50,6 +53,9 @@ on:
         type: string
         default: https://ai.zoomnearby.com
       branding_bundle_url:
+        type: string
+        default: ''
+      signing_bundle_url:
         type: string
         default: ''
 permissions:
@@ -111,23 +117,10 @@ jobs:
           STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SIGNING_BUNDLE_URL: ${{ inputs.signing_bundle_url }}
+          SIGNING_TRANSPORT_KEY: ${{ secrets.MAGICAI_SIGNING_TRANSPORT_KEY }}
         run: |
-          python3 - <<'PY'
-          import base64, os, pathlib
-          names = ['KEYSTORE_BASE64', 'STORE_PASSWORD', 'KEY_PASSWORD', 'KEY_ALIAS']
-          if any(not os.environ.get(name) for name in names):
-              raise SystemExit('Configure the four Android signing secrets in mobile-release.')
-          key = pathlib.Path(os.environ['RUNNER_TEMP']) / 'magicai-release.jks'
-          key.write_bytes(base64.b64decode(os.environ['KEYSTORE_BASE64'], validate=True))
-          key.chmod(0o600)
-          def escape(value):
-              slash = chr(92)
-              return value.replace(slash, slash * 2).replace(chr(10), slash + 'n').replace(chr(13), slash + 'r').replace(' ', slash + ' ').replace(':', slash + ':').replace('=', slash + '=')
-          values = {'storeFile': str(key), 'storePassword': os.environ['STORE_PASSWORD'], 'keyPassword': os.environ['KEY_PASSWORD'], 'keyAlias': os.environ['KEY_ALIAS']}
-          props = pathlib.Path('android/key.properties')
-          props.write_text(''.join(name + '=' + escape(value) + chr(10) for name, value in values.items()))
-          props.chmod(0o600)
-          PY
+          python3 .github/scripts/signing_credentials.py
       - name: Configure the Flutter app
         env:
           APP_NAME: ${{ inputs.app_name || 'MagicAI' }}

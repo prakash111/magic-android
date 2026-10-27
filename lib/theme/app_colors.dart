@@ -50,7 +50,7 @@ class AppColors extends ThemeExtension<AppColors> {
     outline: Color(0xFF2C3246),
     primary: Color(BrandConfig.primary),
     onPrimary: Colors.white,
-    text: Colors.white,
+    text: Color(BrandConfig.text),
     muted: Color(0xFF818898),
     navigation: Color(0xFF171B28),
     chatbotSurface: Color(BrandConfig.surface),

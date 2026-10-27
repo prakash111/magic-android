@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../theme/brand_config.dart';
 
 /// Tokens shared by the native sign-in, registration and launch experience.
 class AuthPalette {
@@ -12,13 +14,13 @@ class AuthPalette {
   AuthPalette.of(BuildContext context)
     : base = AppColors.of(context),
       dark = Theme.of(context).brightness == Brightness.dark;
-  Color get page => dark ? const Color(0xFF0E1018) : base.page;
-  Color get surface => dark ? const Color(0xFF1B1F2E) : base.surface;
+  Color get page => base.page;
+  Color get surface => base.surface;
   Color get outline => dark ? const Color(0xFF2D3348) : base.outline;
   Color get text => base.text;
   Color get muted => dark ? const Color(0xFF94A3B8) : base.muted;
   Color get link => dark ? const Color(0xFFA5B4FC) : base.glowStart;
-  Color get indigo => base.glowStart;
+  Color get indigo => base.primary;
   Color get violet => AppTheme.accent;
   Color get cyan => base.glowEnd;
   Color get pink => base.glowMiddle;
@@ -278,6 +280,20 @@ class MagicSparklePainter extends CustomPainter {
       color != oldDelegate.color;
 }
 
+class AuthBrandLogo extends StatelessWidget {
+  const AuthBrandLogo({super.key});
+  static String _encoded = '';
+  static MemoryImage? _image;
+  @override
+  Widget build(BuildContext context) {
+    if (_image == null || _encoded != BrandConfig.logoBase64) {
+      _encoded = BrandConfig.logoBase64;
+      _image = MemoryImage(base64Decode(_encoded));
+    }
+    return Image(image: _image!, fit: BoxFit.contain);
+  }
+}
+
 class AuthMark extends StatelessWidget {
   const AuthMark({super.key});
   @override
@@ -314,12 +330,14 @@ class AuthMark extends StatelessWidget {
                 foregroundPainter: MagicShinePainter(phase.value * 4 % 1),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: CustomPaint(
-                    painter: MagicSparklePainter(
-                      color: colors.base.onPrimary,
-                      twinkle: phase.value * 4,
-                    ),
-                  ),
+                  child: BrandConfig.logoBase64.isEmpty
+                      ? CustomPaint(
+                          painter: MagicSparklePainter(
+                            color: colors.base.onPrimary,
+                            twinkle: phase.value * 4,
+                          ),
+                        )
+                      : const AuthBrandLogo(),
                 ),
               ),
             ),
