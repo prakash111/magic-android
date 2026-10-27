@@ -168,12 +168,14 @@ void main() {
       origin: Uri.parse('https://customer.example.test'),
       store: MemorySecureStore(),
       client: MockClient((request) async {
-        if (request.url.path.endsWith('/license'))
+        if (request.url.path.endsWith('/license')) {
           return jsonResponse(license());
-        if (request.url.path.endsWith('/translations'))
+        }
+        if (request.url.path.endsWith('/translations')) {
           return jsonResponse(
             catalog(code: request.url.queryParameters['locale'] ?? 'de'),
           );
+        }
         selectedHeader = request.headers['Accept-Language'];
         return jsonResponse({'ok': true});
       }),
