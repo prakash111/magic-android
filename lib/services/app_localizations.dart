@@ -276,9 +276,11 @@ class AppLocalizations extends ChangeNotifier {
           _TranslationPattern(entry.key, entry.value),
     ];
     _normalized = {
-      for (final entry in {..._fallback, ..._messages}.entries)
-        _normalize(entry.key): entry.value,
+      for (final entry in _fallback.entries) _normalize(entry.key): entry.value,
     };
+    for (final entry in _messages.entries) {
+      _normalized[_normalize(entry.key)] = entry.value;
+    }
   }
 
   static String _normalize(String value) =>

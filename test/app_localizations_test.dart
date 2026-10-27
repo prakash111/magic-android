@@ -195,6 +195,16 @@ void main() {
     AppLocalizations.current = previous;
   });
 
+  test('selected translations take precedence over differently cased fallback keys', () async {
+    final body = catalog();
+    (body['fallback'] as Map)['Sign in'] = 'Sign in';
+    (body['fallback'] as Map)['Sign In'] = 'Sign In';
+    (body['translations'] as Map)['Sign in'] = 'Anmelden';
+    final translations = create((_) async => body);
+    await translations.initialize();
+    expect(appTr('Sign In'), 'Anmelden');
+  });
+
   test('initial language is the server default and all labels come from the catalog', () async {
     final translations = create((code) async => catalog(code: code ?? 'de'));
     await translations.initialize();
