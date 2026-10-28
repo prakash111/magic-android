@@ -86,7 +86,15 @@ def screenshot_colors(data, white_regions=None):
 
 
 def verify_snapshot(name, theme):
-    expected = [0x131620, 0x1E2230, 0x6366F1] if theme == 'dark' else [0xF8FAFC, 0xFFFFFF, 0xF1F5F9, 0x6366F1]
+    brand_config = (Path(__file__).parents[2] / 'lib/theme/brand_config.dart').read_text()
+
+    def brand_color(field):
+        match = re.search(r'static const ' + re.escape(field) + r' = 0xFF([0-9A-Fa-f]{6});', brand_config)
+        return int(match.group(1), 16) if match else None
+
+    primary = brand_color('primary')
+    expected = [brand_color('background'), brand_color('surface'), primary] if theme == 'dark' else [0xF8FAFC, 0xFFFFFF, 0xF1F5F9, primary]
+    expected = [color for color in expected if color is not None]
     deadline = time.monotonic() + 30
     avatar = chip = chat = None
     while time.monotonic() < deadline:

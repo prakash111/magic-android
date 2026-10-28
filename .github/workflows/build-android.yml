@@ -214,6 +214,11 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         env:
           MAGICAI_PACKAGE_ID: ${{ inputs.package_id || 'com.zoomnearby.ai.zoomnearby_mobile' }}
+          APP_NAME: ${{ inputs.app_name || 'MagicAI' }}
+          PACKAGE_ID: ${{ inputs.package_id || 'com.zoomnearby.ai.zoomnearby_mobile' }}
+          SERVER_URL: ${{ inputs.server_url || 'https://ai.zoomnearby.com' }}
+          BUILD_VERSION: ${{ inputs.build_version || '1.1.0' }}
+          BRANDING_BUNDLE_URL: ${{ inputs.branding_bundle_url }}
         with:
           api-level: 35
           arch: x86_64
@@ -222,6 +227,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
+            python3 .github/scripts/customize-magicai.py
             python3 .github/scripts/check-android-preferences.py android-preferences-build/storage-probe.apk
             python3 .github/scripts/check-android-ui.py
             python3 .github/scripts/check-android-studio.py
