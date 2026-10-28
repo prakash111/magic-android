@@ -11,6 +11,7 @@ import '../models/social_account.dart';
 import 'mobile_api.dart';
 import 'storage_service.dart';
 import 'workspace_service.dart';
+import 'push_notifications.dart';
 
 class ApiService {
   static MobileApi get api => MobileApi.instance;
@@ -142,6 +143,7 @@ class ApiService {
   }
 
   static Future<void> logout() async {
+    await PushNotifications.unregisterDevice();
     try {
       await api.request('/auth/logout', method: 'POST');
     } finally {

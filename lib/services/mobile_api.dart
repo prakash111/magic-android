@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import '../theme/brand_config.dart';
 import 'platform_bridge_io.dart'
     if (dart.library.js_interop) 'platform_bridge_web.dart';
+import 'push_notifications.dart';
 
 class ApiFailure implements Exception {
   final String message;
@@ -308,6 +309,7 @@ class MobileApi {
       await store.write('access_expires_at', data['expires_at'] as String);
     }
     failure.value = null;
+    unawaited(PushNotifications.registerDevice());
   }
 
   Future<void> clearSession() async {

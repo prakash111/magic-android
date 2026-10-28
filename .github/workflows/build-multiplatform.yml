@@ -92,7 +92,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-tools zenity
       - name: Analyze and test current source
         run: |
-          flutter pub get --enforce-lockfile
+          flutter pub get
           flutter analyze
           flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test
       - name: Configure licensed branding

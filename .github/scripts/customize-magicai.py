@@ -27,6 +27,7 @@ def customize(root, values, bundle=None):
         raise ValueError('Version must use major.minor.patch format')
     branding = {}
     logo = ''
+    firebase_configs = {'platforms': {}, 'vapidKey': ''}
     if bundle is not None:
         with zipfile.ZipFile(io.BytesIO(bundle)) as archive:
             if sum(item.file_size for item in archive.infolist()) > 100 * 1024 * 1024:
@@ -38,6 +39,42 @@ def customize(root, values, bundle=None):
             if branding.get('app_identifier') != 'magicai' or branding.get('server_url') != server:
                 raise ValueError('Branding does not match the licensed MagicAI backend')
             for entry in archive.infolist():
+                if entry.filename == 'firebase/android/google-services.json':
+                    config = json.loads(archive.read(entry))
+                    project = config.get('project_info', {})
+                    client = next((item for item in config.get('client', [])
+                                   if item.get('client_info', {}).get('android_client_info', {}).get('package_name') == package), None)
+                    if client is None:
+                        raise ValueError('Android Firebase package does not match Brand Identity')
+                    api_key = next((item.get('current_key') for item in client.get('api_key', []) if item.get('current_key')), '')
+                    firebase_configs['platforms']['android'] = {
+                        'apiKey': api_key,
+                        'appId': client.get('client_info', {}).get('mobilesdk_app_id', ''),
+                        'messagingSenderId': project.get('project_number', ''),
+                        'projectId': project.get('project_id', ''),
+                    }
+                    target = root / 'android/app/google-services.json'
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(archive.read(entry))
+                elif entry.filename == 'firebase/ios/GoogleService-Info.plist':
+                    config = plistlib.loads(archive.read(entry))
+                    if config.get('BUNDLE_ID') != package:
+                        raise ValueError('iOS Firebase bundle ID does not match Brand Identity')
+                    firebase_configs['platforms']['ios'] = {
+                        'apiKey': config.get('API_KEY', ''),
+                        'appId': config.get('GOOGLE_APP_ID', ''),
+                        'messagingSenderId': config.get('GCM_SENDER_ID', ''),
+                        'projectId': config.get('PROJECT_ID', ''),
+                        'storageBucket': config.get('STORAGE_BUCKET', ''),
+                        'iosBundleId': config.get('BUNDLE_ID', ''),
+                    }
+                    target = root / 'ios/Runner/GoogleService-Info.plist'
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(archive.read(entry))
+                elif entry.filename == 'firebase/web/firebase-web-config.json':
+                    firebase_configs['platforms']['web'] = json.loads(archive.read(entry))
+                elif entry.filename == 'firebase/web/web-vapid-key.txt':
+                    firebase_configs['vapidKey'] = archive.read(entry).decode().strip()
                 if re.fullmatch(r'assets/android/mipmap-(?:mdpi|hdpi|xhdpi|xxhdpi|xxxhdpi)/ic_launcher\.png', entry.filename):
                     target = root / 'android/app/src/main/res' / entry.filename.removeprefix('assets/android/')
                     target.parent.mkdir(parents=True, exist_ok=True)
@@ -61,6 +98,21 @@ def customize(root, values, bundle=None):
                     target = root / 'linux/runner/resources/app_icon.png'
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(archive.read(entry))
+
+    if 'web' in firebase_configs['platforms'] and not firebase_configs['vapidKey']:
+        raise ValueError('Firebase Web Push key is missing')
+    firebase_asset = root / 'assets/firebase/firebase-config.json'
+    firebase_asset.parent.mkdir(parents=True, exist_ok=True)
+    firebase_asset.write_text(json.dumps(firebase_configs, separators=(',', ':')) + '\n')
+    web_config = firebase_configs['platforms'].get('web')
+    if web_config:
+        worker = root / 'web/firebase-messaging-sw.js'
+        worker.write_text(
+            "importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');\n"
+            "importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');\n"
+            'firebase.initializeApp(' + json.dumps(web_config, separators=(',', ':')) + ');\n'
+            'firebase.messaging();\n'
+        )
 
     colors = {
         'primary': ('primary_color', '#6366F1'),

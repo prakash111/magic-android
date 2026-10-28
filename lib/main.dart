@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'services/mobile_api.dart';
+import 'services/push_notifications.dart';
 import 'services/app_localizations.dart';
 import 'services/framework_localizations.dart';
 
@@ -19,8 +20,9 @@ import 'theme/app_theme.dart';
 import 'theme/brand_config.dart';
 import 'theme/theme_settings.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await PushNotifications.initialize(api: MobileApi.instance);
   unawaited(ImageAttachmentPicker.recoverLostSelection());
   PlatformBridge.handleReturn();
   runApp(const MagicAIMobileApp(initialTheme: 'dark'));
