@@ -165,14 +165,18 @@ class PromptCreationIntro extends StatelessWidget {
                                       SizedBox(
                                         width: 78,
                                         height: 78,
-                                        child: BrandConfig.logoBase64.isEmpty
+                                        child: BrandConfig.splashLogoBase64.isEmpty
+                                            ? BrandConfig.logoBase64.isEmpty
                                             ? CustomPaint(
                                                 painter: MagicSparklePainter(
                                                   color: colors.base.onPrimary,
                                                   progress: glyph,
                                                 ),
                                               )
-                                            : const AuthBrandLogo(),
+                                            : const AuthBrandLogo()
+                                            : AuthBrandLogo(
+                                                base64Image: BrandConfig.splashLogoBase64,
+                                              ),
                                       ),
                                   ],
                                 ),

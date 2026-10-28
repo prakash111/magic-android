@@ -90,6 +90,8 @@ jobs:
       - name: Install Linux build libraries
         if: matrix.platform == 'linux'
         run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-tools zenity
+      - name: Verify licensed launcher and splash asset mapping
+        run: python3 .github/scripts/test-customize-magicai.py
       - name: Analyze and test current source
         run: |
           flutter pub get

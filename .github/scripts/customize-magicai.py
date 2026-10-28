@@ -27,18 +27,35 @@ def customize(root, values, bundle=None):
         raise ValueError('Version must use major.minor.patch format')
     branding = {}
     logo = ''
+    splash_logo = ''
     firebase_configs = {'platforms': {}, 'vapidKey': ''}
     if bundle is not None:
         with zipfile.ZipFile(io.BytesIO(bundle)) as archive:
             if sum(item.file_size for item in archive.infolist()) > 100 * 1024 * 1024:
                 raise ValueError('Branding archive is too large')
             branding = json.loads(archive.read('branding_config.json'))
-            logo_path = 'brand_logo.png' if 'brand_logo.png' in archive.namelist() else 'assets/assets/images/app_logo.png'
-            if branding.get('has_custom_logo', True) and logo_path in archive.namelist():
+            archive_files = set(archive.namelist())
+            logo_path = next((path for path in (
+                'brand_logo.png',
+                'assets/assets/images/app_logo.png',
+                'assets/images/app_logo.png',
+                'master_logo.png',
+            ) if path in archive_files), None)
+            splash_logo_path = next((path for path in (
+                'assets/assets/images/splash_logo.png',
+                'assets/images/splash_logo.png',
+            ) if path in archive_files), logo_path)
+            if branding.get('has_custom_logo', True) and logo_path:
                 logo = base64.b64encode(archive.read(logo_path)).decode()
+            if branding.get('has_custom_splash_logo', branding.get('has_custom_logo', True)) and splash_logo_path:
+                splash_logo = base64.b64encode(archive.read(splash_logo_path)).decode()
             if branding.get('app_identifier') != 'magicai' or branding.get('server_url') != server:
                 raise ValueError('Branding does not match the licensed MagicAI backend')
             for entry in archive.infolist():
+                asset_path = entry.filename.replace('\\', '/')
+                while '//' in asset_path:
+                    asset_path = asset_path.replace('//', '/')
+                asset_path = asset_path.removeprefix('assets/')
                 if entry.filename == 'firebase/android/google-services.json':
                     config = json.loads(archive.read(entry))
                     project = config.get('project_info', {})
@@ -75,29 +92,87 @@ def customize(root, values, bundle=None):
                     firebase_configs['platforms']['web'] = json.loads(archive.read(entry))
                 elif entry.filename == 'firebase/web/web-vapid-key.txt':
                     firebase_configs['vapidKey'] = archive.read(entry).decode().strip()
-                if re.fullmatch(r'assets/android/mipmap-(?:mdpi|hdpi|xhdpi|xxhdpi|xxxhdpi)/ic_launcher\.png', entry.filename):
-                    target = root / 'android/app/src/main/res' / entry.filename.removeprefix('assets/android/')
+                android_icon_match = re.fullmatch(r'(?:android/)?(mipmap-(?:mdpi|hdpi|xhdpi|xxhdpi|xxxhdpi)/ic_launcher\.png)', asset_path)
+                if android_icon_match:
+                    target = root / 'android/app/src/main/res' / android_icon_match.group(1)
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(archive.read(entry))
-                mapping = {'assets/web/favicon.png': 'web/favicon.png', 'assets/windows/app_icon.ico': 'windows/runner/resources/app_icon.ico'}
-                if entry.filename in mapping:
-                    target = root / mapping[entry.filename]
+
+                mapping = {
+                    'web/favicon.png': 'web/favicon.png',
+                    'favicon.png': 'web/favicon.png',
+                    'icon.png': 'web/favicon.png',
+                    'windows/app_icon.ico': 'windows/runner/resources/app_icon.ico',
+                    'app_icon.ico': 'windows/runner/resources/app_icon.ico',
+                    'images/splash_logo.png': 'assets/images/splash_logo.png',
+                    'assets/images/splash_logo.png': 'assets/images/splash_logo.png',
+                    'android/launch_splash_logo.png': 'android/app/src/main/res/drawable-nodpi/launch_splash_logo.png',
+                }
+                if asset_path in mapping:
+                    target = root / mapping[asset_path]
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(archive.read(entry))
-                if re.fullmatch(r'assets/web/icons/Icon-(?:maskable-)?(?:192|512)\.png', entry.filename):
-                    target = root / entry.filename.removeprefix('assets/')
+
+                web_icon_match = re.fullmatch(r'(?:web/icons|ns|icons)/(Icon-(?:maskable-)?(?:192|512)\.png)', asset_path)
+                if web_icon_match:
+                    target = root / 'web/icons' / web_icon_match.group(1)
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(archive.read(entry))
-                platform_icon = re.fullmatch(r'assets/(ios|macos)/(Icon-App-[0-9.@x]+\.png|app_icon_[0-9]+\.png)', entry.filename)
-                if platform_icon:
-                    platform, filename = platform_icon.groups()
-                    target = root / platform / 'Runner/Assets.xcassets/AppIcon.appiconset' / filename
+
+                ios_launch_match = re.fullmatch(r'ios/(LaunchImage(?:@(?:2|3)x)?\.png)', asset_path)
+                if ios_launch_match:
+                    target = root / 'ios/Runner/Assets.xcassets/LaunchImage.imageset' / ios_launch_match.group(1)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(archive.read(entry))
+
+                ios_icon_match = re.fullmatch(r'(?:ios/)?(?:Icon-)?(App-[0-9.@x]+\.png|n-App-[0-9.@x]+\.png)', asset_path)
+                if ios_icon_match:
+                    filename = ios_icon_match.group(1)
+                    if filename.startswith('n-App-'):
+                        filename = 'Icon-' + filename[2:]
+                    elif not filename.startswith('Icon-'):
+                        filename = 'Icon-' + filename
+                    target = root / 'ios/Runner/Assets.xcassets/AppIcon.appiconset' / filename
                     if target.parent.exists():
                         target.write_bytes(archive.read(entry))
-                if entry.filename == 'assets/linux/app_icon.png':
+
+                platform_icon = re.fullmatch(r'(?:macos/)?(?:app_icon_|pp_icon_)([0-9]+\.png)', asset_path)
+                if platform_icon:
+                    target = root / 'macos/Runner/Assets.xcassets/AppIcon.appiconset' / ('app_icon_' + platform_icon.group(1))
+                    if target.parent.exists():
+                        target.write_bytes(archive.read(entry))
+
+                if asset_path in {'linux/app_icon.png', 'icon/launcher.png'}:
                     target = root / 'linux/runner/resources/app_icon.png'
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(archive.read(entry))
+
+            android_splash_path = root / 'android/app/src/main/res/drawable-nodpi/launch_splash_logo.png'
+            if not android_splash_path.is_file() and splash_logo_path:
+                android_splash_path.parent.mkdir(parents=True, exist_ok=True)
+                android_splash_path.write_bytes(archive.read(splash_logo_path))
+
+            if (root / 'android/app/src/main/res/drawable-nodpi/launch_splash_logo.png').is_file():
+                background = branding.get('bg_color', '#131620')
+                if not re.fullmatch(r'#[0-9a-fA-F]{6}', str(background)):
+                    background = '#131620'
+                colors = root / 'android/app/src/main/res/values/magicai_launch_colors.xml'
+                colors.parent.mkdir(parents=True, exist_ok=True)
+                colors.write_text(
+                    '<?xml version="1.0" encoding="utf-8"?>\n'
+                    '<resources>\n'
+                    f'    <color name="magicai_launch_background">{background}</color>\n'
+                    '</resources>\n'
+                )
+                launch_background = (
+                    '<?xml version="1.0" encoding="utf-8"?>\n'
+                    '<layer-list xmlns:android="http://schemas.android.com/apk/res/android">\n'
+                    '    <item android:drawable="@color/magicai_launch_background" />\n'
+                    '    <item><bitmap android:gravity="center" android:src="@drawable/launch_splash_logo" /></item>\n'
+                    '</layer-list>\n'
+                )
+                for relative in ('android/app/src/main/res/drawable/launch_background.xml', 'android/app/src/main/res/drawable-v21/launch_background.xml'):
+                    (root / relative).write_text(launch_background)
 
     if 'web' in firebase_configs['platforms'] and not firebase_configs['vapidKey']:
         raise ValueError('Firebase Web Push key is missing')
@@ -124,7 +199,7 @@ def customize(root, values, bundle=None):
     }
     lines = ['class BrandConfig {']
     strings = {'name': name, 'serverUrl': server, 'company': branding.get('company_name', ''),
-               'product': branding.get('product_name', name), 'logoBase64': logo, 'supportEmail': branding.get('support_email', ''),
+               'product': branding.get('product_name', name), 'logoBase64': logo, 'splashLogoBase64': splash_logo, 'supportEmail': branding.get('support_email', ''),
                'supportPhone': branding.get('support_phone', ''), 'copyright': branding.get('copyright', '')}
     for key, value in strings.items():
         literal = json.dumps(str(value), ensure_ascii=True).replace('$', '\\$')
