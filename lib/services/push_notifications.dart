@@ -74,7 +74,9 @@ class PushNotifications {
         await rootBundle.loadString('assets/firebase/firebase-config.json'),
       ) as Map<String, dynamic>;
       if ((configuration['platforms'] as Map<String, dynamic>? ?? {})[target]
-          is! Map) return;
+          is! Map) {
+        return;
+      }
       final firebaseOptions = await _loadFirebaseOptions();
       if (firebaseOptions.apiKey.isEmpty || firebaseOptions.appId.isEmpty) {
         return;
