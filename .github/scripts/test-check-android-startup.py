@@ -19,6 +19,10 @@ class LoginScreenAssertions(unittest.TestCase):
         self.assertTrue(startup.is_login_screen(screen()))
         self.assertTrue(startup.is_login_screen(screen(title="Welcome back")))
 
+    def test_german_login_screen_is_recognized(self):
+        raw = screen(title="Willkommen zurück").replace('content-desc="Sign In"', 'content-desc="Anmelden"')
+        self.assertTrue(startup.is_login_screen(raw))
+
     def test_splash_or_license_lockout_is_not_login(self):
         self.assertFalse(startup.is_login_screen(screen(title="Preparing your workspace")))
         self.assertFalse(startup.is_login_screen(screen(title="License Invalid / Expired")))

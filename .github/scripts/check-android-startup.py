@@ -10,6 +10,18 @@ package = os.environ.get("MAGICAI_PACKAGE_ID", "com.zoomnearby.ai.zoomnearby_mob
 if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+", package):
     raise SystemExit("Invalid Android package identifier")
 output = Path("android-startup-diagnostics")
+LOGIN_LABELS = {
+    "sign in",
+    "log in",
+    "anmelden",
+    "se connecter",
+    "iniciar sesión",
+    "iniciar sessao",
+    "accedi",
+    "acceder",
+    "เข้าสู่ระบบ",
+    "تسجيل الدخول",
+}
 SKIP_LABELS = {
     "skip",
     "überspringen",
@@ -40,9 +52,17 @@ def is_login_screen(raw):
     nodes = [node for node in root.iter("node") if node.get("package") == package]
     labels = " ".join(node.get("text", "") + " " + node.get("content-desc", "") for node in nodes)
     fields = [node for node in nodes if node.get("class") == "android.widget.EditText"]
+    has_login_action = any(
+        (node.get("content-desc", "") or node.get("text", "")).strip().casefold() in LOGIN_LABELS
+        for node in nodes
+    )
+    has_login_heading = any(
+        phrase in labels.casefold()
+        for phrase in ("welcome to", "welcome back", "willkommen zurück", "willkommen")
+    )
     return (
-        ("Welcome to" in labels or "Welcome back" in labels)
-        and any(node.get("content-desc") == "Sign In" or node.get("text") == "Sign In" for node in nodes)
+        has_login_heading
+        and has_login_action
         and len(fields) >= 2
         and any(node.get("password") == "true" for node in fields)
     )
