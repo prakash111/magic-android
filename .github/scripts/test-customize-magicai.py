@@ -95,6 +95,9 @@ class BrandingAssetsTest(unittest.TestCase):
     def test_current_structured_branding_paths_are_applied(self):
         assets = {
             'assets/android/mipmap-xhdpi/ic_launcher.png': b'android-icon',
+            'assets/android/mipmap-anydpi-v26/ic_launcher.xml': b'<adaptive-icon />',
+            'assets/android/drawable-xxxhdpi/ic_launcher_foreground.png': b'adaptive-foreground',
+            'assets/android/values/ic_launcher_background.xml': b'<resources />',
             'assets/ios/Icon-App-1024x1024@1x.png': b'ios-icon',
             'assets/macos/app_icon_1024.png': b'macos-icon',
             'assets/web/favicon.png': b'web-favicon',
@@ -112,6 +115,9 @@ class BrandingAssetsTest(unittest.TestCase):
 
             targets = {
                 'android/app/src/main/res/mipmap-xhdpi/ic_launcher.png': b'android-icon',
+                'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml': b'<adaptive-icon />',
+                'android/app/src/main/res/drawable-xxxhdpi/ic_launcher_foreground.png': b'adaptive-foreground',
+                'android/app/src/main/res/values/ic_launcher_background.xml': b'<resources />',
                 'ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png': b'ios-icon',
                 'macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png': b'macos-icon',
                 'web/favicon.png': b'web-favicon',

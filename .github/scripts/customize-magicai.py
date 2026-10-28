@@ -98,6 +98,15 @@ def customize(root, values, bundle=None):
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(archive.read(entry))
 
+                android_adaptive_resource = re.fullmatch(
+                    r'android/(mipmap-anydpi-v26/ic_launcher\.xml|drawable-xxxhdpi/ic_launcher_foreground\.png|values/ic_launcher_background\.xml)',
+                    asset_path,
+                )
+                if android_adaptive_resource:
+                    target = root / 'android/app/src/main/res' / android_adaptive_resource.group(1)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(archive.read(entry))
+
                 mapping = {
                     'web/favicon.png': 'web/favicon.png',
                     'favicon.png': 'web/favicon.png',
