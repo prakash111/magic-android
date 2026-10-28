@@ -477,10 +477,11 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          appTr(":length tool:value", {
-                            "length": section.value.length,
-                            "value": section.value.length == 1 ? '' : 's',
-                          }),
+                          appTr(
+                            ':length tool|:length tools',
+                            {'length': section.value.length},
+                            section.value.length,
+                          ),
                           style: TextStyle(color: colors.muted, fontSize: 12),
                         ),
                       ],
@@ -712,7 +713,7 @@ class StudioDashboard extends StatelessWidget {
           ),
           SectionHeader(
             title: appTr('Create something new'),
-            action: 'All tools',
+            action: appTr('All tools'),
             onAction: () => Navigator.push(
               context,
               MaterialPageRoute(

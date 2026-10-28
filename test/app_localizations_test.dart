@@ -23,6 +23,9 @@ Map<String, dynamic> catalog({
     'de' => {
       'Save': 'Speichern',
       'Settings': 'Einstellungen',
+      'All tools': 'Alle Tools',
+      'Connect your first profile': 'Verbinden Sie Ihr erstes Profil',
+      ':length tool|:length tools': ':length Werkzeug|:length Werkzeuge',
       'Language': 'Sprache',
       'validation.required': 'Das Feld :attribute ist erforderlich.',
       'Cancel': 'Abbrechen',
@@ -203,6 +206,19 @@ void main() {
     final translations = create((_) async => body);
     await translations.initialize();
     expect(appTr('Sign In'), 'Anmelden');
+    expect(appTr('All tools'), 'Alle Tools');
+    expect(
+      appTr('Connect your first profile'),
+      'Verbinden Sie Ihr erstes Profil',
+    );
+    expect(
+      appTr(':length tool|:length tools', {'length': 1}, 1),
+      '1 Werkzeug',
+    );
+    expect(
+      appTr(':length tool|:length tools', {'length': 14}, 14),
+      '14 Werkzeuge',
+    );
   });
 
   test('initial language is the server default and all labels come from the catalog', () async {
