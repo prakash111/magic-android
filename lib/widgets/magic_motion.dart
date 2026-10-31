@@ -59,8 +59,44 @@ class MagicPressFeedback extends StatelessWidget {
   Widget build(BuildContext context) => child;
 }
 
+/// Shared with login/registration so all page navigation has the same rhythm.
+class MagicPageTransition extends StatelessWidget {
+  static const forwardDuration = Duration(milliseconds: 500);
+  static const reverseDuration = Duration(milliseconds: 400);
+  final Animation<double> animation;
+  final Widget child;
+  const MagicPageTransition({
+    super.key,
+    required this.animation,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    return FadeTransition(
+      opacity: animation,
+      child: SlideTransition(
+        position: animation.drive(
+          Tween<Offset>(
+            begin: const Offset(.12, 0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
 class MagicPageTransitionsBuilder extends PageTransitionsBuilder {
   const MagicPageTransitionsBuilder();
+
+  @override
+  Duration get transitionDuration => MagicPageTransition.forwardDuration;
+
+  @override
+  Duration get reverseTransitionDuration => MagicPageTransition.reverseDuration;
 
   @override
   Widget buildTransitions<T>(
@@ -70,19 +106,6 @@ class MagicPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    if (MediaQuery.disableAnimationsOf(context)) return child;
-
-    return FadeTransition(
-      opacity: animation.drive(CurveTween(curve: Curves.easeOutCubic)),
-      child: SlideTransition(
-        position: animation.drive(
-          Tween<Offset>(
-            begin: const Offset(0, .025),
-            end: Offset.zero,
-          ).chain(CurveTween(curve: Curves.easeOutCubic)),
-        ),
-        child: child,
-      ),
-    );
+    return MagicPageTransition(animation: animation, child: child);
   }
 }

@@ -129,6 +129,8 @@ void main() {
         );
         await tester.tap(find.text('Open editor'));
         await tester.pumpAndSettle();
+        await tester.tap(find.text('AI'));
+        await tester.pumpAndSettle();
         await tester.ensureVisible(find.text('AI Correct'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('AI Correct'));
@@ -160,13 +162,13 @@ void main() {
               .text,
           accept ? 'She writes well.' : 'She write well.',
         );
-        await tester.ensureVisible(find.text('Save changes'));
+        await tester.ensureVisible(find.text('Done'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Save changes'));
+        await tester.tap(find.text('Done'));
         await tester.pumpAndSettle();
         expect(saves, 1);
         expect(saved!.content, accept ? 'She writes well.' : 'She write well.');
-        expect(find.text('Edit document'), findsNothing);
+        expect(find.text('Editing'), findsNothing);
         expect(tester.takeException(), isNull);
       },
     );
@@ -203,12 +205,12 @@ void main() {
       find.byKey(const ValueKey('document-content-input')),
       'Edited text',
     );
-    await tester.ensureVisible(find.text('Save changes'));
+    await tester.ensureVisible(find.text('Done'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Save changes'));
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
     expect(saves, 1);
-    expect(find.text('Edit document'), findsOneWidget);
+    expect(find.text('Editing'), findsOneWidget);
     expect(find.text('Offline. Reconnect and retry.'), findsOneWidget);
     expect(
       tester
@@ -262,6 +264,8 @@ void main() {
         baseOffset: 7,
         extentOffset: 15,
       );
+      await tester.tap(find.text('AI'));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Make changes / Refine'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Make changes / Refine'));

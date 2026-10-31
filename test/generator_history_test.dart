@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:magicai_mobile/widgets/document_page.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:magicai_mobile/screens/documents_screen.dart';
@@ -134,7 +134,7 @@ void main() {
       await tester.tap(find.text('What is 2 + 2?'));
       await tester.pumpAndSettle();
       expect(
-        tester.widget<MarkdownBody>(find.byType(MarkdownBody).last).data,
+        tester.widget<DocumentReader>(find.byType(DocumentReader)).text,
         record!['content'],
       );
       await tester.tap(find.text('Edit'));
@@ -143,14 +143,22 @@ void main() {
         find.byKey(const ValueKey('document-content-input')),
         '## Updated answer\n\nFour is correct.',
       );
-      await tester.ensureVisible(find.text('Save changes'));
-      await tester.tap(find.text('Save changes'));
+      await tester.ensureVisible(find.text('Done'));
+      await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
       expect(calls, contains('PUT /api/mobile/v1/documents/42'));
+      if (find.byTooltip('More actions').evaluate().isNotEmpty) {
+        await tester.tap(find.byTooltip('More actions'));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text('Copy'));
       await tester.pumpAndSettle();
       expect(copied, record!['content']);
       expect(find.text('Copied to clipboard'), findsOneWidget);
+      if (find.byTooltip('More actions').evaluate().isNotEmpty) {
+        await tester.tap(find.byTooltip('More actions'));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text('Share'));
       await tester.pumpAndSettle();
       expect(shared, record!['content']);
@@ -180,6 +188,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('What is 2 + 2?'));
       await tester.pumpAndSettle();
+      if (find.byTooltip('More actions').evaluate().isNotEmpty) {
+        await tester.tap(find.byTooltip('More actions'));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete document'));
@@ -279,7 +291,7 @@ void main() {
         'Adjusted answer',
       );
       await tester.scrollUntilVisible(
-        find.text('Save changes'),
+        find.text('Done'),
         180,
         scrollable: find
             .ancestor(

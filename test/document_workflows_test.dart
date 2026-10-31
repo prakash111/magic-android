@@ -129,6 +129,10 @@ void main() {
       await tester.ensureVisible(find.text('Apply changes'));
       await tester.tap(find.text('Apply changes'));
       await tester.pumpAndSettle();
+      if (find.byTooltip('More actions').evaluate().isNotEmpty) {
+        await tester.tap(find.byTooltip('More actions'));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text('Copy'));
       await tester.pumpAndSettle();
       expect(copied, '# Edited answer');
@@ -137,6 +141,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(saved!['content'], '# Edited answer');
       expect(saved!['document_id'], 42);
+      if (find.byTooltip('More actions').evaluate().isNotEmpty) {
+        await tester.tap(find.byTooltip('More actions'));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
       expect(find.text('Clear generated output?'), findsOneWidget);
@@ -144,6 +152,10 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(cleared, isFalse);
+      if (find.byTooltip('More actions').evaluate().isNotEmpty) {
+        await tester.tap(find.byTooltip('More actions'));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Clear output'));
@@ -198,6 +210,10 @@ void main() {
       expect(find.byTooltip('Options for Math Question'), findsOneWidget);
       await tester.tap(find.text('Math Question'));
       await tester.pumpAndSettle();
+      if (find.byTooltip('More actions').evaluate().isNotEmpty) {
+        await tester.tap(find.byTooltip('More actions'));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text('Share'));
       await tester.pumpAndSettle();
       expect(shared, row['content']);
@@ -211,11 +227,15 @@ void main() {
         find.byKey(const ValueKey('document-content-input')),
         'Updated answer',
       );
-      await tester.ensureVisible(find.text('Save changes'));
-      await tester.tap(find.text('Save changes'));
+      await tester.ensureVisible(find.text('Done'));
+      await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
-      expect(find.text('Edited question'), findsOneWidget);
+      expect(find.text('Edited question'), findsNWidgets(2));
       expect(calls, contains('PUT /api/mobile/v1/documents/42'));
+      if (find.byTooltip('More actions').evaluate().isNotEmpty) {
+        await tester.tap(find.byTooltip('More actions'));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete document'));

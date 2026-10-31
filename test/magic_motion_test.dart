@@ -93,39 +93,71 @@ void main() {
     expect(tapCount, 2);
   });
 
-  testWidgets('detail routes keep the custom spring transition usable', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData(
-          pageTransitionsTheme: const PageTransitionsTheme(
-            builders: {
-              TargetPlatform.android: MagicPageTransitionsBuilder(),
-              TargetPlatform.iOS: MagicPageTransitionsBuilder(),
-            },
+  testWidgets(
+    'detail routes use the login transition timing and horizontal motion',
+    (tester) async {
+      tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: false);
+      addTearDown(
+        tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: false),
+            child: child!,
           ),
-        ),
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const Scaffold(body: Text('Detail page')),
+          theme: ThemeData(
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: MagicPageTransitionsBuilder(),
+                TargetPlatform.iOS: MagicPageTransitionsBuilder(),
+              },
+            ),
+          ),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const Scaffold(body: Text('Detail page')),
+                  ),
                 ),
+                child: const Text('Open detail'),
               ),
-              child: const Text('Open detail'),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.text('Open detail'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 180));
+      await tester.tap(find.text('Open detail'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 180));
+      final pageContext = tester.element(find.text('Detail page'));
+      final route = ModalRoute.of(pageContext)!;
+      expect(route.transitionDuration, const Duration(milliseconds: 500));
+      expect(
+        route.reverseTransitionDuration,
+        const Duration(milliseconds: 400),
+      );
+      final slide = tester.widget<SlideTransition>(
+        find
+            .ancestor(
+              of: find.text('Detail page'),
+              matching: find.byType(SlideTransition),
+            )
+            .first,
+      );
+      expect(slide.position.value.dx, greaterThan(0));
+      expect(slide.position.value.dy, 0);
+      await tester.pumpAndSettle();
+      expect(slide.position.value, Offset.zero);
+      Navigator.of(pageContext).pop();
+      await tester.pumpAndSettle();
+      expect(find.text('Open detail'), findsOneWidget);
 
-    expect(find.text('Detail page'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.text('Detail page'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

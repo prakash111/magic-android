@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/document_service.dart';
 import '../services/mobile_api.dart';
 import '../theme/app_colors.dart';
-import '../widgets/chat_response.dart';
+import '../widgets/document_page.dart';
 import '../widgets/document_actions.dart';
 
 class DocumentsScreen extends StatefulWidget {
@@ -423,6 +423,7 @@ class _DocumentDetailState extends State<_DocumentDetail> {
   bool loading = true;
   bool busy = false;
   bool changed = false;
+  final readerKey = GlobalKey<DocumentReaderState>();
   String? error;
   @override
   void initState() {
@@ -445,7 +446,7 @@ class _DocumentDetailState extends State<_DocumentDetail> {
     }
   }
 
-  Future<void> edit({String? aiAction}) async {
+  Future<void> edit({String? aiAction, TextSelection? selection}) async {
     MobileDocument? saved;
     final result = await editDocumentText(
       context,
@@ -454,6 +455,7 @@ class _DocumentDetailState extends State<_DocumentDetail> {
       api: widget.api,
       documentId: document.id,
       initialAiAction: aiAction,
+      initialSelection: selection,
       onSave: (edit) async {
         saved = await service.save(
           id: document.id,
@@ -494,138 +496,163 @@ class _DocumentDetailState extends State<_DocumentDetail> {
   @override
   Widget build(BuildContext context) {
     AppLocalizations.watch(context);
+    final theme = Theme.of(context);
     return PopScope(
       canPop: !busy,
-      child: SafeArea(
-        child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * .9,
-          child: ScaffoldMessenger(
-            child: Builder(
-              builder: (context) {
-                AppLocalizations.watch(context);
-                return Scaffold(
-                  backgroundColor: AppColors.of(context).surface,
-                  body: ListView(
-                    primary: false,
-                    padding: const EdgeInsets.all(20),
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              document.title,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: appTr('Close document'),
-                            onPressed: busy
-                                ? null
-                                : () => Navigator.pop(context, changed),
-                            icon: const Icon(Icons.close),
-                          ),
-                        ],
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * .96,
+        child: ScaffoldMessenger(
+          child: Scaffold(
+            backgroundColor: documentBackground(context),
+            appBar: AppBar(
+              backgroundColor: documentBackground(context),
+              automaticallyImplyLeading: false,
+              leading: IconButton(
+                tooltip: appTr('Close document'),
+                onPressed: busy ? null : () => Navigator.pop(context, changed),
+                icon: const Icon(Icons.arrow_back),
+              ),
+              actions: [
+                if (document.editable)
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xff7c3aed),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: loading || busy ? null : edit,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: Text(appTr('Edit')),
+                  ),
+                PopupMenuButton<String>(
+                  enabled: !busy,
+                  tooltip: appTr('More actions'),
+                  onSelected: (value) {
+                    if (value == 'share') {
+                      shareDocumentText(context, document.content);
+                    }
+                    if (value == 'copy') {
+                      copyDocumentText(context, document.content);
+                    }
+                    if (value == 'delete') delete();
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(value: 'share', child: Text(appTr('Share'))),
+                    PopupMenuItem(value: 'copy', child: Text(appTr('Copy'))),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(appTr('Delete')),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            body: ListView(
+              padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
+              children: [
+                Text(
+                  document.title,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    Chip(
+                      label: Text(
+                        document.title,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        documentTimestamp(document.createdAt),
-                        style: TextStyle(color: AppColors.of(context).muted),
-                      ),
-                      const SizedBox(height: 16),
-                      if (loading || busy) const LinearProgressIndicator(),
-                      if (error != null) ...[
-                        Text(
-                          appTr(error!),
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: busy ? null : load,
-                          child: Text(appTr('Retry')),
-                        ),
-                      ],
-                      if (!loading) ...[
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: busy
-                                  ? null
-                                  : () => shareDocumentText(
-                                      context,
-                                      document.content,
-                                    ),
-                              icon: const Icon(Icons.share_outlined),
-                              label: Text(appTr('Share')),
-                            ),
-                            if (document.editable)
-                              FilledButton.icon(
-                                onPressed: busy ? null : edit,
-                                icon: const Icon(Icons.edit_outlined),
-                                label: Text(appTr('Edit')),
-                              ),
-                            OutlinedButton.icon(
-                              onPressed: busy
-                                  ? null
-                                  : () => copyDocumentText(
-                                      context,
-                                      document.content,
-                                    ),
-                              icon: const Icon(Icons.copy_outlined),
-                              label: Text(appTr('Copy')),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: busy ? null : delete,
-                              icon: const Icon(Icons.delete_outline),
-                              label: Text(appTr('Delete')),
-                            ),
-                          ],
+                      visualDensity: VisualDensity.compact,
+                      backgroundColor: const Color(0xff6366f1)
+                          .withValues(alpha: .14),
+                    ),
+                    Text(
+                      documentTimestamp(document.createdAt),
+                      style: theme.textTheme.labelMedium,
+                    ),
+                    Text(
+                      '${document.content.characters.length} ${appTr('characters')}',
+                      style: theme.textTheme.labelMedium,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                if (loading || busy) const LinearProgressIndicator(),
+                if (error != null) ...[
+                  Text(
+                    appTr(error!),
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                  TextButton(
+                    onPressed: busy ? null : load,
+                    child: Text(appTr('Retry')),
+                  ),
+                ],
+                if (!loading)
+                  DocumentReader(
+                    key: readerKey,
+                    text: document.content,
+                    onEdit: document.editable
+                        ? (selection, action) =>
+                              edit(aiAction: action, selection: selection)
+                        : null,
+                  ),
+              ],
+            ),
+            bottomNavigationBar: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                child: Material(
+                  color: theme.colorScheme.surfaceContainer,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    side: BorderSide(
+                      color: theme.dividerColor.withValues(alpha: .2),
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: loading
+                              ? null
+                              : () => readerKey.currentState?.showSections(),
+                          icon: const Icon(Icons.segment),
+                          label: Text(appTr('Sections')),
                         ),
                         if (document.editable) ...[
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed: busy
-                                    ? null
-                                    : () => edit(aiAction: 'correct'),
-                                icon: const Icon(Icons.spellcheck),
-                                label: Text(appTr('AI Correct')),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: busy
-                                    ? null
-                                    : () => edit(aiAction: 'refine'),
-                                icon: const Icon(Icons.auto_fix_high),
-                                label: Text(appTr('Make changes / Refine')),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: busy
-                                    ? null
-                                    : () => edit(aiAction: 'extend'),
-                                icon: const Icon(Icons.playlist_add),
-                                label: Text(appTr('Addition / Extend')),
-                              ),
-                            ],
+                          TextButton.icon(
+                            onPressed: loading || busy
+                                ? null
+                                : () => edit(aiAction: 'correct'),
+                            icon: const Icon(Icons.spellcheck),
+                            label: Text(appTr('Correct')),
+                          ),
+                          TextButton.icon(
+                            onPressed: loading || busy
+                                ? null
+                                : () => edit(aiAction: 'refine'),
+                            icon: const Icon(Icons.auto_fix_high),
+                            label: Text(appTr('Refine')),
+                          ),
+                          TextButton.icon(
+                            onPressed: loading || busy
+                                ? null
+                                : () => edit(aiAction: 'extend'),
+                            icon: const Icon(Icons.playlist_add),
+                            label: Text(appTr('Extend')),
                           ),
                         ],
-                        const SizedBox(height: 20),
-                        if (document.content.isEmpty)
-                          Text(appTr('This document has no text content yet.'))
-                        else
-                          ChatResponse(
-                            text: document.content,
-                            showActions: false,
-                          ),
                       ],
-                    ],
+                    ),
                   ),
-                );
-              },
+                ),
+              ),
             ),
           ),
         ),

@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../theme/brand_config.dart';
 import 'language_picker.dart';
+import 'magic_motion.dart';
 
 /// Tokens shared by the native sign-in, registration and launch experience.
 class AuthPalette {
@@ -792,17 +793,14 @@ class _SuccessPainter extends CustomPainter {
 Route<T> authRoute<T>(BuildContext context, WidgetBuilder builder) {
   final reduced = MediaQuery.disableAnimationsOf(context);
   return PageRouteBuilder<T>(
-    transitionDuration: Duration(milliseconds: reduced ? 0 : 500),
-    reverseTransitionDuration: Duration(milliseconds: reduced ? 0 : 400),
+    transitionDuration: reduced
+        ? Duration.zero
+        : MagicPageTransition.forwardDuration,
+    reverseTransitionDuration: reduced
+        ? Duration.zero
+        : MagicPageTransition.reverseDuration,
     pageBuilder: (context, _, _) => builder(context),
-    transitionsBuilder: (_, animation, _, child) => FadeTransition(
-      opacity: animation,
-      child: SlideTransition(
-        position: Tween(begin: const Offset(.12, 0), end: Offset.zero).animate(
-          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-        ),
-        child: child,
-      ),
-    ),
+    transitionsBuilder: (_, animation, _, child) =>
+        MagicPageTransition(animation: animation, child: child),
   );
 }

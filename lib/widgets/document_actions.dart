@@ -9,6 +9,7 @@ import '../services/mobile_api.dart';
 import '../services/document_assistant.dart';
 import '../services/social_post_service.dart';
 import 'chat_response.dart';
+import 'document_page.dart';
 
 Future<void> copyDocumentText(BuildContext context, String text) async {
   try {
@@ -103,6 +104,7 @@ Future<DocumentEdit?> editDocumentText(
   MobileApi? api,
   int? documentId,
   String? initialAiAction,
+  TextSelection? initialSelection,
   Future<void> Function(DocumentEdit)? onSave,
 }) => showModalBottomSheet<DocumentEdit>(
   context: context,
@@ -111,17 +113,18 @@ Future<DocumentEdit?> editDocumentText(
   isDismissible: false,
   enableDrag: false,
   useSafeArea: true,
-  backgroundColor: AppColors.of(context).surface,
+  backgroundColor: documentBackground(context),
   constraints: const BoxConstraints(maxWidth: 720),
   builder: (localizationContext) {
     AppLocalizations.watch(localizationContext);
     return _DocumentEditor(
-      title: appTr(title),
+      title: title,
       content: content,
       draft: draft,
       api: api,
       documentId: documentId,
       initialAiAction: initialAiAction,
+      initialSelection: initialSelection,
       onSave: onSave,
     );
   },
@@ -134,6 +137,7 @@ class _DocumentEditor extends StatefulWidget {
   final MobileApi? api;
   final int? documentId;
   final String? initialAiAction;
+  final TextSelection? initialSelection;
   final Future<void> Function(DocumentEdit)? onSave;
   const _DocumentEditor({
     required this.title,
@@ -142,6 +146,7 @@ class _DocumentEditor extends StatefulWidget {
     this.api,
     this.documentId,
     this.initialAiAction,
+    this.initialSelection,
     this.onSave,
   });
   @override
@@ -151,7 +156,13 @@ class _DocumentEditor extends StatefulWidget {
 class _DocumentEditorState extends State<_DocumentEditor> {
   final form = GlobalKey<FormState>();
   late final title = TextEditingController(text: widget.title);
-  late final content = TextEditingController(text: widget.content);
+  late final content = DocumentTextController(text: widget.content);
+  bool showAi = false;
+  final aiKey = GlobalKey();
+  final undoValues = <TextEditingValue>[];
+  final redoValues = <TextEditingValue>[];
+  TextEditingValue? previousValue;
+  bool restoring = false;
   final instruction = TextEditingController();
   final contentFocus = FocusNode();
   TextSelection? selection;
@@ -166,6 +177,15 @@ class _DocumentEditorState extends State<_DocumentEditor> {
   void initState() {
     super.initState();
     lastText = content.text;
+    final initial = widget.initialSelection;
+    if (initial != null &&
+        initial.start >= 0 &&
+        initial.end <= content.text.length) {
+      content.selection = initial;
+      selection = initial;
+    }
+    previousValue = content.value;
+    showAi = widget.initialAiAction != null;
     content.addListener(rememberSelection);
     action = widget.initialAiAction;
     if (action == 'correct' && canAssist) {
@@ -176,6 +196,14 @@ class _DocumentEditorState extends State<_DocumentEditor> {
   }
 
   void rememberSelection() {
+    if (!restoring &&
+        previousValue != null &&
+        content.text != previousValue!.text) {
+      undoValues.add(previousValue!);
+      if (undoValues.length > 100) undoValues.removeAt(0);
+      redoValues.clear();
+    }
+    previousValue = content.value;
     if (content.text != lastText) {
       selection = null;
       requestId = null;
@@ -186,6 +214,55 @@ class _DocumentEditorState extends State<_DocumentEditor> {
       selection = null;
     }
     lastText = content.text;
+    if (mounted) setState(() {});
+  }
+
+  void formatText(String prefix, [String suffix = '']) {
+    if (busy || proposal != null) return;
+    final selected = content.selection.isValid
+        ? content.selection
+        : TextSelection.collapsed(offset: content.text.length);
+    final selectedText = content.text.substring(selected.start, selected.end);
+    final replacement = '$prefix$selectedText$suffix';
+    content.value = TextEditingValue(
+      text: content.text.replaceRange(
+        selected.start,
+        selected.end,
+        replacement,
+      ),
+      selection: TextSelection(
+        baseOffset: selected.start + prefix.length,
+        extentOffset: selected.start + prefix.length + selectedText.length,
+      ),
+    );
+    contentFocus.requestFocus();
+  }
+
+  void restoreText(bool redo) {
+    final source = redo ? redoValues : undoValues;
+    if (source.isEmpty || busy || proposal != null) return;
+    final destination = redo ? undoValues : redoValues;
+    destination.add(content.value);
+    restoring = true;
+    content.value = source.removeLast();
+    restoring = false;
+  }
+
+  Future<void> toggleAi() async {
+    setState(() => showAi = !showAi);
+    if (!showAi) return;
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    final target = aiKey.currentContext;
+    if (target != null && target.mounted) {
+      await Scrollable.ensureVisible(
+        target,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   Future<void> generate(String operation) async {
@@ -407,7 +484,7 @@ class _DocumentEditorState extends State<_DocumentEditor> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(appTr('Accepted text is saved when you tap Save changes.')),
+            Text(appTr('Accepted text is saved when you tap Done.')),
           ],
         ],
       ),
@@ -437,7 +514,7 @@ class _DocumentEditorState extends State<_DocumentEditor> {
           height:
               (MediaQuery.sizeOf(context).height -
                   MediaQuery.viewInsetsOf(context).bottom) *
-              .9,
+              .98,
           child: Form(
             key: form,
             child: Column(
@@ -446,16 +523,47 @@ class _DocumentEditorState extends State<_DocumentEditor> {
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                   child: Row(
                     children: [
-                      Expanded(
-                        child: Text(
-                          appTr('Edit document'),
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
                       IconButton(
                         tooltip: appTr('Close editor'),
                         onPressed: busy ? null : () => Navigator.pop(context),
                         icon: const Icon(Icons.close),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              appTr('Editing'),
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            Text(
+                              appTr(
+                                saving
+                                    ? 'Saving…'
+                                    : content.text == widget.content &&
+                                          title.text == widget.title
+                                    ? 'No changes'
+                                    : 'Unsaved changes',
+                              ),
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      FilledButton.icon(
+                        onPressed: busy || proposal != null ? null : save,
+                        icon: Icon(
+                          widget.draft ? Icons.check : Icons.save_outlined,
+                        ),
+                        label: Text(
+                          appTr(
+                            saving
+                                ? 'Saving…'
+                                : widget.draft
+                                ? 'Apply changes'
+                                : 'Done',
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -472,11 +580,15 @@ class _DocumentEditorState extends State<_DocumentEditor> {
                         TextFormField(
                           key: const ValueKey('document-title-input'),
                           controller: title,
+                          onChanged: (_) => setState(() {}),
                           style: Theme.of(context).textTheme.headlineSmall,
                           enabled: !busy,
                           maxLength: 255,
                           decoration: InputDecoration(
-                            labelText: appTr('Document title'),
+                            hintText: appTr('Document title'),
+                            filled: false,
+                            border: const UnderlineInputBorder(),
+                            counterText: '',
                           ),
                           validator: (value) =>
                               value == null ||
@@ -508,11 +620,16 @@ class _DocumentEditorState extends State<_DocumentEditor> {
                           style: Theme.of(context).textTheme.bodyLarge
                               ?.copyWith(height: 1.65),
                           minLines: 8,
-                          maxLines: 20,
+                          maxLines: null,
                           maxLength: 200000,
                           decoration: InputDecoration(
-                            labelText: appTr('Content'),
-                            alignLabelWithHint: true,
+                            hintText: appTr('Content'),
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                            counterText: '',
                           ),
                           validator: (value) =>
                               value == null || value.trim().isEmpty
@@ -520,31 +637,71 @@ class _DocumentEditorState extends State<_DocumentEditor> {
                               : null,
                         ),
                         const SizedBox(height: 20),
-                        if (canAssist) aiControls(),
+                        if (canAssist && showAi)
+                          KeyedSubtree(key: aiKey, child: aiControls()),
                       ],
                     ),
                   ),
                 ),
                 SafeArea(
                   top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: busy || proposal != null ? null : save,
-                        icon: Icon(
-                          widget.draft ? Icons.check : Icons.save_outlined,
-                        ),
-                        label: Text(
-                          appTr(
-                            saving
-                                ? 'Saving…'
-                                : widget.draft
-                                ? 'Apply changes'
-                                : 'Save changes',
+                  child: Material(
+                    color: Theme.of(context).colorScheme.surfaceContainer,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          IconButton(
+                            tooltip: appTr('Bold'),
+                            onPressed: busy || proposal != null
+                                ? null
+                                : () => formatText('**', '**'),
+                            icon: const Icon(Icons.format_bold),
                           ),
-                        ),
+                          IconButton(
+                            tooltip: appTr('Italic'),
+                            onPressed: busy || proposal != null
+                                ? null
+                                : () => formatText('*', '*'),
+                            icon: const Icon(Icons.format_italic),
+                          ),
+                          IconButton(
+                            tooltip: appTr('Bulleted list'),
+                            onPressed: busy || proposal != null
+                                ? null
+                                : () => formatText('\n- '),
+                            icon: const Icon(Icons.format_list_bulleted),
+                          ),
+                          IconButton(
+                            tooltip: appTr('Numbered list'),
+                            onPressed: busy || proposal != null
+                                ? null
+                                : () => formatText('\n1. '),
+                            icon: const Icon(Icons.format_list_numbered),
+                          ),
+                          IconButton(
+                            tooltip: appTr('Undo'),
+                            onPressed:
+                                busy || proposal != null || undoValues.isEmpty
+                                ? null
+                                : () => restoreText(false),
+                            icon: const Icon(Icons.undo),
+                          ),
+                          IconButton(
+                            tooltip: appTr('Redo'),
+                            onPressed:
+                                busy || proposal != null || redoValues.isEmpty
+                                ? null
+                                : () => restoreText(true),
+                            icon: const Icon(Icons.redo),
+                          ),
+                          if (canAssist)
+                            TextButton.icon(
+                              onPressed: toggleAi,
+                              icon: const Icon(Icons.auto_awesome),
+                              label: Text(appTr('AI')),
+                            ),
+                        ],
                       ),
                     ),
                   ),
