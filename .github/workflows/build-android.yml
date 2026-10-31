@@ -129,6 +129,7 @@ jobs:
           SERVER_URL: ${{ inputs.server_url || 'https://ai.zoomnearby.com' }}
           BUILD_VERSION: ${{ inputs.build_version || '1.1.0' }}
           BRANDING_BUNDLE_URL: ${{ inputs.branding_bundle_url }}
+          MAGICAI_FIREBASE_ANDROID_JSON: ${{ secrets.MAGICAI_FIREBASE_ANDROID_JSON }}
         run: |
           python3 .github/scripts/customize-magicai.py
       - name: Build signed APK and AAB
@@ -220,6 +221,7 @@ jobs:
           SERVER_URL: ${{ inputs.server_url || 'https://ai.zoomnearby.com' }}
           BUILD_VERSION: ${{ inputs.build_version || '1.1.0' }}
           BRANDING_BUNDLE_URL: ${{ inputs.branding_bundle_url }}
+          MAGICAI_FIREBASE_ANDROID_JSON: ${{ secrets.MAGICAI_FIREBASE_ANDROID_JSON }}
         with:
           api-level: 35
           arch: x86_64

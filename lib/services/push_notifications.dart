@@ -54,10 +54,19 @@ class PushNotifications {
   static String _vapidKey = '';
   static MobileApi _api = MobileApi.instance;
   static StreamSubscription<String>? _refreshSubscription;
+  static Timer? _retryTimer;
+  static bool _registering = false;
+  static const _tokenKey = 'firebase_registration_token';
 
-  static Future<void> initialize({
-    MobileApi? api,
-  }) async {
+  static void _scheduleRetry() {
+    _retryTimer?.cancel();
+    _retryTimer = Timer(
+      const Duration(seconds: 45),
+      () => unawaited(registerDevice()),
+    );
+  }
+
+  static Future<void> initialize({MobileApi? api}) async {
     _api = api ?? MobileApi.instance;
     if (_initialized) return;
     _initialized = true;
@@ -84,7 +93,11 @@ class PushNotifications {
       _vapidKey = '${configuration['vapidKey'] ?? ''}';
       await Firebase.initializeApp(options: firebaseOptions);
       FirebaseMessaging.onBackgroundMessage(handlePushInBackground);
-      await _initializeLocalNotifications();
+      if (!kIsWeb) await _initializeLocalNotifications();
+      _refreshSubscription ??= FirebaseMessaging.instance.onTokenRefresh.listen(
+        (value) => unawaited(_saveRefreshedToken(value)),
+        onError: (Object _) => _scheduleRetry(),
+      );
       FirebaseMessaging.onMessage.listen(_showForegroundMessage);
       _available = true;
       final token = await _readAccessToken();
@@ -96,7 +109,16 @@ class PushNotifications {
 
   static Future<void> _initializeLocalNotifications() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const settings = InitializationSettings(android: android);
+    const darwin = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+    const settings = InitializationSettings(
+      android: android,
+      iOS: darwin,
+      macOS: darwin,
+    );
     await _localNotifications.initialize(settings: settings);
     const channel = AndroidNotificationChannel(
       'magicai_updates',
@@ -112,7 +134,9 @@ class PushNotifications {
   }
 
   static Future<void> registerDevice() async {
-    if (!_available) return;
+    if (!_available || _registering) return;
+    _registering = true;
+    _retryTimer?.cancel();
     try {
       final accessToken = await _readAccessToken();
       if (accessToken == null) return;
@@ -122,23 +146,30 @@ class PushNotifications {
       final token = await messaging.getToken(
         vapidKey: kIsWeb && _vapidKey.isNotEmpty ? _vapidKey : null,
       );
-      if (token == null || token.isEmpty) return;
+      if (token == null || token.isEmpty) {
+        _scheduleRetry();
+        return;
+      }
       await _saveToken(token);
-      _refreshSubscription ??= messaging.onTokenRefresh.listen(
-        (value) => unawaited(_saveRefreshedToken(value)),
-      );
     } catch (_) {
-      // Push setup must not block sign-in or app startup.
+      _scheduleRetry();
+    } finally {
+      _registering = false;
     }
   }
 
   static Future<void> unregisterDevice() async {
+    _retryTimer?.cancel();
     if (!_available) return;
     try {
-      final token = await FirebaseMessaging.instance.getToken(
-        vapidKey: kIsWeb && _vapidKey.isNotEmpty ? _vapidKey : null,
-      );
-      if (token != null && token.isNotEmpty && await _readAccessToken() != null) {
+      final token =
+          await _api.store.read(_tokenKey) ??
+          await FirebaseMessaging.instance.getToken(
+            vapidKey: kIsWeb && _vapidKey.isNotEmpty ? _vapidKey : null,
+          );
+      if (token != null &&
+          token.isNotEmpty &&
+          await _readAccessToken() != null) {
         await _api.request(
           '/notifications/devices',
           method: 'DELETE',
@@ -152,6 +183,7 @@ class PushNotifications {
 
   static Future<void> _saveToken(String token) async {
     if (await _readAccessToken() == null) return;
+    await _api.store.write(_tokenKey, token);
     await _api.request(
       '/notifications/devices',
       method: 'POST',
@@ -163,7 +195,7 @@ class PushNotifications {
     try {
       await _saveToken(token);
     } catch (_) {
-      // Token refresh retries on the next authenticated registration.
+      _scheduleRetry();
     }
   }
 
@@ -178,8 +210,13 @@ class PushNotifications {
         };
 
   static Future<void> _showForegroundMessage(RemoteMessage message) async {
-    final title = message.notification?.title ?? 'MagicAI';
-    final body = message.notification?.body ?? '';
+    if (kIsWeb) return;
+    final title =
+        message.notification?.title ??
+        message.data['title']?.toString() ??
+        'MagicAI';
+    final body =
+        message.notification?.body ?? message.data['body']?.toString() ?? '';
     if (body.isEmpty) return;
     await _localNotifications.show(
       id: message.hashCode & 0x7fffffff,
@@ -189,7 +226,8 @@ class PushNotifications {
         android: AndroidNotificationDetails(
           'magicai_updates',
           'MagicAI updates',
-          channelDescription: 'Messages and updates from your MagicAI workspace',
+          channelDescription:
+              'Messages and updates from your MagicAI workspace',
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -198,5 +236,4 @@ class PushNotifications {
       payload: message.data['link']?.toString(),
     );
   }
-
 }

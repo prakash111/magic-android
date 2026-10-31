@@ -97,7 +97,10 @@ class _MagicAIMobileAppState extends State<MagicAIMobileApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_localizations.refresh());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_localizations.refresh());
+      unawaited(PushNotifications.registerDevice());
+    }
   }
 
   @override

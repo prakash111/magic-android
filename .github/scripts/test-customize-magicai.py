@@ -57,6 +57,33 @@ class BrandingAssetsTest(unittest.TestCase):
             'BUILD_VERSION': '1.2.3',
         }, bundle)
 
+    def test_official_build_uses_saved_firebase_project_only_for_official_identity(self):
+        config = json.dumps({
+            'project_info': {'project_id': 'test-project', 'project_number': '123'},
+            'client': [{'client_info': {'android_client_info': {'package_name': 'com.zoomnearby.ai.zoomnearby_mobile'}, 'mobilesdk_app_id': '1:123:android:test'}, 'api_key': [{'current_key': 'test-key'}]}],
+        })
+        for package, server, enabled in [
+            ('com.zoomnearby.ai.zoomnearby_mobile', 'https://ai.zoomnearby.com', True),
+            ('com.example.app', 'https://ai.zoomnearby.com', False),
+            ('com.zoomnearby.ai.zoomnearby_mobile', 'https://customer.example', False),
+        ]:
+            with self.subTest(package=package, server=server), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.create_project(root)
+                customizer.customize(root, {'PACKAGE_ID': package, 'SERVER_URL': server, 'MAGICAI_FIREBASE_ANDROID_JSON': config})
+                generated = json.loads((root / 'assets/firebase/firebase-config.json').read_text())
+                self.assertEqual('android' in generated['platforms'], enabled)
+                if enabled:
+                    self.assertEqual(generated['platforms']['android']['projectId'], 'test-project')
+                    self.assertEqual(json.loads((root / 'android/app/google-services.json').read_text()), json.loads(config))
+
+    def test_no_firebase_configuration_remains_optional(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.create_project(root)
+            customizer.customize(root, {})
+            self.assertEqual(json.loads((root / 'assets/firebase/firebase-config.json').read_text())['platforms'], {})
+
     def test_legacy_branding_bundle_icons_reach_every_platform_and_splash(self):
         assets = {
             'assets//mipmap-mdpi/ic_launcher.png': b'android-icon',

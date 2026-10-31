@@ -183,6 +183,26 @@ def customize(root, values, bundle=None):
                 for relative in ('android/app/src/main/res/drawable/launch_background.xml', 'android/app/src/main/res/drawable-v21/launch_background.xml'):
                     (root / relative).write_text(launch_background)
 
+    official_firebase = values.get('MAGICAI_FIREBASE_ANDROID_JSON', '')
+    if bundle is None and official_firebase and package == 'com.zoomnearby.ai.zoomnearby_mobile' and server == 'https://ai.zoomnearby.com':
+        config = json.loads(official_firebase)
+        project = config.get('project_info', {})
+        client = next((item for item in config.get('client', [])
+                       if item.get('client_info', {}).get('android_client_info', {}).get('package_name') == package), None)
+        if client is None:
+            raise ValueError('Official Android Firebase package does not match the app')
+        options = {
+            'apiKey': next((item.get('current_key') for item in client.get('api_key', []) if item.get('current_key')), ''),
+            'appId': client.get('client_info', {}).get('mobilesdk_app_id', ''),
+            'messagingSenderId': project.get('project_number', ''),
+            'projectId': project.get('project_id', ''),
+        }
+        if not all(options.values()):
+            raise ValueError('Official Android Firebase configuration is incomplete')
+        firebase_configs['platforms']['android'] = options
+        target = root / 'android/app/google-services.json'
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(config))
     if 'web' in firebase_configs['platforms'] and not firebase_configs['vapidKey']:
         raise ValueError('Firebase Web Push key is missing')
     firebase_asset = root / 'assets/firebase/firebase-config.json'
