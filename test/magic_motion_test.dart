@@ -23,7 +23,7 @@ void main() {
     expect(MagicMotionSettings.instance.level, MagicMotionLevel.off);
   });
 
-  testWidgets('tap burst layer preserves taps and reduced motion behavior', (
+  testWidgets('taps remain functional without decorative click effects', (
     tester,
   ) async {
     await MagicMotionSettings.instance.setLevel(MagicMotionLevel.max);
@@ -59,13 +59,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 32));
 
     expect(tapCount, 1);
-    expect(
-      find.byKey(const ValueKey('magic-tap-burst-painter')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('magic-tap-burst-painter')), findsNothing);
     expect(
       find.byKey(const ValueKey('magic-press-feedback-transform')),
-      findsOneWidget,
+      findsNothing,
     );
 
     await tester.pumpWidget(

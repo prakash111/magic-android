@@ -440,13 +440,11 @@ class _DocumentEditorState extends State<_DocumentEditor> {
               .9,
           child: Form(
             key: form,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: Row(
                     children: [
                       Expanded(
                         child: Text(
@@ -461,72 +459,97 @@ class _DocumentEditorState extends State<_DocumentEditor> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    key: const ValueKey('document-title-input'),
-                    controller: title,
-                    enabled: !busy,
-                    maxLength: 255,
-                    decoration: InputDecoration(
-                      labelText: appTr('Document title'),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          key: const ValueKey('document-title-input'),
+                          controller: title,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                          enabled: !busy,
+                          maxLength: 255,
+                          decoration: InputDecoration(
+                            labelText: appTr('Document title'),
+                          ),
+                          validator: (value) =>
+                              value == null ||
+                                  value.trim().isEmpty ||
+                                  [
+                                    appTr('null'),
+                                    appTr('undefined'),
+                                  ].contains(value.trim().toLowerCase())
+                              ? appTr('Enter a document title.')
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
+                        if (error != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              appTr(error!),
+                              key: const ValueKey('document-editor-error'),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        TextFormField(
+                          key: const ValueKey('document-content-input'),
+                          controller: content,
+                          focusNode: contentFocus,
+                          enabled: !busy && proposal == null,
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(height: 1.65),
+                          minLines: 8,
+                          maxLines: 20,
+                          maxLength: 200000,
+                          decoration: InputDecoration(
+                            labelText: appTr('Content'),
+                            alignLabelWithHint: true,
+                          ),
+                          validator: (value) =>
+                              value == null || value.trim().isEmpty
+                              ? appTr('Enter some document content.')
+                              : null,
+                        ),
+                        const SizedBox(height: 20),
+                        if (canAssist) aiControls(),
+                      ],
                     ),
-                    validator: (value) =>
-                        value == null ||
-                            value.trim().isEmpty ||
-                            [
-                              appTr('null'),
-                              appTr('undefined'),
-                            ].contains(value.trim().toLowerCase())
-                        ? appTr('Enter a document title.')
-                        : null,
                   ),
-                  const SizedBox(height: 16),
-                  if (error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        appTr(error!),
-                        key: const ValueKey('document-editor-error'),
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                ),
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: busy || proposal != null ? null : save,
+                        icon: Icon(
+                          widget.draft ? Icons.check : Icons.save_outlined,
+                        ),
+                        label: Text(
+                          appTr(
+                            saving
+                                ? 'Saving…'
+                                : widget.draft
+                                ? 'Apply changes'
+                                : 'Save changes',
+                          ),
                         ),
                       ),
                     ),
-                  TextFormField(
-                    key: const ValueKey('document-content-input'),
-                    controller: content,
-                    focusNode: contentFocus,
-                    enabled: !busy && proposal == null,
-                    minLines: 8,
-                    maxLines: 20,
-                    maxLength: 200000,
-                    decoration: InputDecoration(
-                      labelText: appTr('Content'),
-                      alignLabelWithHint: true,
-                    ),
-                    validator: (value) => value == null || value.trim().isEmpty
-                        ? appTr('Enter some document content.')
-                        : null,
                   ),
-                  const SizedBox(height: 20),
-                  if (canAssist) aiControls(),
-                  FilledButton.icon(
-                    onPressed: busy || proposal != null ? null : save,
-                    icon: Icon(
-                      widget.draft ? Icons.check : Icons.save_outlined,
-                    ),
-                    label: Text(
-                      appTr(
-                        saving
-                            ? 'Saving…'
-                            : widget.draft
-                            ? 'Apply changes'
-                            : 'Save changes',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
