@@ -44,6 +44,21 @@ class GalleryPicker extends ImagePicker {
   }
 }
 
+Future<void> waitForIo(WidgetTester tester, bool Function() completed) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 20));
+  while (!completed() && DateTime.now().isBefore(deadline)) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+  }
+  expect(
+    completed(),
+    isTrue,
+    reason: 'The gallery IO operation did not complete within 20 seconds.',
+  );
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -145,17 +160,12 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.runAsync(() => tester.tap(find.text('Product image')));
-      // File system IO completes outside the fake asynchronous clock.
-      await tester.runAsync(() async {
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-      });
+      await waitForIo(tester, () => find.byType(Image).evaluate().isNotEmpty);
       await tester.pumpAndSettle();
       expect(find.byType(Image), findsOneWidget);
       expect(find.text('gallery-product.png'), findsOneWidget);
       await tester.runAsync(() => tester.tap(find.text('Generate')));
-      await tester.runAsync(() async {
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-      });
+      await waitForIo(tester, () => uploads == 1);
       await tester.pumpAndSettle();
       expect(uploads, 1);
       await tester.tap(find.byTooltip('Remove photo'));
