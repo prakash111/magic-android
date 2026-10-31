@@ -19,10 +19,12 @@ import 'services/storage_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/brand_config.dart';
 import 'theme/theme_settings.dart';
+import 'widgets/magic_motion.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PushNotifications.initialize(api: MobileApi.instance);
+  unawaited(MagicMotionSettings.instance.load());
   unawaited(ImageAttachmentPicker.recoverLostSelection());
   PlatformBridge.handleReturn();
   runApp(const MagicAIMobileApp(initialTheme: 'dark'));
@@ -151,64 +153,42 @@ class _MagicAIMobileAppState extends State<MagicAIMobileApp>
                 valueListenable: MobileApi.failure,
                 builder: (context, problem, _) {
                   AppLocalizations.watch(context);
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Offstage(offstage: problem != null, child: child!),
-                      if (problem != null)
-                        Scaffold(
-                          body: Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    appTr(
-                                      problem.status == 401
-                                          ? 'Session expired'
-                                          : 'No Internet Connection',
+                  return MagicInteractionLayer(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Offstage(offstage: problem != null, child: child!),
+                        if (problem != null)
+                          Scaffold(
+                            body: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      appTr(
+                                        problem.status == 401
+                                            ? 'Session expired'
+                                            : 'No Internet Connection',
+                                      ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineSmall,
                                     ),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    appTr(
-                                      problem.status == 401 ? problem.message : 'Unable to connect to the server. Please check your internet connection and try again.',
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      appTr(
+                                        problem.status == 401
+                                            ? problem.message
+                                            : 'Unable to connect to the server. Please check your internet connection and try again.',
+                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 20),
-                                  FilledButton(
-                                    onPressed: () async {
-                                      if (problem.status == 401) {
-                                        MobileApi.failure.value = null;
-                                        navigatorKey.currentState
-                                            ?.pushAndRemoveUntil(
-                                              MaterialPageRoute(
-                                                builder: (localizationContext) {
-                                                  AppLocalizations.watch(
-                                                    localizationContext,
-                                                  );
-                                                  return LoginScreen(
-                                                    onThemeChanged:
-                                                        _updateTheme,
-                                                    api: widget.api,
-                                                  );
-                                                },
-                                              ),
-                                              (_) => false,
-                                            );
-                                      } else {
-                                        try {
-                                          await (widget.api ??
-                                                  MobileApi.instance)
-                                              .bootstrap()
-                                              .timeout(
-                                                const Duration(seconds: 30),
-                                              );
+                                    const SizedBox(height: 20),
+                                    FilledButton(
+                                      onPressed: () async {
+                                        if (problem.status == 401) {
                                           MobileApi.failure.value = null;
                                           navigatorKey.currentState
                                               ?.pushAndRemoveUntil(
@@ -218,7 +198,7 @@ class _MagicAIMobileAppState extends State<MagicAIMobileApp>
                                                         AppLocalizations.watch(
                                                           localizationContext,
                                                         );
-                                                        return SplashScreen(
+                                                        return LoginScreen(
                                                           onThemeChanged:
                                                               _updateTheme,
                                                           api: widget.api,
@@ -227,23 +207,50 @@ class _MagicAIMobileAppState extends State<MagicAIMobileApp>
                                                 ),
                                                 (_) => false,
                                               );
-                                        } catch (_) {}
-                                      }
-                                    },
-                                    child: Text(
-                                      appTr(
-                                        problem.status == 401
-                                            ? 'Sign in'
-                                            : 'Retry',
+                                        } else {
+                                          try {
+                                            await (widget.api ??
+                                                    MobileApi.instance)
+                                                .bootstrap()
+                                                .timeout(
+                                                  const Duration(seconds: 30),
+                                                );
+                                            MobileApi.failure.value = null;
+                                            navigatorKey.currentState
+                                                ?.pushAndRemoveUntil(
+                                                  MaterialPageRoute(
+                                                    builder:
+                                                        (localizationContext) {
+                                                          AppLocalizations.watch(
+                                                            localizationContext,
+                                                          );
+                                                          return SplashScreen(
+                                                            onThemeChanged:
+                                                                _updateTheme,
+                                                            api: widget.api,
+                                                          );
+                                                        },
+                                                  ),
+                                                  (_) => false,
+                                                );
+                                          } catch (_) {}
+                                        }
+                                      },
+                                      child: Text(
+                                        appTr(
+                                          problem.status == 401
+                                              ? 'Sign in'
+                                              : 'Retry',
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   );
                 },
               ),

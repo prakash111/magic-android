@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'brand_config.dart';
 import 'app_colors.dart';
+import '../widgets/magic_motion.dart';
 
 class AppTheme {
   static const Color primary = Color(BrandConfig.primary); // Indigo 500
@@ -121,6 +122,15 @@ class AppTheme {
         unselectedLabelColor: textMuted,
         labelStyle: TextStyle(fontWeight: FontWeight.bold),
       ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: MagicPageTransitionsBuilder(),
+          TargetPlatform.iOS: MagicPageTransitionsBuilder(),
+          TargetPlatform.linux: MagicPageTransitionsBuilder(),
+          TargetPlatform.macOS: MagicPageTransitionsBuilder(),
+          TargetPlatform.windows: MagicPageTransitionsBuilder(),
+        },
+      ),
     );
   }
 
@@ -192,6 +202,15 @@ class AppTheme {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: MagicPageTransitionsBuilder(),
+          TargetPlatform.iOS: MagicPageTransitionsBuilder(),
+          TargetPlatform.linux: MagicPageTransitionsBuilder(),
+          TargetPlatform.macOS: MagicPageTransitionsBuilder(),
+          TargetPlatform.windows: MagicPageTransitionsBuilder(),
+        },
       ),
     );
   }

@@ -12,6 +12,7 @@ import '../services/workspace_service.dart';
 import '../theme/brand_config.dart';
 import '../theme/app_colors.dart';
 import '../theme/design.dart';
+import '../widgets/magic_motion.dart';
 import 'server_screen.dart';
 import 'native_module_screen.dart';
 import 'native_settings_screen.dart';
@@ -477,11 +478,9 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          appTr(
-                            ':length tool|:length tools',
-                            {'length': section.value.length},
-                            section.value.length,
-                          ),
+                          appTr(':length tool|:length tools', {
+                            'length': section.value.length,
+                          }, section.value.length),
                           style: TextStyle(color: colors.muted, fontSize: 12),
                         ),
                       ],
@@ -740,43 +739,45 @@ class StudioDashboard extends StatelessWidget {
               for (final tool in tools.take(4))
                 SizedBox(
                   width: tileWidth,
-                  child: Card(
-                    margin: EdgeInsets.zero,
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (localizationContext) {
-                            AppLocalizations.watch(localizationContext);
-                            return DynamicToolScreen(tool: tool, api: api);
-                          },
+                  child: MagicPressFeedback(
+                    child: Card(
+                      margin: EdgeInsets.zero,
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (localizationContext) {
+                              AppLocalizations.watch(localizationContext);
+                              return DynamicToolScreen(tool: tool, api: api);
+                            },
+                          ),
                         ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
-                          children: [
-                            IconChip(
-                              icon: workspaceIcon(
-                                '${tool['kind']} ${tool['title']}',
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              IconChip(
+                                icon: workspaceIcon(
+                                  '${tool['kind']} ${tool['title']}',
+                                ),
+                                color: accentFor('${tool['title']}'),
                               ),
-                              color: accentFor('${tool['title']}'),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                appTr(tool['title'].toString()),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                  height: 1.2,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  appTr(tool['title'].toString()),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    height: 1.2,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

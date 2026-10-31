@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../services/mobile_api.dart';
 import '../services/workspace_service.dart';
 import '../theme/theme_settings.dart';
+import '../widgets/magic_motion.dart';
 import 'server_screen.dart' show RetryPanel;
 
 class NativeSettingsScreen extends StatefulWidget {
@@ -105,6 +106,58 @@ class _NativeSettingsScreenState extends State<NativeSettingsScreen> {
               title: Text(appTr('Language')),
               trailing: const LanguagePicker(),
             ),
+          ),
+          ListenableBuilder(
+            listenable: MagicMotionSettings.instance,
+            builder: (context, _) {
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        appTr('Touch effects'),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        appTr('Choose how animated taps and card motion feel.'),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<MagicMotionLevel>(
+                          showSelectedIcon: false,
+                          segments: [
+                            ButtonSegment(
+                              value: MagicMotionLevel.off,
+                              label: Text(appTr('Off')),
+                            ),
+                            ButtonSegment(
+                              value: MagicMotionLevel.subtle,
+                              label: Text(appTr('Subtle')),
+                            ),
+                            ButtonSegment(
+                              value: MagicMotionLevel.max,
+                              label: Text(appTr('Max')),
+                            ),
+                          ],
+                          selected: {MagicMotionSettings.instance.level},
+                          onSelectionChanged: (selection) {
+                            if (selection.isNotEmpty) {
+                              MagicMotionSettings.instance.setLevel(
+                                selection.first,
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
           if (theme != null)
             Card(
