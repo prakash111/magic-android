@@ -130,9 +130,37 @@ def verify_snapshot(name, theme):
     raise RuntimeError('Android screenshot theme or glyphs did not settle: ' + ', '.join(missing))
 
 
+def dismiss_launcher_dialog(raw):
+    root = ET.fromstring(raw)
+    nodes = list(root.iter('node'))
+    launcher_dialog = any(
+        node.get('package') == 'android'
+        and node.get('text') == "Pixel Launcher isn't responding"
+        for node in nodes
+    )
+    if not launcher_dialog:
+        return False
+    for node in nodes:
+        if node.get('package') != 'android' or node.get('text') != 'Close app' or node.get('clickable') != 'true':
+            continue
+        bounds = [int(n) for n in re.findall(r'\d+', node.get('bounds', ''))]
+        if len(bounds) != 4 or bounds[2] <= bounds[0] or bounds[3] <= bounds[1]:
+            continue
+        startup.adb('shell', 'input', 'tap', str((bounds[0] + bounds[2]) // 2), str((bounds[1] + bounds[3]) // 2))
+        print('Dismissed unresponsive Pixel Launcher system dialog', flush=True)
+        return True
+    return False
+
+
 def hierarchy():
     startup.adb('shell', 'uiautomator', 'dump', '/sdcard/magicai-ui.xml')
-    return startup.adb('shell', 'cat', '/sdcard/magicai-ui.xml')
+    raw = startup.adb('shell', 'cat', '/sdcard/magicai-ui.xml')
+    if dismiss_launcher_dialog(raw):
+        (startup.output / 'launcher-anr.xml').write_bytes(raw)
+        time.sleep(1)
+        startup.adb('shell', 'uiautomator', 'dump', '/sdcard/magicai-ui.xml')
+        raw = startup.adb('shell', 'cat', '/sdcard/magicai-ui.xml')
+    return raw
 
 
 def tap(label, floating=False):

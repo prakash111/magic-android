@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 import struct
 import zlib
 
@@ -33,6 +34,28 @@ class UiTargetTest(unittest.TestCase):
 
     def test_requires_complete_label(self):
         self.assertIsNone(probe.find_target('<hierarchy>' + self.node(label='Chatbot settings') + '</hierarchy>', 'Chatbot'))
+
+
+class LauncherDialogTest(unittest.TestCase):
+    def dialog(self, title="Pixel Launcher isn't responding", package='android'):
+        return ('<hierarchy><node package="' + package + '" text="' + title + '"/>'
+                '<node package="android" text="Close app" clickable="true" bounds="[70,1170][1010,1296]"/></hierarchy>')
+
+    def test_dismisses_only_the_launcher_system_dialog(self):
+        with patch.object(probe.startup, 'adb') as adb:
+            self.assertTrue(probe.dismiss_launcher_dialog(self.dialog()))
+            adb.assert_called_once_with('shell', 'input', 'tap', '540', '1233')
+
+    def test_never_dismisses_magicai_or_other_app_errors(self):
+        with patch.object(probe.startup, 'adb') as adb:
+            for title, package in [("MagicAI isn't responding", 'android'), ("Pixel Launcher isn't responding", probe.startup.package), ('MagicAI keeps stopping', 'android')]:
+                self.assertFalse(probe.dismiss_launcher_dialog(self.dialog(title, package)))
+            adb.assert_not_called()
+
+    def test_missing_close_button_is_not_dismissed(self):
+        with patch.object(probe.startup, 'adb') as adb:
+            self.assertFalse(probe.dismiss_launcher_dialog("""<hierarchy><node package="android" text="Pixel Launcher isn't responding"/></hierarchy>"""))
+            adb.assert_not_called()
 
 
 class ScreenshotColorsTest(unittest.TestCase):
