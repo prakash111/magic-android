@@ -224,7 +224,7 @@ def main():
         tap('Chatbot', floating=True)
         wait_for('UI_PROBE_CHATBOT_SELECTED')
     finally:
-        (startup.output / 'ui-runtime.log').write_bytes(startup.adb('logcat', '-d', '-v', 'threadtime'))
+        startup.collect_logcat(startup.output / 'ui-runtime.log')
 
 
 if __name__ == '__main__':

@@ -84,7 +84,7 @@ def check_additional_media(mode):
             time.sleep(1)
         raise RuntimeError(mode+' attachment verification timed out')
     finally:
-        (startup.output/(mode+'-runtime.log')).write_bytes(startup.adb('logcat', '-d', '-v', 'threadtime', '-s', 'flutter', 'AndroidRuntime', 'ImagePicker'))
+        startup.collect_logcat(startup.output / (mode + '-runtime.log'), '-s', 'flutter', 'AndroidRuntime', 'ImagePicker')
 
 
 def main():
@@ -137,7 +137,7 @@ def main():
             time.sleep(1)
         raise RuntimeError('Native image multipart verification timed out')
     finally:
-        (startup.output/'studio-runtime.log').write_bytes(startup.adb('logcat','-d','-v','threadtime','-s','flutter','AndroidRuntime','ImagePicker'))
+        startup.collect_logcat(startup.output / 'studio-runtime.log', '-s', 'flutter', 'AndroidRuntime', 'ImagePicker')
 
 
 if __name__=='__main__':

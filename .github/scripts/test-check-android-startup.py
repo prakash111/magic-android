@@ -1,6 +1,9 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import subprocess
+import tempfile
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("startup", Path(__file__).with_name("check-android-startup.py"))
 startup = importlib.util.module_from_spec(spec)
@@ -12,6 +15,30 @@ def screen(package=startup.package, password="true", title="Welcome to MagicAI")
             f'<node package="{package}" class="android.widget.EditText" />'
             f'<node package="{package}" class="android.widget.EditText" password="{password}" />'
             f'<node package="{package}" class="android.widget.Button" content-desc="Sign In" /></hierarchy>')
+
+
+class DiagnosticCollectionTests(unittest.TestCase):
+    def test_retries_transient_logcat_failure(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(startup, 'adb', side_effect=[subprocess.CalledProcessError(255, ['adb']), b'log output']) as adb, patch.object(startup.time, 'sleep'):
+            path = Path(directory) / 'runtime.log'
+            self.assertTrue(startup.collect_logcat(path))
+            self.assertEqual(path.read_bytes(), b'log output')
+            self.assertEqual(adb.call_count, 2)
+
+    def test_collection_failure_keeps_partial_output_and_warning(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(startup, 'adb', side_effect=subprocess.CalledProcessError(255, ['adb'], output=b'partial log')), patch.object(startup.time, 'sleep'):
+            path = Path(directory) / 'runtime.log'
+            self.assertFalse(startup.collect_logcat(path))
+            self.assertEqual(path.read_bytes(), b'partial log')
+            self.assertIn('255', path.with_suffix('.collection-error.txt').read_text())
+
+    def test_collection_failure_preserves_a_real_app_failure(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(startup, 'adb', side_effect=subprocess.TimeoutExpired(['adb'], 20)), patch.object(startup.time, 'sleep'):
+            with self.assertRaisesRegex(RuntimeError, 'app did not reach login'):
+                try:
+                    raise RuntimeError('app did not reach login')
+                finally:
+                    startup.collect_logcat(Path(directory) / 'runtime.log')
 
 
 class LoginScreenAssertions(unittest.TestCase):

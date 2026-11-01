@@ -36,7 +36,7 @@ def main():
                 raise RuntimeError('Preferences probe did not finish within 90 seconds')
             print('PASS: ' + expected, flush=True)
     finally:
-        (startup.output / 'preferences-runtime.log').write_bytes(startup.adb('logcat', '-d', '-v', 'threadtime'))
+        startup.collect_logcat(startup.output / 'preferences-runtime.log')
 
 
 if __name__ == '__main__':

@@ -43,6 +43,24 @@ def adb(*args, timeout=20):
     return subprocess.check_output(["adb", *args], timeout=timeout)
 
 
+def collect_logcat(path, *filters):
+    last_error = None
+    for attempt in range(3):
+        try:
+            path.write_bytes(adb('logcat', '-d', '-v', 'threadtime', *filters))
+            return True
+        except subprocess.SubprocessError as error:
+            last_error = error
+            if attempt < 2:
+                time.sleep(1)
+    partial = getattr(last_error, 'output', None)
+    if isinstance(partial, bytes) and partial:
+        path.write_bytes(partial)
+    path.with_suffix('.collection-error.txt').write_text(str(last_error))
+    print('WARNING: optional logcat export failed after three attempts: ' + path.name, flush=True)
+    return False
+
+
 def snapshot(name):
     (output / (name + ".png")).write_bytes(adb("exec-out", "screencap", "-p"))
 
@@ -145,7 +163,7 @@ def main():
                 raise RuntimeError("Signed Android release did not advance to login within 75 seconds")
             print("PASS: signed Android " + ("first launch" if attempt == 0 else "cold relaunch with saved installation") + " reached login", flush=True)
     finally:
-        (output / "runtime.log").write_bytes(adb("logcat", "-d", "-v", "threadtime"))
+        collect_logcat(output / "runtime.log")
 
 
 if __name__ == "__main__":
