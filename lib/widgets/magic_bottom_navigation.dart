@@ -1,3 +1,4 @@
+import '../services/inbox_service.dart';
 import '../services/app_localizations.dart';
 
 import 'dart:math' as math;
@@ -24,6 +25,7 @@ class MagicBottomNavigation extends StatelessWidget {
     AppLocalizations.watch(context);
 
     final colors = AppColors.of(context);
+    final hasInbox = items.any((item) => item['component'] == 'inbox');
     final chatIndex = items.indexWhere((item) => item['component'] == 'chat');
     final barTop = chatIndex < 0 ? 0.0 : 28.0;
     final height =
@@ -115,22 +117,48 @@ class MagicBottomNavigation extends StatelessWidget {
                           )
                         else
                           NavigationDestination(
-                            icon: Icon(switch (item['component']) {
-                              'dashboard' => Icons.home_outlined,
-                              'social' => Icons.calendar_today_outlined,
-                              'documents' => Icons.folder_outlined,
-                              'workspace' => Icons.grid_view_outlined,
-                              'account' => Icons.person_outline_rounded,
-                              'plans' => Icons.workspace_premium_outlined,
-                              _ => Icons.auto_awesome_outlined,
-                            }),
-                            selectedIcon: Icon(switch (item['component']) {
-                              'dashboard' => Icons.home_rounded,
-                              'social' => Icons.calendar_today_rounded,
-                              'workspace' => Icons.grid_view_rounded,
-                              'account' => Icons.person_rounded,
-                              _ => Icons.auto_awesome_rounded,
-                            }),
+                            icon: ValueListenableBuilder<int>(
+                              valueListenable: InboxService.unread,
+                              builder: (context, count, _) => Badge(
+                                isLabelVisible:
+                                    (item['component'] == 'inbox' ||
+                                        (!hasInbox &&
+                                            item['component'] ==
+                                                'workspace')) &&
+                                    count > 0,
+                                label: Text('$count'),
+                                child: Icon(switch (item['component']) {
+                                  'dashboard' => Icons.home_outlined,
+                                  'social' => Icons.calendar_today_outlined,
+                                  'documents' => Icons.folder_outlined,
+                                  'workspace' => Icons.grid_view_outlined,
+                                  'inbox' => Icons.forum_outlined,
+                                  'account' => Icons.person_outline_rounded,
+                                  'plans' => Icons.workspace_premium_outlined,
+                                  _ => Icons.auto_awesome_outlined,
+                                }),
+                              ),
+                            ),
+                            selectedIcon: ValueListenableBuilder<int>(
+                              valueListenable: InboxService.unread,
+                              builder: (context, count, _) => Badge(
+                                isLabelVisible:
+                                    (item['component'] == 'inbox' ||
+                                        (!hasInbox &&
+                                            item['component'] ==
+                                                'workspace')) &&
+                                    count > 0,
+                                label: Text('$count'),
+                                child: Icon(switch (item['component']) {
+                                  'dashboard' => Icons.home_rounded,
+                                  'social' => Icons.calendar_today_rounded,
+                                  'workspace' => Icons.grid_view_rounded,
+                                  'inbox' => Icons.forum_rounded,
+                                  'account' => Icons.person_rounded,
+                                  _ => Icons.auto_awesome_rounded,
+                                }),
+                              ),
+                            ),
                             label: appTr(item['label'].toString()),
                           ),
                     ],

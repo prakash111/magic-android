@@ -259,6 +259,19 @@ void main() {
         ),
       );
       expect(find.text('Comment & DM automation'), findsOneWidget);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.widgetWithText(ChoiceChip, 'Creative studio'),
+        150,
+        scrollable: find
+            .descendant(
+              of: find.byType(SliverPersistentHeader),
+              matching: find.byType(Scrollable),
+            )
+            .last,
+      );
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Creative studio'));
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.textContaining('Upgrade to unlock'),
         200,

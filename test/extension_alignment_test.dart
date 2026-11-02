@@ -1,3 +1,4 @@
+import 'package:magicai_mobile/screens/inbox/inbox_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magicai_mobile/screens/native_extension_screen.dart';
@@ -99,7 +100,9 @@ void main() {
     ]) {
       expect(
         NativeModuleRegistry.build(module(kind), api: api),
-        isA<NativeExtensionScreen>(),
+        kind == 'marketing_inbox'
+            ? isA<InboxScreen>()
+            : isA<NativeExtensionScreen>(),
       );
     }
   });

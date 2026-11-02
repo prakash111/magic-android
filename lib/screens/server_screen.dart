@@ -1,3 +1,4 @@
+import '../widgets/send_to_network_sheet.dart';
 import '../services/app_localizations.dart';
 
 import 'dart:convert';
@@ -1639,6 +1640,20 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
                           ),
                         ),
                       ),
+                    if ((message['input']?.toString() ?? '').isNotEmpty)
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: TextButton.icon(
+                          onPressed: () => showSendToNetwork(
+                            context,
+                            text: '${message['input']}',
+                            api: _api,
+                            model: _model,
+                          ),
+                          icon: const Icon(Icons.send_outlined, size: 16),
+                          label: Text(appTr('Send to…')),
+                        ),
+                      ),
                     Card(
                       color: AppColors.of(context).surface,
                       shape: RoundedRectangleBorder(
@@ -1654,6 +1669,21 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
                         ),
                       ),
                     ),
+                    if ((message['response']?.toString() ?? '').isNotEmpty &&
+                        !_busy)
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: TextButton.icon(
+                          onPressed: () => showSendToNetwork(
+                            context,
+                            text: '${message['response']}',
+                            api: _api,
+                            model: _model,
+                          ),
+                          icon: const Icon(Icons.send_outlined, size: 16),
+                          label: Text(appTr('Send to network')),
+                        ),
+                      ),
                   ],
                 ],
               ),

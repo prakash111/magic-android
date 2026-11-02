@@ -1,3 +1,6 @@
+import '../services/inbox_service.dart';
+import '../screens/inbox/inbox_screen.dart';
+import '../widgets/tap_fx.dart';
 import '../services/app_localizations.dart';
 
 import 'dart:async';
@@ -19,6 +22,7 @@ import 'native_settings_screen.dart';
 
 IconData workspaceIcon(String value) {
   final key = value.toLowerCase();
+  if (key.contains('inbox')) return Icons.inbox_outlined;
   if (key.contains('automation') || key.contains('marketing')) {
     return Icons.bolt_rounded;
   }
@@ -50,6 +54,15 @@ Future<void> openModule(
   Map<String, dynamic> module, {
   MobileApi? api,
 }) async {
+  if (module['available'] == true &&
+      ('${module['route']}'.contains('marketing-bot.inbox') ||
+          module['id'] == 'mobile:inbox')) {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (_) => InboxScreen(api: api)),
+    );
+    return;
+  }
   if (module['available'] != true) {
     await Navigator.push(
       context,
@@ -100,6 +113,19 @@ class WorkspaceScreen extends StatefulWidget {
 class _WorkspaceScreenState extends State<WorkspaceScreen> {
   String _query = '', _category = 'All';
   bool _grid = true, _layoutChanged = false;
+  List<String> _favorites = [];
+  int _preferencesRevision = 0;
+  String? _openSection;
+  bool _favoritesCollapsed = false;
+  bool get _compactFavorites =>
+      _favoritesCollapsed ||
+      _query.trim().isNotEmpty ||
+      MediaQuery.viewInsetsOf(context).bottom > 0;
+  String? _preferenceError;
+  Future<void> _preferenceSave = Future.value();
+  InboxService get _inbox =>
+      InboxService.forApi(widget.api ?? MobileApi.instance);
+
   final _searchFocus = FocusNode();
   Future<void> _saveLayout = Future.value();
 
@@ -110,6 +136,268 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   void initState() {
     super.initState();
     _restoreLayout();
+    _restoreFavorites();
+  }
+
+  Future<void> _restoreFavorites() async {
+    final revision = _preferencesRevision;
+    try {
+      if (widget.api == null) {
+        final prefs = await SharedPreferences.getInstance();
+        if (mounted && revision == _preferencesRevision) {
+          setState(() {
+            _favorites = prefs.getStringList('$_preferenceKey:favorites') ?? [];
+            _category = prefs.getString('$_preferenceKey:section') ?? 'All';
+            _openSection = prefs.getString('$_preferenceKey:open');
+            _favoritesCollapsed =
+                prefs.getBool('$_preferenceKey:collapsed') ?? false;
+          });
+        }
+        return;
+      }
+      final cached = await _inbox.cached('favorites');
+      final prefs = await _inbox.cached('prefs');
+      if (mounted && revision == _preferencesRevision) {
+        setState(() {
+          if (cached is List) _favorites = cached.map((e) => '$e').toList();
+          if (prefs is Map) {
+            _category = '${prefs['last_explore_section'] ?? 'All'}';
+            _openSection = prefs['open_explore_section'] as String?;
+            _favoritesCollapsed = prefs['favorites_collapsed'] == true;
+          }
+        });
+      }
+      if (widget.api == null) return;
+      final results = await Future.wait<dynamic>([
+        _inbox.favorites(),
+        _inbox.prefs(),
+      ]);
+      if (mounted && revision == _preferencesRevision) {
+        setState(() {
+          _favorites = List<String>.from(results[0]);
+          final data = results[1] as Map;
+          _category = '${data['last_explore_section'] ?? 'All'}';
+          _openSection = data['open_explore_section'] as String?;
+          _favoritesCollapsed = data['favorites_collapsed'] == true;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _saveExplore() {
+    _preferencesRevision++;
+    final ids = List<String>.from(_favorites);
+    final values = {
+      'last_explore_section': _category,
+      'open_explore_section': _openSection,
+      'favorites_collapsed': _favoritesCollapsed,
+    };
+    _preferenceSave = _preferenceSave.then((_) async {
+      try {
+        if (widget.api == null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setStringList('$_preferenceKey:favorites', ids);
+          await prefs.setString(
+            '$_preferenceKey:section',
+            '${values['last_explore_section']}',
+          );
+          await prefs.setString(
+            '$_preferenceKey:open',
+            '${values['open_explore_section'] ?? ''}',
+          );
+          await prefs.setBool(
+            '$_preferenceKey:collapsed',
+            values['favorites_collapsed'] == true,
+          );
+          return;
+        }
+        await _inbox.cache('favorites', ids);
+        final cached = await _inbox.cached('prefs');
+        await _inbox.cache('prefs', {
+          ...(cached is Map
+              ? Map<String, dynamic>.from(cached)
+              : <String, dynamic>{}),
+          ...values,
+        });
+        if (widget.api != null) {
+          await _inbox.favorites(ids: ids);
+          await _inbox.prefs(values: values);
+        }
+        if (mounted) setState(() => _preferenceError = null);
+      } catch (_) {
+        if (mounted) {
+          setState(
+            () => _preferenceError =
+                'Favorites saved locally. Sync failed; tap Retry.',
+          );
+        }
+      }
+    });
+  }
+
+  Widget _star(Map<String, dynamic> module) {
+    final id = '${module['id']}';
+    final starred = _favorites.contains(id);
+    return TapFx(
+      child: IconButton(
+        key: ValueKey('favorite-$id-$starred'),
+        tooltip: appTr(starred ? 'Remove from favorites' : 'Add to favorites'),
+        onPressed: () {
+          setState(() {
+            if (starred) {
+              _favorites.remove(id);
+            } else {
+              _favorites.add(id);
+            }
+          });
+          _saveExplore();
+        },
+        icon: Icon(
+          starred ? Icons.star : Icons.star_border,
+          color: starred ? const Color(0xfffbbf24) : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _favoritesHeader(
+    List<String> categories,
+    String selected,
+    double scale,
+  ) {
+    final lookup = {for (final m in widget.modules) '${m['id']}': m};
+    final favorites = _favorites
+        .map((id) => lookup[id])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    return Material(
+      color: AppColors.of(context).page,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.star, color: Color(0xfffbbf24), size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    appTr('Favorites'),
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                IconButton(
+                  tooltip: appTr(
+                    _favoritesCollapsed ? 'Show favorites' : 'Hide favorites',
+                  ),
+                  onPressed: () {
+                    setState(() => _favoritesCollapsed = !_favoritesCollapsed);
+                    _saveExplore();
+                  },
+                  icon: Icon(
+                    _favoritesCollapsed ? Icons.expand_more : Icons.expand_less,
+                  ),
+                ),
+              ],
+            ),
+            if (!_compactFavorites)
+              SizedBox(
+                height: 100 * scale,
+                child: favorites.isEmpty
+                    ? Center(child: Text(appTr('Star tools to pin them here.')))
+                    : ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: favorites.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final module = favorites[index];
+                          final isInbox =
+                              '${module['route']}'.contains('inbox') ||
+                              '${module['id']}'.contains('inbox');
+                          return SizedBox(
+                            width: 112 * scale,
+                            child: Card(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              child: InkWell(
+                                onTap: () => openModule(
+                                  context,
+                                  module,
+                                  api: widget.api,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      ValueListenableBuilder<int>(
+                                        valueListenable: InboxService.unread,
+                                        builder: (_, unread, _) => Badge(
+                                          isLabelVisible: isInbox && unread > 0,
+                                          label: Text('$unread'),
+                                          child: Icon(
+                                            workspaceIcon(
+                                              '${module['id']} ${module['title']}',
+                                            ),
+                                            color: accentFor('${module['id']}'),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        appTr(
+                                          '${module['title'] ?? module['name'] ?? ''}',
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelMedium,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            SizedBox(
+              height: 56 * scale,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: categories.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, index) => ChoiceChip(
+                  label: Text(appTr(categories[index])),
+                  backgroundColor: AppColors.of(context).surface,
+                  selectedColor: AppColors.of(context).primary,
+                  side: BorderSide(
+                    color: selected == categories[index]
+                        ? AppColors.of(context).primary
+                        : AppColors.of(context).outline,
+                  ),
+                  shape: const StadiumBorder(),
+                  showCheckmark: false,
+                  labelStyle: TextStyle(
+                    color: selected == categories[index]
+                        ? AppColors.of(context).onPrimary
+                        : AppColors.of(context).text,
+                  ),
+                  selected: selected == categories[index],
+                  onSelected: (_) {
+                    setState(() => _category = categories[index]);
+                    _saveExplore();
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _restoreLayout() async {
@@ -231,6 +519,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                       children: [
                         icon,
                         const Spacer(),
+                        _star(module),
                         if (locked)
                           Icon(
                             Icons.lock_outline,
@@ -255,6 +544,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                         children: [title, const SizedBox(height: 4), subtitle],
                       ),
                     ),
+                    _star(module),
                     if (locked)
                       Icon(Icons.lock_outline, size: 18, color: colors.muted),
                     Icon(Icons.chevron_right, color: colors.muted),
@@ -277,7 +567,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     final selectedCategory = categories.contains(_category) ? _category : 'All';
     final sections = groupedWorkspaces(
       widget.modules,
-      category: selectedCategory,
+      category: _query.trim().isEmpty ? selectedCategory : 'All',
       query: _query,
     );
     final name = '${widget.user['name'] ?? ''}'.trim();
@@ -406,44 +696,27 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      height: 48 * scale,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: categories.length,
-                        separatorBuilder: (localizationContext, index) {
-                          AppLocalizations.watch(localizationContext);
-                          return const SizedBox(width: 8);
-                        },
-                        itemBuilder: (localizationContext, index) {
-                          AppLocalizations.watch(localizationContext);
-                          return ChoiceChip(
-                            label: Text(appTr(categories[index])),
-                            selected: selectedCategory == categories[index],
-                            selectedColor: colors.primary,
-                            backgroundColor: colors.surface,
-                            side: BorderSide(
-                              color: selectedCategory == categories[index]
-                                  ? colors.primary
-                                  : colors.outline,
-                            ),
-                            shape: const StadiumBorder(),
-                            labelStyle: TextStyle(
-                              color: selectedCategory == categories[index]
-                                  ? colors.onPrimary
-                                  : colors.text,
-                            ),
-                            showCheckmark: false,
-                            onSelected: (_) =>
-                                setState(() => _category = categories[index]),
-                          );
-                        },
-                      ),
-                    ),
                   ],
                 ),
               ),
             ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _InboxFavoritesHeader(
+                height: 48 + (_compactFavorites ? 0 : 100 * scale) + 56 * scale,
+                child: _favoritesHeader(categories, selectedCategory, scale),
+              ),
+            ),
+            if (_preferenceError != null)
+              SliverToBoxAdapter(
+                child: ListTile(
+                  title: Text(appTr(_preferenceError!)),
+                  trailing: TextButton(
+                    onPressed: _saveExplore,
+                    child: Text(appTr('Retry')),
+                  ),
+                ),
+              ),
             if (sections.isEmpty)
               SliverToBoxAdapter(
                 child: Padding(
@@ -458,77 +731,123 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 22, bottom: 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Semantics(
-                            header: true,
-                            child: Text(
-                              appTr(section.key),
-                              key: ValueKey('workspace-section-${section.key}'),
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: colors.text,
+                  child: Semantics(
+                    container: true,
+                    header: true,
+                    button: true,
+                    label: appTr(section.key),
+                    expanded:
+                        (_openSection ?? sections.keys.first) == section.key,
+                    onTap: () {
+                      setState(
+                        () => _openSection =
+                            (_openSection ?? sections.keys.first) == section.key
+                            ? ''
+                            : section.key,
+                      );
+                      _saveExplore();
+                    },
+                    excludeSemantics: true,
+                    child: InkWell(
+                      excludeFromSemantics: true,
+                      onTap: () {
+                        setState(
+                          () => _openSection =
+                              (_openSection ?? sections.keys.first) ==
+                                  section.key
+                              ? ''
+                              : section.key,
+                        );
+                        _saveExplore();
+                      },
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 56),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  appTr(section.key),
+                                  key: ValueKey(
+                                    'workspace-section-${section.key}',
                                   ),
-                            ),
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: colors.text,
+                                      ),
+                                ),
+                              ),
+                              Icon(
+                                (_openSection ?? sections.keys.first) ==
+                                        section.key
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                appTr(':length tool|:length tools', {
+                                  'length': section.value.length,
+                                }, section.value.length),
+                                style: TextStyle(
+                                  color: colors.muted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          appTr(':length tool|:length tools', {
-                            'length': section.value.length,
-                          }, section.value.length),
-                          style: TextStyle(color: colors.muted, fontSize: 12),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: _grid
-                    ? SliverLayoutBuilder(
-                        builder: (context, constraints) {
-                          AppLocalizations.watch(context);
-                          final width = (constraints.crossAxisExtent - 10) / 2;
-                          return SliverGrid.builder(
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 10,
-                                  mainAxisSpacing: 10,
-                                  mainAxisExtent: math.max(
-                                    width / 1.1,
-                                    84 + 68 * scale,
+              if (selectedCategory != 'All' ||
+                  _query.trim().isNotEmpty ||
+                  (_openSection ?? sections.keys.first) == section.key)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: _grid
+                      ? SliverLayoutBuilder(
+                          builder: (context, constraints) {
+                            AppLocalizations.watch(context);
+                            final width =
+                                (constraints.crossAxisExtent - 10) / 2;
+                            return SliverGrid.builder(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    crossAxisSpacing: 10,
+                                    mainAxisSpacing: 10,
+                                    mainAxisExtent: math.max(
+                                      width / 1.1,
+                                      108 + 80 * scale,
+                                    ),
                                   ),
-                                ),
-                            itemCount: section.value.length,
-                            itemBuilder: (localizationContext, index) {
-                              AppLocalizations.watch(localizationContext);
-                              return _toolCard(
-                                section.value[index],
-                                grid: true,
-                              );
-                            },
-                          );
-                        },
-                      )
-                    : SliverList.separated(
-                        itemCount: section.value.length,
-                        separatorBuilder: (localizationContext, index) {
-                          AppLocalizations.watch(localizationContext);
-                          return const SizedBox(height: 10);
-                        },
-                        itemBuilder: (localizationContext, index) {
-                          AppLocalizations.watch(localizationContext);
-                          return _toolCard(section.value[index], grid: false);
-                        },
-                      ),
-              ),
+                              itemCount: section.value.length,
+                              itemBuilder: (localizationContext, index) {
+                                AppLocalizations.watch(localizationContext);
+                                return _toolCard(
+                                  section.value[index],
+                                  grid: true,
+                                );
+                              },
+                            );
+                          },
+                        )
+                      : SliverList.separated(
+                          itemCount: section.value.length,
+                          separatorBuilder: (localizationContext, index) {
+                            AppLocalizations.watch(localizationContext);
+                            return const SizedBox(height: 10);
+                          },
+                          itemBuilder: (localizationContext, index) {
+                            AppLocalizations.watch(localizationContext);
+                            return _toolCard(section.value[index], grid: false);
+                          },
+                        ),
+                ),
             ],
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
@@ -1386,4 +1705,22 @@ class AccountHub extends StatelessWidget {
       ),
     );
   }
+}
+
+class _InboxFavoritesHeader extends SliverPersistentHeaderDelegate {
+  final double height;
+  final Widget child;
+  _InboxFavoritesHeader({required this.height, required this.child});
+  @override
+  double get minExtent => height;
+  @override
+  double get maxExtent => height;
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => child;
+  @override
+  bool shouldRebuild(covariant _InboxFavoritesHeader old) => true;
 }

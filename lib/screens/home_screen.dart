@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import '../services/inbox_service.dart';
 import '../services/app_localizations.dart';
 import '../widgets/language_picker.dart';
 import '../services/ai_model_selection.dart';
@@ -12,6 +13,7 @@ import 'server_screen.dart';
 import 'workspace_screen.dart';
 import '../theme/brand_config.dart';
 import '../widgets/magic_bottom_navigation.dart';
+import 'inbox/inbox_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeChanged;
@@ -27,7 +29,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _selected = 'home';
   bool _loading = false;
   int _refreshVersion = 0;
-  Timer? _timer;
+  Timer? _timer, _inboxTimer;
+  bool _foreground = true;
   final _sectionNavigator = GlobalKey<NavigatorState>();
   bool _nativeRouteVisible = false;
   late final _sectionObserver = _SectionObserver(() {
@@ -53,19 +56,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _load();
+    _inboxTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_foreground && _config?['capabilities']?['unified_inbox'] == true) {
+        _refreshInboxCount();
+      }
+    });
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => _load());
+  }
+
+  Future<void> _refreshInboxCount() async {
+    try {
+      final service = InboxService.forApi(widget.api ?? MobileApi.instance);
+      final result = await service.call('/inbox/unread');
+      InboxService.unread.value = (result['unread'] as num?)?.toInt() ?? 0;
+      unawaited(service.flush().catchError((_) {}));
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _inboxTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _load();
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) {
+      _load();
+      if (_config?['capabilities']?['unified_inbox'] == true) {
+        _refreshInboxCount();
+      }
+    }
   }
 
   Future<void> _load() async {
@@ -156,12 +180,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       );
     }
+    final inboxEnabled =
+        (_config!['capabilities'] as Map?)?['unified_inbox'] == true &&
+        (_config!['modules'] as List? ?? []).whereType<Map>().any(
+          (module) =>
+              module['available'] == true &&
+              (module['route_type'] == 'marketing_inbox' ||
+                  '${module['route']}'.contains('marketing-bot.inbox')),
+        );
+    if (inboxEnabled) {
+      navigation.add({'id': 'inbox', 'component': 'inbox', 'label': 'Inbox'});
+    }
     final allNavigation = List<Map>.from(navigation);
-    navigation.removeWhere((item) => item['placement'] == 'secondary');
+    navigation.removeWhere(
+      (item) =>
+          item['placement'] == 'secondary' ||
+          (inboxEnabled && item['component'] == 'social'),
+    );
     const primaryOrder = [
       'dashboard',
       'workspace',
       'chat',
+      'inbox',
       'social',
       'account',
     ];
@@ -199,6 +239,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               .toList()
         : tools;
     final body = switch (selected['component']) {
+      'inbox' => InboxScreen(api: widget.api),
       'dashboard' => StudioDashboard(
         api: widget.api,
         user: user,
@@ -252,7 +293,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     };
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: _nativeRouteVisible || selected['component'] == 'workspace'
+      appBar:
+          _nativeRouteVisible ||
+              selected['component'] == 'workspace' ||
+              selected['component'] == 'inbox'
           ? null
           : AppBar(
               title: Text(

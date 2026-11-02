@@ -201,10 +201,7 @@ void main() {
           await tester.tap(find.byType(NavigationDestination).at(1));
           await tester.pumpAndSettle();
           expectExploreColors(tester, colors);
-          expect(
-            find.byType(SliverGrid),
-            list ? findsNothing : findsNWidgets(2),
-          );
+          expect(find.byType(SliverGrid), list ? findsNothing : findsOneWidget);
           final nav = NavigationBarTheme.of(
             tester.element(find.byType(NavigationBar)),
           );

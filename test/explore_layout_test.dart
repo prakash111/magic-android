@@ -61,7 +61,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(explore());
       await tester.pumpAndSettle();
-      expect(find.byType(SliverGrid), findsNWidgets(2));
+      expect(find.byType(SliverGrid), findsOneWidget);
       expect(find.text('P'), findsOneWidget);
       expect(find.text('2 tools'), findsOneWidget);
       expect(find.text('1 tool'), findsOneWidget);
@@ -81,7 +81,7 @@ void main() {
         find.byKey(const ValueKey('explore-tool-creative')),
       );
       expect(row.width, 390);
-      expect(find.byIcon(Icons.chevron_right), findsNWidgets(3));
+      expect(find.byIcon(Icons.chevron_right), findsNWidgets(2));
       final listButton = tester.widget<IconButton>(
         find.byKey(const ValueKey('explore-list-toggle')),
       );
@@ -112,7 +112,7 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(explore(userId: 8));
       await tester.pumpAndSettle();
-      expect(find.byType(SliverGrid), findsNWidgets(2));
+      expect(find.byType(SliverGrid), findsOneWidget);
     },
   );
 

@@ -1,3 +1,4 @@
+import 'inbox/inbox_screen.dart';
 import '../services/app_localizations.dart';
 
 import 'dart:convert';
@@ -32,9 +33,9 @@ class NativeModuleRegistry {
       'crm_tasks' ||
       'agent_posts' ||
       'fashion_settings' => NativeParityScreen(module: module, api: client),
+      'marketing_inbox' => InboxScreen(api: client),
       'marketing_settings' ||
       'marketing_dashboard' ||
-      'marketing_inbox' ||
       'marketing_campaigns' ||
       'deal_pipeline' ||
       'agent_analytics' ||

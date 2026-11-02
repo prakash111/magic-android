@@ -127,15 +127,22 @@ void main() {
         app(WorkspaceScreen(modules: modules, refresh: () async {})),
       );
       expect(find.text('CRM Dashboard'), findsOneWidget);
-      expect(find.text('Productivity Dashboard'), findsOneWidget);
-      expect(find.text('Social Media Dashboard'), findsOneWidget);
+      expect(find.text('Productivity Dashboard'), findsNothing);
+      expect(find.text('Social Media Dashboard'), findsNothing);
       final semantics = tester.ensureSemantics();
       try {
         expect(
           tester.getSemantics(
             find.byKey(const ValueKey('workspace-section-CRM')),
           ),
-          matchesSemantics(label: 'CRM', isHeader: true),
+          matchesSemantics(
+            label: 'CRM',
+            isHeader: true,
+            isButton: true,
+            hasTapAction: true,
+            hasExpandedState: true,
+            isExpanded: true,
+          ),
         );
       } finally {
         semantics.dispose();
