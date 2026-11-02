@@ -9,6 +9,7 @@ import '../../theme/app_colors.dart';
 import '../../widgets/avatar_with_badge.dart';
 import 'thread_screen.dart';
 import 'widgets.dart';
+import '../workspace_screen.dart' show openMarketingBotSettings;
 
 class InboxScreen extends StatefulWidget {
   final InboxService service;
@@ -114,30 +115,6 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
     setState(() {});
   }
 
-  Future<void> connectionSettings() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) => InboxConnectionsSheet(
-        service: widget.service,
-        openSettings: () async {
-          try {
-            await widget.service.openConnections();
-            if (context.mounted) Navigator.pop(context);
-          } catch (error) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(appTr(error.toString()))));
-            }
-          }
-        },
-      ),
-    );
-  }
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -155,13 +132,10 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
     final colors = AppColors.of(context);
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leading: Navigator.canPop(context) ? const BackButton() : null,
         title: Text(appTr('Inbox')),
         actions: [
-          IconButton(
-            tooltip: appTr('Connection settings'),
-            onPressed: connectionSettings,
-            icon: const Icon(Icons.settings_outlined),
-          ),
           IconButton(
             tooltip: appTr('Refresh'),
             onPressed: () => load(),
@@ -318,7 +292,19 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                 ? InboxStateView(
                     loading: loading,
                     error: error,
-                    empty: 'No conversations yet. Connect Telegram or WhatsApp to get started.',
+                    empty: (inbox.counts?.chatsTotal ?? 0) == 0
+                        ? 'No chats yet. Connect Telegram or WhatsApp in Marketing Bot settings.'
+                        : 'No chats match your search.',
+                    actionLabel:
+                        !loading &&
+                            error == null &&
+                            (inbox.counts?.chatsTotal ?? 0) == 0
+                        ? 'Open Marketing Bot settings'
+                        : null,
+                    action: () => openMarketingBotSettings(
+                      context,
+                      api: widget.service.api,
+                    ),
                     retry: () => load(),
                   )
                 : RefreshIndicator(

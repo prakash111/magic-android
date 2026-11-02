@@ -1,5 +1,4 @@
 import '../services/inbox_service.dart';
-import '../screens/inbox/inbox_screen.dart';
 import '../widgets/tap_fx.dart';
 import '../services/app_localizations.dart';
 
@@ -54,15 +53,6 @@ Future<void> openModule(
   Map<String, dynamic> module, {
   MobileApi? api,
 }) async {
-  if (module['available'] == true &&
-      ('${module['route']}'.contains('marketing-bot.inbox') ||
-          module['id'] == 'mobile:inbox')) {
-    await Navigator.push(
-      context,
-      MaterialPageRoute<void>(builder: (_) => InboxScreen(api: api)),
-    );
-    return;
-  }
   if (module['available'] != true) {
     await Navigator.push(
       context,
@@ -88,6 +78,52 @@ Future<void> openModule(
     if (context.mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(appTr(error.toString()))));
+    }
+  }
+}
+
+Future<void> openMarketingBotSettings(
+  BuildContext context, {
+  MobileApi? api,
+}) async {
+  final client = api ?? MobileApi.instance;
+  try {
+    final result = await client
+        .request('/modules')
+        .timeout(const Duration(seconds: 9));
+    final rows =
+        (result is Map ? (result['data'] ?? result['modules']) : null)
+            as List? ??
+        [];
+    final settings = rows
+        .whereType<Map>()
+        .where(
+          (module) =>
+              module['available'] == true &&
+              module['route_type'] == 'marketing_settings',
+        )
+        .firstOrNull;
+    if (settings == null) {
+      throw const ApiFailure('Marketing Bot settings unavailable');
+    }
+    if (context.mounted) {
+      await openModule(
+        context,
+        Map<String, dynamic>.from(settings),
+        api: client,
+      );
+    }
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            appTr(
+              'Unable to open Marketing Bot settings. Refresh Explore and try again.',
+            ),
+          ),
+        ),
+      );
     }
   }
 }

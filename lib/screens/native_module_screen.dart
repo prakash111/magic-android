@@ -26,14 +26,18 @@ import 'native_parity_screen.dart';
 import 'schema_components.dart';
 
 class NativeModuleRegistry {
+  static bool ownsHeader(Map<String, dynamic> module) =>
+      module['route_type'] == 'marketing_inbox' ||
+      module['id'] == 'mobile:inbox' ||
+      '${module['route']}'.contains('marketing-bot.inbox');
   static Widget build(Map<String, dynamic> module, {MobileApi? api}) {
     final client = api ?? MobileApi.instance;
+    if (ownsHeader(module)) return InboxScreen(api: client);
     return switch (module['route_type']) {
       'ai_agents' ||
       'crm_tasks' ||
       'agent_posts' ||
       'fashion_settings' => NativeParityScreen(module: module, api: client),
-      'marketing_inbox' => InboxScreen(api: client),
       'marketing_settings' ||
       'marketing_dashboard' ||
       'marketing_campaigns' ||
@@ -86,10 +90,12 @@ class NativeModuleScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     AppLocalizations.watch(context);
+    final content = NativeModuleRegistry.build(module, api: api);
+    if (NativeModuleRegistry.ownsHeader(module)) return content;
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(title: Text(appTr(workspaceTitle(module)))),
-      body: NativeModuleRegistry.build(module, api: api),
+      body: content,
     );
   }
 }

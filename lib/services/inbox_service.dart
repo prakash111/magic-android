@@ -10,7 +10,6 @@ import 'inbox_files_io.dart'
     if (dart.library.js_interop) 'inbox_files_web.dart';
 import 'extension_workflow_service.dart';
 import 'social_post_service.dart';
-import 'workspace_service.dart';
 
 class InboxService {
   final MobileApi api;
@@ -223,39 +222,6 @@ class InboxService {
       await cache('thread:$chat', result);
     }
     return result;
-  }
-
-  Future<List<Map<String, dynamic>>> connections() async {
-    final result = await call('/inbox/connections');
-    return (result['data'] as List? ?? [])
-        .whereType<Map>()
-        .map((row) => Map<String, dynamic>.from(row))
-        .toList();
-  }
-
-  Future<void> configureConnection(int id, Map<String, dynamic> values) async {
-    await call('/inbox/connections/$id', method: 'PUT', body: values);
-  }
-
-  Future<void> openConnections() async {
-    final data = await call('/modules');
-    final rows = (data['data'] as List? ?? data['modules'] as List? ?? [])
-        .whereType<Map>();
-    final module = rows
-        .where(
-          (row) =>
-              '${row['route']}'.contains('marketing-bot.settings') &&
-              row['available'] == true,
-        )
-        .firstOrNull;
-    if (module == null) {
-      throw const ApiFailure(
-        'Connection settings are not available in your plan. Contact your administrator.',
-      );
-    }
-    await WorkspaceService(api: api)
-        .open(destination: 'module', moduleId: '${module['id']}', browser: true)
-        .timeout(const Duration(seconds: 9));
   }
 
   Future<void> read(int chat) async {

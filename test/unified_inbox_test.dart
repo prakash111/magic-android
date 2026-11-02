@@ -163,22 +163,6 @@ class FakeInboxService extends InboxService {
   final chatRows = [
     for (final chat in sampleChats) Map<String, dynamic>.from(chat),
   ];
-  final configuredConnections = <int>[];
-  @override
-  Future<List<Map<String, dynamic>>> connections() async => [
-    {
-      'id': 1,
-      'network': 'tg',
-      'status': 'connected',
-      'webhook_url': 'https://example.test/webhooks/telegram/test',
-    },
-  ];
-  @override
-  Future<void> configureConnection(int id, Map<String, dynamic> values) async {
-    expect(values['configure_webhook'], isTrue);
-    configuredConnections.add(id);
-  }
-
   Map<String, dynamic> cacheData = {};
   @override
   Future<Map<String, dynamic>> chats({
@@ -601,23 +585,15 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
-  testWidgets(
-    'connection setup activates the secure Telegram webhook explicitly',
-    (tester) async {
-      final service = FakeInboxService();
-      await mount(tester, InboxScreen(service: service));
-      await tester.tap(find.byTooltip('Connection settings'));
-      await tester.pumpAndSettle();
-      expect(find.text('Secure webhook callback'), findsOneWidget);
-      expect(service.configuredConnections, isEmpty);
-      await tester.ensureVisible(find.text('Enable secure Telegram webhook'));
-      await tester.tap(find.text('Enable secure Telegram webhook'));
-      await tester.pumpAndSettle();
-      expect(service.configuredConnections, [1]);
-      expect(find.text('Telegram webhook connected.'), findsOneWidget);
-      await tester.pumpWidget(const SizedBox());
-    },
-  );
+  testWidgets('Inbox does not expose connection setup or webhook details', (
+    tester,
+  ) async {
+    await mount(tester, InboxScreen(service: FakeInboxService()));
+    expect(find.byTooltip('Connection settings'), findsNothing);
+    expect(find.textContaining('webhook'), findsNothing);
+    expect(find.byTooltip('Refresh'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets(
     'bottom Inbox navigation displays unread count and remains accessible in RTL',
     (tester) async {

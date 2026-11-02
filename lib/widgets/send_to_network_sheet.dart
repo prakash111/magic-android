@@ -1,3 +1,5 @@
+import '../screens/workspace_screen.dart' show openMarketingBotSettings;
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -210,15 +212,11 @@ class _SendToNetworkSheetState extends State<SendToNetworkSheet> {
               if (!networks.any((network) => network['status'] == 'connected'))
                 TextButton(
                   onPressed: () async {
-                    try {
-                      await widget.service.openConnections();
-                    } catch (error) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(appTr(error.toString()))),
-                        );
-                      }
-                    }
+                    await openMarketingBotSettings(
+                      context,
+                      api: widget.service.api,
+                    );
+                    if (mounted) await load();
                   },
                   child: Text(appTr('Connect a network')),
                 ),
