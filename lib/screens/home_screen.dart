@@ -67,8 +67,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _refreshInboxCount() async {
     try {
       final service = InboxService.forApi(widget.api ?? MobileApi.instance);
-      final result = await service.call('/inbox/unread');
-      InboxService.unread.value = (result['unread'] as num?)?.toInt() ?? 0;
+      if (!service.state.inboxVisible) await service.refreshCounts();
       unawaited(service.flush().catchError((_) {}));
     } catch (_) {}
   }
@@ -119,6 +118,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ++_refreshVersion;
           _error = null;
         });
+        if (data['capabilities']?['unified_inbox'] == true) {
+          unawaited(_refreshInboxCount());
+        }
       }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -132,6 +134,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await ApiService.logout();
     } catch (_) {}
     if (!mounted) return;
+    InboxService.forApi(widget.api ?? MobileApi.instance).resetSession();
     MobileApi.failure.value = null;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
@@ -368,6 +371,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ? null
           : MagicBottomNavigation(
               items: navigation,
+              inboxState: InboxService.forApi(widget.api ?? MobileApi.instance)
+                  .state,
               selectedIndex: index,
               onSelected: (index) =>
                   _selectSection(navigation[index]['id'].toString()),

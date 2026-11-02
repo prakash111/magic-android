@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'mobile_api.dart';
+import 'inbox_state.dart';
+export 'inbox_state.dart';
 import 'inbox_files_io.dart'
     if (dart.library.js_interop) 'inbox_files_web.dart';
 import 'extension_workflow_service.dart';
@@ -14,7 +15,10 @@ import 'workspace_service.dart';
 class InboxService {
   final MobileApi api;
   InboxService(this.api);
-  static final unread = ValueNotifier<int>(0);
+  final state = InboxState();
+  String? _stateScope;
+  Future<void> _stateSave = Future.value();
+  Future<void>? _countsFetch;
   static final Expando<InboxService> _instances = Expando();
   static InboxService forApi(MobileApi api) =>
       _instances[api] ??= InboxService(api);
@@ -80,18 +84,144 @@ class InboxService {
     final result = await call(
       '/inbox/chats?${Uri(queryParameters: params).query}',
     );
-    unread.value = (result['unread']?['all'] as num?)?.toInt() ?? 0;
+
     if (cursor == null && network.isEmpty && query.isEmpty && !needsReply) {
       await cache('chats', result);
     }
     return result;
   }
 
+  Future<void> restoreState() async {
+    final account = await scope();
+    if (_stateScope == account) return;
+    final previous = _stateScope;
+    _stateScope = account;
+    if (previous != null) state.reset();
+    final saved = await cached('inbox_state');
+    if (_stateScope == account && saved is Map) {
+      try {
+        state.restore(saved);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> persistState() {
+    final saved = state.snapshot();
+    final account = _stateScope;
+    if (account == null) return Future.value();
+    _stateSave = _stateSave
+        .catchError((_) {})
+        .then(
+          (_) => api.store.write('$account:inbox_state', jsonEncode(saved)),
+        );
+    return _stateSave;
+  }
+
+  Future<bool> loadChats({
+    String network = '',
+    String query = '',
+    String? cursor,
+    bool needsReply = false,
+    bool append = false,
+  }) async {
+    await restoreState();
+    final fetch = state.beginFetch();
+    try {
+      final result = await chats(
+        network: network,
+        query: query,
+        cursor: cursor,
+        needsReply: needsReply,
+      );
+      final applied = state.applyPage(result, fetch, append: append);
+      if (applied) unawaited(persistState().catchError((_) {}));
+      return applied;
+    } catch (error) {
+      state.failed(error, fetch: fetch);
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> counts() => call('/inbox/counts');
+
+  Future<void> refreshCounts({bool force = false}) async {
+    final previous = _countsFetch;
+    if (previous != null) {
+      try {
+        await previous;
+      } catch (_) {}
+      if (!force) return;
+    }
+    final current = _refreshCounts();
+    _countsFetch = current;
+    try {
+      await current;
+    } finally {
+      if (identical(_countsFetch, current)) _countsFetch = null;
+    }
+  }
+
+  Future<void> _refreshCounts() async {
+    await restoreState();
+    final fetch = state.beginFetch();
+    try {
+      state.applyCounts(await counts(), fetch);
+      unawaited(persistState().catchError((_) {}));
+    } catch (error) {
+      state.failed(error, fetch: fetch);
+      rethrow;
+    }
+  }
+
+  Future<void> markRead(int chat) async {
+    state.markRead(chat);
+    unawaited(persistState().catchError((_) {}));
+    try {
+      await read(chat);
+      await refreshCounts(force: true);
+    } catch (error) {
+      state.failed(error);
+      rethrow;
+    }
+  }
+
+  Future<void> mute(int chat, bool value) async {
+    final previous = state.chatById(chat)?['muted'];
+    state.optimisticPatch(chat, {'muted': value});
+    unawaited(persistState().catchError((_) {}));
+    try {
+      await pin(chat, muted: value);
+    } catch (error) {
+      state.optimisticPatch(chat, {'muted': previous});
+      state.failed(error);
+      rethrow;
+    }
+    await refreshCounts(force: true);
+  }
+
+  void resetSession() {
+    _stateScope = null;
+    state.reset();
+  }
+
+  Future<void> onPush(Map<String, dynamic> data) async {
+    final chat = int.tryParse('${data['chat_id']}');
+    if (chat != null && data['message_id'] != null) {
+      state.incoming(chat, messageId: data['message_id']!);
+    }
+    state.requestRefresh();
+    if (!state.inboxVisible) await refreshCounts(force: true);
+  }
+
   Future<Map<String, dynamic>> messages(int chat, {String? cursor}) async {
+    final fetch = state.beginFetch();
     final result = await call(
       '/inbox/chats/$chat/messages${cursor == null ? '' : '?cursor=${Uri.encodeQueryComponent(cursor)}'}',
     );
-    if (cursor == null) await cache('thread:$chat', result);
+    if (cursor == null) {
+      state.applyThread(result, fetch);
+      await cache('thread:$chat', result);
+    }
     return result;
   }
 
@@ -129,15 +259,19 @@ class InboxService {
   }
 
   Future<void> read(int chat) async {
-    await call('/inbox/chats/$chat/read', method: 'POST');
+    final fetch = state.beginFetch();
+    final result = await call('/inbox/chats/$chat/read', method: 'POST');
+    state.applyThread({'chat': result['data'], 'meta': result['meta']}, fetch);
   }
 
   Future<void> pin(int chat, {bool? pinned, bool? muted}) async {
-    await call(
+    final fetch = state.beginFetch();
+    final result = await call(
       '/inbox/chats/$chat',
       method: 'PATCH',
       body: {'pinned': ?pinned, 'muted': ?muted},
     );
+    state.applyThread({'chat': result['data'], 'meta': result['meta']}, fetch);
   }
 
   Future<Map<String, dynamic>> prefs({Map<String, dynamic>? values}) async {

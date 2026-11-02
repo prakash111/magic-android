@@ -1,4 +1,5 @@
 import '../services/inbox_service.dart';
+import '../services/mobile_api.dart';
 import '../services/app_localizations.dart';
 
 import 'dart:math' as math;
@@ -12,12 +13,14 @@ class MagicBottomNavigation extends StatelessWidget {
   final List<Map> items;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
+  final InboxState? inboxState;
 
   const MagicBottomNavigation({
     super.key,
     required this.items,
     required this.selectedIndex,
     required this.onSelected,
+    this.inboxState,
   });
 
   @override
@@ -25,6 +28,7 @@ class MagicBottomNavigation extends StatelessWidget {
     AppLocalizations.watch(context);
 
     final colors = AppColors.of(context);
+    final inbox = inboxState ?? InboxService.forApi(MobileApi.instance).state;
     final hasInbox = items.any((item) => item['component'] == 'inbox');
     final chatIndex = items.indexWhere((item) => item['component'] == 'chat');
     final barTop = chatIndex < 0 ? 0.0 : 28.0;
@@ -117,16 +121,32 @@ class MagicBottomNavigation extends StatelessWidget {
                           )
                         else
                           NavigationDestination(
-                            icon: ValueListenableBuilder<int>(
-                              valueListenable: InboxService.unread,
-                              builder: (context, count, _) => Badge(
+                            icon: ListenableBuilder(
+                              listenable: inbox,
+                              builder: (context, _) => Badge(
                                 isLabelVisible:
                                     (item['component'] == 'inbox' ||
                                         (!hasInbox &&
                                             item['component'] ==
                                                 'workspace')) &&
-                                    count > 0,
-                                label: Text('$count'),
+                                    ((inbox.counts?.all ?? 0) > 0 ||
+                                        (hasInbox && inbox.countsLoading)),
+                                label: inbox.countsLoading
+                                    ? SizedBox(
+                                        width: 8,
+                                        height: 4,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: colors.muted,
+                                          ),
+                                        ),
+                                      )
+                                    : Text(
+                                        InboxCounts.badge(
+                                          inbox.counts?.all ?? 0,
+                                          cap: true,
+                                        ),
+                                      ),
                                 child: Icon(switch (item['component']) {
                                   'dashboard' => Icons.home_outlined,
                                   'social' => Icons.calendar_today_outlined,
@@ -139,16 +159,32 @@ class MagicBottomNavigation extends StatelessWidget {
                                 }),
                               ),
                             ),
-                            selectedIcon: ValueListenableBuilder<int>(
-                              valueListenable: InboxService.unread,
-                              builder: (context, count, _) => Badge(
+                            selectedIcon: ListenableBuilder(
+                              listenable: inbox,
+                              builder: (context, _) => Badge(
                                 isLabelVisible:
                                     (item['component'] == 'inbox' ||
                                         (!hasInbox &&
                                             item['component'] ==
                                                 'workspace')) &&
-                                    count > 0,
-                                label: Text('$count'),
+                                    ((inbox.counts?.all ?? 0) > 0 ||
+                                        (hasInbox && inbox.countsLoading)),
+                                label: inbox.countsLoading
+                                    ? SizedBox(
+                                        width: 8,
+                                        height: 4,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: colors.muted,
+                                          ),
+                                        ),
+                                      )
+                                    : Text(
+                                        InboxCounts.badge(
+                                          inbox.counts?.all ?? 0,
+                                          cap: true,
+                                        ),
+                                      ),
                                 child: Icon(switch (item['component']) {
                                   'dashboard' => Icons.home_rounded,
                                   'social' => Icons.calendar_today_rounded,

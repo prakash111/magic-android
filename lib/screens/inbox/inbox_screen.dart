@@ -26,13 +26,27 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
   bool reloadPending = false;
   String? error, cursor;
   int generation = 0;
-  List<Map<String, dynamic>> chats = [];
-  Map<String, dynamic> counts = {};
-  int needsReply = 0;
+  InboxState get inbox => widget.service.state;
+  List<Map<String, dynamic>> get chats => inbox.chats;
+  int get needsReply => inbox.counts?.needsReply ?? 0;
+  int _refreshSignal = 0;
+
+  void stateChanged() {
+    if (!mounted) return;
+    setState(() {});
+    if (_refreshSignal != inbox.refreshSignal) {
+      _refreshSignal = inbox.refreshSignal;
+      unawaited(load(silent: true));
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    inbox.addListener(stateChanged);
+    inbox.attachInbox();
+    _refreshSignal = inbox.refreshSignal;
     load();
     poll = Timer.periodic(const Duration(seconds: 5), (_) {
       if (active && (ModalRoute.of(context)?.isCurrent ?? true)) {
@@ -60,42 +74,26 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
     if (!silent && !more) setState(() => loading = true);
     try {
       unawaited(widget.service.flush().catchError((_) {}));
-      final result = await widget.service.chats(
+      final applied = await widget.service.loadChats(
         network: network,
         query: search.text,
         needsReply: waiting,
         cursor: more ? cursor : null,
+        append: more,
       );
       if (!mounted || ticket != generation) return;
+      if (!applied) reloadPending = true;
       setState(() {
-        final rows = (result['data'] as List? ?? []).whereType<Map>().map(
-          (e) => Map<String, dynamic>.from(e),
-        );
-        final unique = {
-          for (final c in more ? chats : <Map<String, dynamic>>[]) c['id']: c,
-        };
-        for (final c in rows) {
-          unique[c['id']] = c;
-        }
-        chats = unique.values.toList();
-        counts = Map<String, dynamic>.from(result['unread'] as Map? ?? {});
-        needsReply = (result['needs_reply'] as num?)?.toInt() ?? 0;
-        cursor = result['next_cursor'] as String?;
+        cursor = inbox.cursor;
         error = null;
+        if (waiting && needsReply == 0) {
+          waiting = false;
+          reloadPending = true;
+        }
       });
     } catch (e) {
       if (!mounted) return;
-      final cached = await widget.service.cached('chats');
-      if (!mounted) return;
-      setState(() {
-        error = e.toString();
-        if (chats.isEmpty && cached is Map) {
-          chats = (cached['data'] as List? ?? [])
-              .whereType<Map>()
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList();
-        }
-      });
+      setState(() => error = e.toString());
     } finally {
       busy = false;
       if (mounted) {
@@ -143,6 +141,8 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    inbox.removeListener(stateChanged);
+    inbox.detachInbox();
     poll?.cancel();
     debounce?.cancel();
     search.dispose();
@@ -202,8 +202,53 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                     padding: const EdgeInsetsDirectional.only(end: 8),
                     child: ChoiceChip(
                       selected: network == item.$1,
-                      label: Text(
-                        '${appTr(item.$2)} ${counts[item.$1.isEmpty ? 'all' : item.$1] ?? 0}',
+                      showCheckmark: false,
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: item.$1 == 'tg'
+                                  ? const Color(0xff22a9df)
+                                  : item.$1 == 'wa'
+                                  ? const Color(0xff22c55e)
+                                  : colors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(appTr(item.$2)),
+                          if (inbox.countsLoading) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              key: ValueKey('inbox-count-skeleton-${item.$1}'),
+                              width: 18,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: colors.muted.withValues(alpha: .2),
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                            ),
+                          ] else if ((inbox.counts?.network(item.$1) ?? 0) >
+                              0) ...[
+                            const SizedBox(width: 6),
+                            Badge(
+                              key: ValueKey('inbox-tab-badge-${item.$1}'),
+                              backgroundColor: item.$1 == 'tg'
+                                  ? const Color(0xff168abe)
+                                  : item.$1 == 'wa'
+                                  ? const Color(0xff15803d)
+                                  : colors.primary,
+                              label: Text(
+                                InboxCounts.badge(
+                                  inbox.counts!.network(item.$1),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       onSelected: (_) => filter(item.$1),
                     ),
@@ -211,7 +256,27 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
               ],
             ),
           ),
-          if (needsReply > 0 || waiting)
+          if (inbox.countsError != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      appTr(
+                        'Counts could not refresh. Showing last known counts.',
+                      ),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => load(),
+                    child: Text(appTr('Retry')),
+                  ),
+                ],
+              ),
+            ),
+          if (needsReply > 0)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Material(
@@ -221,9 +286,12 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                   leading: const Icon(Icons.auto_awesome),
                   title: Text(appTr('AI inbox')),
                   subtitle: Text(
-                    appTr(':count chats are waiting for your reply', {
-                      'count': needsReply,
-                    }),
+                    appTr(
+                      needsReply == 1
+                          ? ':count chat is waiting for your reply'
+                          : ':count chats are waiting for your reply',
+                      {'count': needsReply},
+                    ),
                   ),
                   trailing: waiting
                       ? const Icon(Icons.close)
@@ -235,7 +303,7 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                 ),
               ),
             ),
-          if (error != null && chats.isNotEmpty)
+          if (error != null && chats.isNotEmpty && inbox.countsError == null)
             MaterialBanner(
               content: Text(appTr(error!)),
               actions: [
@@ -266,7 +334,7 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                         }
                         final chat = chats[index];
                         final last = chat['last_message'] as Map?;
-                        final unread = (chat['unread'] as num?)?.toInt() ?? 0;
+                        final unread = inboxNumber(chat['unread']);
                         final isGroup = chat['is_group'] == true;
                         final sender = isGroup && last?['direction'] == 'in'
                             ? '${last?['sender_name'] ?? ''}: '
@@ -298,15 +366,28 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                               ),
                             ],
                           ),
-                          subtitle: Text(
-                            typing != null
-                                ? appTr(':name is typing…', {'name': typing})
-                                : '$sender${last?['body'] ?? ''}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: typing != null ? Colors.green : null,
-                            ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${appTr(isGroup ? 'Group' : 'Chat')} · ${chat['remote_id'] ?? chat['id']}${chat['members'] == null ? '' : ' · ${appTr(':count members', {'count': chat['members']})}'}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                              Text(
+                                typing != null
+                                    ? appTr(':name is typing…', {
+                                        'name': typing,
+                                      })
+                                    : '$sender${last?['body'] ?? ''}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: typing != null ? Colors.green : null,
+                                ),
+                              ),
+                            ],
                           ),
                           trailing: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -325,6 +406,7 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                             ],
                           ),
                           onTap: () async {
+                            inbox.markRead(chat['id'] as int);
                             await Navigator.push(
                               context,
                               MaterialPageRoute<void>(

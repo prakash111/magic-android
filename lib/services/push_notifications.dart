@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'mobile_api.dart';
+import 'inbox_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> handlePushInBackground(RemoteMessage message) async {
@@ -98,7 +99,12 @@ class PushNotifications {
         (value) => unawaited(_saveRefreshedToken(value)),
         onError: (Object _) => _scheduleRetry(),
       );
-      FirebaseMessaging.onMessage.listen(_showForegroundMessage);
+      FirebaseMessaging.onMessage.listen((message) {
+        _showForegroundMessage(message);
+        unawaited(
+          InboxService.forApi(_api).onPush(message.data).catchError((_) {}),
+        );
+      });
       _available = true;
       final token = await _readAccessToken();
       if (token != null) unawaited(registerDevice());

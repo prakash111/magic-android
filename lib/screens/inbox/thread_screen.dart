@@ -48,6 +48,9 @@ class _ThreadScreenState extends State<ThreadScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.service.state.rememberChat(widget.chat);
+    widget.service.state.addListener(stateChanged);
+    unawaited(widget.service.markRead(id).catchError((_) {}));
     load();
     settings();
     poll = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -55,6 +58,10 @@ class _ThreadScreenState extends State<ThreadScreen>
         load(silent: true);
       }
     });
+  }
+
+  void stateChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> settings() async {
@@ -122,7 +129,7 @@ class _ThreadScreenState extends State<ThreadScreen>
         });
       }
       if (active && (ModalRoute.of(context)?.isCurrent ?? true)) {
-        unawaited(widget.service.read(id).catchError((_) {}));
+        unawaited(widget.service.markRead(id).catchError((_) {}));
       }
       final incoming = rows.where((m) => m['direction'] == 'in').lastOrNull;
       if (smart && incoming != null && incoming['id'] != suggestedFor) {
@@ -481,6 +488,7 @@ class _ThreadScreenState extends State<ThreadScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.service.state.removeListener(stateChanged);
     poll?.cancel();
     input.dispose();
     scroll.dispose();
@@ -490,7 +498,7 @@ class _ThreadScreenState extends State<ThreadScreen>
   @override
   Widget build(BuildContext context) {
     AppLocalizations.watch(context);
-    final chat = widget.chat;
+    final chat = widget.service.state.chatById(id) ?? widget.chat;
     final group = chat['is_group'] == true;
     return Scaffold(
       appBar: AppBar(
@@ -529,10 +537,7 @@ class _ThreadScreenState extends State<ThreadScreen>
             tooltip: appTr('Mute notifications'),
             onPressed: () async {
               try {
-                await widget.service.pin(id, muted: chat['muted'] != true);
-                if (mounted) {
-                  setState(() => chat['muted'] = chat['muted'] != true);
-                }
+                await widget.service.mute(id, chat['muted'] != true);
               } catch (e) {
                 notice(e.toString());
               }

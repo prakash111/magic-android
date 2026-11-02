@@ -330,11 +330,19 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      ValueListenableBuilder<int>(
-                                        valueListenable: InboxService.unread,
-                                        builder: (_, unread, _) => Badge(
-                                          isLabelVisible: isInbox && unread > 0,
-                                          label: Text('$unread'),
+                                      ListenableBuilder(
+                                        listenable: _inbox.state,
+                                        builder: (_, _) => Badge(
+                                          isLabelVisible:
+                                              isInbox &&
+                                              (_inbox.state.counts?.all ?? 0) >
+                                                  0,
+                                          label: Text(
+                                            InboxCounts.badge(
+                                              _inbox.state.counts?.all ?? 0,
+                                              cap: true,
+                                            ),
+                                          ),
                                           child: Icon(
                                             workspaceIcon(
                                               '${module['id']} ${module['title']}',

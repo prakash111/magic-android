@@ -160,6 +160,9 @@ class FakeInboxService extends InboxService {
   };
   List<Map<String, dynamic>> sent = [], pending = [];
   int reads = 0;
+  final chatRows = [
+    for (final chat in sampleChats) Map<String, dynamic>.from(chat),
+  ];
   final configuredConnections = <int>[];
   @override
   Future<List<Map<String, dynamic>>> connections() async => [
@@ -184,7 +187,7 @@ class FakeInboxService extends InboxService {
     String? cursor,
     bool needsReply = false,
   }) async => {
-    'data': sampleChats
+    'data': chatRows
         .where(
           (c) =>
               (network.isEmpty || c['network'] == network) &&
@@ -195,8 +198,7 @@ class FakeInboxService extends InboxService {
               (!needsReply || c['needs_reply'] == true),
         )
         .toList(),
-    'unread': {'all': 6, 'tg': 3, 'wa': 3},
-    'needs_reply': 2,
+    'meta': InboxCounts.fromChats(chatRows).toJson(),
     'networks': [
       {'network': 'tg', 'status': 'connected'},
       {'network': 'wa', 'status': 'connected'},
@@ -205,11 +207,25 @@ class FakeInboxService extends InboxService {
   @override
   Future<Map<String, dynamic>> messages(int chat, {String? cursor}) async => {
     'data': [...sampleMessages, ...sent],
-    'chat': sampleChats.first,
+    'chat': chatRows.firstWhere((row) => row['id'] == chat),
   };
   @override
   Future<void> read(int chat) async {
     reads++;
+    final row = chatRows.firstWhere((row) => row['id'] == chat);
+    row['unread'] = 0;
+    row['needs_reply'] = false;
+  }
+
+  @override
+  Future<Map<String, dynamic>> counts() async =>
+      InboxCounts.fromChats(chatRows).toJson();
+
+  @override
+  Future<void> pin(int chat, {bool? pinned, bool? muted}) async {
+    final row = chatRows.firstWhere((row) => row['id'] == chat);
+    if (pinned != null) row['pinned'] = pinned;
+    if (muted != null) row['muted'] = muted;
   }
 
   @override
@@ -392,7 +408,7 @@ void main() {
       expect(find.text('Telegram Group'), findsOneWidget);
       expect(find.text('Meera is typing…'), findsOneWidget);
       await screenshot(tester, 'inbox');
-      await tester.tap(find.text('Telegram 3'));
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Telegram'));
       await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 250));
       await tester.pumpAndSettle();
@@ -605,7 +621,14 @@ void main() {
   testWidgets(
     'bottom Inbox navigation displays unread count and remains accessible in RTL',
     (tester) async {
-      InboxService.unread.value = 7;
+      final inbox = InboxState();
+      inbox.applyCounts({
+        'all': 7,
+        'telegram': 7,
+        'whatsapp': 0,
+        'needs_reply': 0,
+        'chats_total': 1,
+      }, inbox.beginFetch());
       var selected = -1;
       await mount(
         tester,
@@ -618,6 +641,7 @@ void main() {
               {'component': 'inbox', 'label': 'Inbox'},
               {'component': 'account', 'label': 'Account'},
             ],
+            inboxState: inbox,
             selectedIndex: 0,
             onSelected: (index) => selected = index,
           ),
@@ -632,7 +656,7 @@ void main() {
       expect(selected, 3);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
-      InboxService.unread.value = 0;
+      inbox.dispose();
     },
   );
 }
