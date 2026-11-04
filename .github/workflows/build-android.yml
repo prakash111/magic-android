@@ -84,6 +84,9 @@ jobs:
       - run: python3 .github/scripts/test-check-android-startup.py
       - run: flutter analyze
       - run: flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test
+      - name: Test GitHub release retries
+        working-directory: .
+        run: python3 .github/scripts/test-github-release.py
       - name: Test release JNI descriptor checks
         working-directory: .
         run: python3 .github/scripts/test-check-android-jni.py
@@ -159,7 +162,8 @@ jobs:
               bundle.write('build/app/outputs/flutter-apk/app-release.apk', 'flutter-apk/app-release.apk')
               bundle.write('build/app/outputs/bundle/release/app-release.aab', 'bundle/release/app-release.aab')
           PYTHON
-          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "MagicAI Android build $GITHUB_RUN_NUMBER" --notes "Signed build for commit $GITHUB_SHA. Device checks are recorded in this Actions run." build/release-artifacts/magicai-mobile-release.apk build/release-artifacts/magicai-mobile-release.aab "build/release-artifacts/magicai-android-$GITHUB_RUN_NUMBER.zip"
+          python3 "$GITHUB_WORKSPACE/.github/scripts/github-release.py" ensure "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "MagicAI Android build $GITHUB_RUN_NUMBER" --notes "Signed build for commit $GITHUB_SHA. Device checks are recorded in this Actions run."
+          python3 "$GITHUB_WORKSPACE/.github/scripts/github-release.py" upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" build/release-artifacts/magicai-mobile-release.apk build/release-artifacts/magicai-mobile-release.aab "build/release-artifacts/magicai-android-$GITHUB_RUN_NUMBER.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: magicai-android-${{ github.run_number }}
@@ -182,7 +186,7 @@ jobs:
           cp build/app/outputs/storage-probe.apk build/release-artifacts/storage-probe.apk
           cd build/release-artifacts
           sha256sum magicai-mobile-release.apk magicai-mobile-release.aab storage-probe.apk > SHA256SUMS
-          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" storage-probe.apk SHA256SUMS
+          python3 "$GITHUB_WORKSPACE/.github/scripts/github-release.py" upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" storage-probe.apk SHA256SUMS
       - name: Remove signing material
         if: always()
         run: |
@@ -202,7 +206,7 @@ jobs:
           RELEASE_TAG: magicai-android-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           mkdir -p android-release-assets android-startup-build/flutter-apk android-preferences-build
-          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern magicai-mobile-release.apk --pattern magicai-mobile-release.aab --pattern storage-probe.apk --pattern SHA256SUMS --dir android-release-assets
+          python3 "$GITHUB_WORKSPACE/.github/scripts/github-release.py" download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern magicai-mobile-release.apk --pattern magicai-mobile-release.aab --pattern storage-probe.apk --pattern SHA256SUMS --dir android-release-assets
           cd android-release-assets
           sha256sum --check SHA256SUMS
           cp magicai-mobile-release.apk ../android-startup-build/flutter-apk/app-release.apk
@@ -243,5 +247,5 @@ jobs:
         run: |
           if [ -d android-startup-diagnostics ]; then
             python3 -m zipfile -c startup-diagnostics.zip android-startup-diagnostics
-            gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" startup-diagnostics.zip
+            python3 "$GITHUB_WORKSPACE/.github/scripts/github-release.py" upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" startup-diagnostics.zip
           fi
