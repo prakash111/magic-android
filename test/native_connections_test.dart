@@ -8,6 +8,41 @@ import 'native_screen_test.dart' show nativeApi;
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  testWidgets(
+    'refresh recovers when the selected bot was deleted on the website',
+    (tester) async {
+      var deleted = false;
+      final api = nativeApi((path, body) async {
+        if (deleted) expect(body['chatbot_id'], isNull);
+        return {
+          'kind': 'chatbot',
+          'chatbots': deleted
+              ? []
+              : [
+                  {'id': 17, 'title': 'Support'},
+                ],
+          'channels': [],
+          'providers': [],
+        };
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: NativeConnectionsScreen(api: api, moduleId: 'chatbot'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Support'), findsOneWidget);
+      deleted = true;
+      await tester.tap(find.byTooltip('Refresh'));
+      await tester.pumpAndSettle();
+      expect(find.text('Support'), findsNothing);
+      expect(
+        find.text('Create a chatbot before connecting channels.'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
   for (final type in ['chatbot_channels', 'agent_connections']) {
     testWidgets('$type opens native connections with exactly one header', (
       tester,

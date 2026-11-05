@@ -92,14 +92,16 @@ class _NativeConnectionsScreenState extends State<NativeConnectionsScreen>
       });
     }
     try {
-      var data = await _call('load');
+      var data = await _call('load', {'chatbot_id': null});
       if (!mounted || generation != _generation) return;
       final bots = (data['chatbots'] as List? ?? []).whereType<Map>().toList();
-      if (data['kind'] == 'chatbot' &&
-          bots.isNotEmpty &&
-          !bots.any((bot) => bot['id'] == _chatbotId)) {
-        _chatbotId = bots.first['id'] as int;
-        data = await _call('load');
+      if (data['kind'] == 'chatbot') {
+        if (!bots.any((bot) => bot['id'] == _chatbotId)) {
+          _chatbotId = bots.isEmpty ? null : bots.first['id'] as int;
+        }
+        if (_chatbotId != null) {
+          data = await _call('load');
+        }
       }
       if (mounted && generation == _generation) setState(() => _data = data);
     } catch (error) {
@@ -121,6 +123,7 @@ class _NativeConnectionsScreenState extends State<NativeConnectionsScreen>
       if (operation == 'oauth') {
         await WorkspaceService(api: widget.api)
             .openTicket(result, title: appTr('Connect account'));
+        if (mounted) await _load();
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
