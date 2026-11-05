@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/inbox_service.dart';
 import '../services/app_localizations.dart';
+import '../services/workspace_catalog.dart';
 import '../widgets/language_picker.dart';
 import '../services/ai_model_selection.dart';
 import '../services/mobile_api.dart';
@@ -308,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ? BrandConfig.name
                       : selected['component'] == 'chat'
                       ? 'Chatbot'
-                      : selected['label']?.toString() ?? BrandConfig.name,
+                      : toolDisplayName(selected),
                 ),
               ),
               centerTitle: false,
@@ -327,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               appTr(
                                 item['component'] == 'chat'
                                     ? 'Chatbot'
-                                    : item['label'].toString(),
+                                    : toolDisplayName(item),
                               ),
                             ),
                           ),

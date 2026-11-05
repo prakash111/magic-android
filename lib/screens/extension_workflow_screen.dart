@@ -1,4 +1,5 @@
 import '../services/app_localizations.dart';
+import '../services/workspace_catalog.dart';
 
 import 'dart:async';
 import 'dart:math';
@@ -1184,12 +1185,7 @@ class _ExtensionWorkflowScreenState extends State<ExtensionWorkflowScreen>
                       (tool) => Card(
                         child: ListTile(
                           leading: const Icon(Icons.auto_awesome_outlined),
-                          title: Text(
-                            appTr(
-                              (tool['display_title'] ?? tool['title'])
-                                  .toString(),
-                            ),
-                          ),
+                          title: Text(appTr(toolDisplayName(tool))),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(

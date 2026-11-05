@@ -1,6 +1,7 @@
 import '../services/inbox_service.dart';
 import '../services/mobile_api.dart';
 import '../services/app_localizations.dart';
+import '../services/workspace_catalog.dart';
 
 import 'dart:math' as math;
 
@@ -195,7 +196,7 @@ class MagicBottomNavigation extends StatelessWidget {
                                 }),
                               ),
                             ),
-                            label: appTr(item['label'].toString()),
+                            label: appTr(toolDisplayName(item)),
                           ),
                     ],
                   ),

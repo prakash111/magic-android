@@ -609,7 +609,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    appTr(workspaceTitle(tool)),
+                    appTr(toolDisplayName(tool)),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -676,7 +676,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
               padding: const EdgeInsets.all(20),
               children: [
                 Text(
-                  appTr(workspaceTitle(widget.module)),
+                  appTr(toolDisplayName(widget.module)),
                   style: Theme.of(context).textTheme.headlineSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),

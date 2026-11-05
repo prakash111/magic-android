@@ -5,10 +5,13 @@ String workspaceCategory(Map module) {
       : category;
 }
 
-String workspaceTitle(Map module, {bool duplicate = false}) {
+String toolDisplayName(Map module, {bool duplicate = false}) {
   final supplied = module['display_title']?.toString().trim();
   if (supplied != null && supplied.isNotEmpty) return supplied;
-  final title = module['title']?.toString().trim() ?? 'Workspace';
+  final title = (module['title'] ?? module['name'])?.toString().trim();
+  if (title == null || title.isEmpty) {
+    return module['label']?.toString().trim() ?? 'Workspace';
+  }
   if (title.toLowerCase() != 'dashboard' && !duplicate) return title;
   final category = workspaceCategory(module);
   final prefix = switch (category) {
@@ -24,7 +27,7 @@ String workspaceTitle(Map module, {bool duplicate = false}) {
 List<Map<String, dynamic>> namedWorkspaces(List<Map<String, dynamic>> modules) {
   final counts = <String, int>{};
   for (final module in modules) {
-    final title = '${module['title']}'.toLowerCase();
+    final title = toolDisplayName(module).toLowerCase();
     counts[title] = (counts[title] ?? 0) + 1;
   }
   return modules
@@ -32,9 +35,9 @@ List<Map<String, dynamic>> namedWorkspaces(List<Map<String, dynamic>> modules) {
         (module) => <String, dynamic>{
           ...module,
           'category': workspaceCategory(module),
-          'display_title': workspaceTitle(
+          'display_title': toolDisplayName(
             module,
-            duplicate: (counts['${module['title']}'.toLowerCase()] ?? 0) > 1,
+            duplicate: (counts[toolDisplayName(module).toLowerCase()] ?? 0) > 1,
           ),
         },
       )
@@ -59,4 +62,31 @@ Map<String, List<Map<String, dynamic>>> groupedWorkspaces(
     groups.putIfAbsent(section, () => []).add(module);
   }
   return groups;
+}
+
+/// Resolve legacy names only when they identify exactly one tool. IDs always win.
+List<String> migrateToolFavorites(
+  List<String> saved,
+  List<Map<String, dynamic>> modules,
+) {
+  final tools = namedWorkspaces(modules);
+  final ids = {for (final tool in tools) '${tool['id']}'};
+  final aliases = <String, Set<String>>{};
+  for (final tool in tools) {
+    for (final name in [toolDisplayName(tool), tool['title'], tool['name']]) {
+      if (name == null || '$name'.trim().isEmpty) continue;
+      aliases
+          .putIfAbsent('$name'.trim(), () => <String>{})
+          .add('${tool['id']}');
+    }
+  }
+  final result = <String>[];
+  for (final value in saved) {
+    final matches = aliases[value.trim()];
+    final id = ids.contains(value) || matches == null || matches.length != 1
+        ? value
+        : matches.single;
+    if (!result.contains(id)) result.add(id);
+  }
+  return result;
 }

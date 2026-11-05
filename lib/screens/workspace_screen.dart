@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/mobile_api.dart';
@@ -182,12 +183,21 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         final prefs = await SharedPreferences.getInstance();
         if (mounted && revision == _preferencesRevision) {
           setState(() {
-            _favorites = prefs.getStringList('$_preferenceKey:favorites') ?? [];
+            _favorites = migrateToolFavorites(
+              prefs.getStringList('$_preferenceKey:favorites') ?? [],
+              widget.modules,
+            );
             _category = prefs.getString('$_preferenceKey:section') ?? 'All';
             _openSection = prefs.getString('$_preferenceKey:open');
             _favoritesCollapsed =
                 prefs.getBool('$_preferenceKey:collapsed') ?? false;
           });
+          if (!listEquals(
+            _favorites,
+            prefs.getStringList('$_preferenceKey:favorites') ?? [],
+          )) {
+            _saveExplore();
+          }
         }
         return;
       }
@@ -195,7 +205,12 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       final prefs = await _inbox.cached('prefs');
       if (mounted && revision == _preferencesRevision) {
         setState(() {
-          if (cached is List) _favorites = cached.map((e) => '$e').toList();
+          if (cached is List) {
+            _favorites = migrateToolFavorites(
+              cached.map((e) => '$e').toList(),
+              widget.modules,
+            );
+          }
           if (prefs is Map) {
             _category = '${prefs['last_explore_section'] ?? 'All'}';
             _openSection = prefs['open_explore_section'] as String?;
@@ -210,14 +225,30 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       ]);
       if (mounted && revision == _preferencesRevision) {
         setState(() {
-          _favorites = List<String>.from(results[0]);
+          _favorites = migrateToolFavorites(
+            List<String>.from(results[0]),
+            widget.modules,
+          );
           final data = results[1] as Map;
           _category = '${data['last_explore_section'] ?? 'All'}';
           _openSection = data['open_explore_section'] as String?;
           _favoritesCollapsed = data['favorites_collapsed'] == true;
         });
+        if (!listEquals(_favorites, List<String>.from(results[0]))) {
+          _saveExplore();
+        }
       }
     } catch (_) {}
+  }
+
+  @override
+  void didUpdateWidget(covariant WorkspaceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final ids = migrateToolFavorites(_favorites, widget.modules);
+    if (!listEquals(ids, _favorites)) {
+      _favorites = ids;
+      _saveExplore();
+    }
   }
 
   void _saveExplore() {
@@ -296,12 +327,21 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     );
   }
 
+  double get _favoriteCardHeight {
+    final scaler = MediaQuery.textScalerOf(context);
+    return 82 +
+        (scaler.scale(12.5) * 1.22 * 3).ceilToDouble() +
+        (scaler.scale(10.5) * 1.22).ceilToDouble();
+  }
+
   Widget _favoritesHeader(
     List<String> categories,
     String selected,
     double scale,
   ) {
-    final lookup = {for (final m in widget.modules) '${m['id']}': m};
+    final lookup = {
+      for (final m in namedWorkspaces(widget.modules)) '${m['id']}': m,
+    };
     final favorites = _favorites
         .map((id) => lookup[id])
         .whereType<Map<String, dynamic>>()
@@ -338,7 +378,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
             ),
             if (!_compactFavorites)
               SizedBox(
-                height: 100 * scale,
+                height: _favoriteCardHeight,
                 child: favorites.isEmpty
                     ? Center(child: Text(appTr('Star tools to pin them here.')))
                     : ListView.separated(
@@ -350,56 +390,97 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                           final isInbox =
                               '${module['route']}'.contains('inbox') ||
                               '${module['id']}'.contains('inbox');
+                          final name = appTr(toolDisplayName(module));
+                          final section = appTr(workspaceCategory(module));
+                          void open() =>
+                              openModule(context, module, api: widget.api);
                           return SizedBox(
-                            width: 112 * scale,
-                            child: Card(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              child: InkWell(
-                                onTap: () => openModule(
-                                  context,
-                                  module,
-                                  api: widget.api,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      ListenableBuilder(
-                                        listenable: _inbox.state,
-                                        builder: (_, _) => Badge(
-                                          isLabelVisible:
-                                              isInbox &&
-                                              (_inbox.state.counts?.all ?? 0) >
-                                                  0,
-                                          label: Text(
-                                            InboxCounts.badge(
-                                              _inbox.state.counts?.all ?? 0,
-                                              cap: true,
+                            key: ValueKey('favorite-card-${module['id']}'),
+                            width: 118,
+                            child: Semantics(
+                              label: '$name, $section',
+                              button: true,
+                              onTap: open,
+                              child: Tooltip(
+                                message: '$name, $section',
+                                excludeFromSemantics: true,
+                                child: Card(
+                                  margin: const EdgeInsets.only(bottom: 6),
+                                  child: InkWell(
+                                    onTap: open,
+                                    excludeFromSemantics: true,
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          ListenableBuilder(
+                                            listenable: _inbox.state,
+                                            builder: (_, _) => Badge(
+                                              isLabelVisible:
+                                                  isInbox &&
+                                                  (_inbox.state.counts?.all ??
+                                                          0) >
+                                                      0,
+                                              label: Text(
+                                                InboxCounts.badge(
+                                                  _inbox.state.counts?.all ?? 0,
+                                                  cap: true,
+                                                ),
+                                              ),
+                                              child: IconChip(
+                                                icon: workspaceIcon(
+                                                  '${module['id']} $name',
+                                                ),
+                                                color: accentFor(
+                                                  '${module['id']}',
+                                                ),
+                                              ),
                                             ),
                                           ),
-                                          child: Icon(
-                                            workspaceIcon(
-                                              '${module['id']} ${module['title']}',
+                                          const SizedBox(height: 8),
+                                          ExcludeSemantics(
+                                            child: SizedBox(
+                                              height:
+                                                  MediaQuery.textScalerOf(
+                                                    context,
+                                                  ).scale(12.5) *
+                                                  1.22 *
+                                                  3,
+                                              child: Text(
+                                                name,
+                                                textAlign: TextAlign.start,
+                                                maxLines: 3,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 12.5,
+                                                  height: 1.22,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.of(context)
+                                                      .text,
+                                                ),
+                                              ),
                                             ),
-                                            color: accentFor('${module['id']}'),
                                           ),
-                                        ),
+                                          const SizedBox(height: 4),
+                                          ExcludeSemantics(
+                                            child: Text(
+                                              section,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                height: 1.22,
+                                                color: AppColors.of(context)
+                                                    .muted,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        appTr(
-                                          '${module['title'] ?? module['name'] ?? ''}',
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelMedium,
-                                      ),
-                                    ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -526,7 +607,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       color: colors.toolAccent('${module['id']}'),
     );
     final title = Text(
-      appTr(workspaceTitle(module)),
+      appTr(toolDisplayName(module)),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
@@ -542,27 +623,61 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       overflow: TextOverflow.ellipsis,
       style: TextStyle(color: colors.muted, fontSize: 12, height: 1.3),
     );
-    return Card(
-      key: ValueKey('explore-tool-${module['id']}'),
-      margin: EdgeInsets.zero,
-      color: colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.outline),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => openModule(context, module, api: widget.api),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: grid
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+    return Tooltip(
+      message:
+          '${appTr(toolDisplayName(module))}, ${appTr(workspaceCategory(module))}',
+      child: Semantics(
+        label: appTr(toolDisplayName(module)),
+        child: Card(
+          key: ValueKey('explore-tool-${module['id']}'),
+          margin: EdgeInsets.zero,
+          color: colors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: colors.outline),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => openModule(context, module, api: widget.api),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: grid
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            icon,
+                            const Spacer(),
+                            _star(module),
+                            if (locked)
+                              Icon(
+                                Icons.lock_outline,
+                                size: 18,
+                                color: colors.muted,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        title,
+                        const SizedBox(height: 4),
+                        subtitle,
+                      ],
+                    )
+                  : Row(
                       children: [
                         icon,
-                        const Spacer(),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              title,
+                              const SizedBox(height: 4),
+                              subtitle,
+                            ],
+                          ),
+                        ),
                         _star(module),
                         if (locked)
                           Icon(
@@ -570,30 +685,11 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                             size: 18,
                             color: colors.muted,
                           ),
+                        Icon(Icons.chevron_right, color: colors.muted),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    title,
-                    const SizedBox(height: 4),
-                    subtitle,
-                  ],
-                )
-              : Row(
-                  children: [
-                    icon,
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [title, const SizedBox(height: 4), subtitle],
-                      ),
-                    ),
-                    _star(module),
-                    if (locked)
-                      Icon(Icons.lock_outline, size: 18, color: colors.muted),
-                    Icon(Icons.chevron_right, color: colors.muted),
-                  ],
-                ),
+            ),
+          ),
         ),
       ),
     );
@@ -747,7 +843,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
             SliverPersistentHeader(
               pinned: true,
               delegate: _InboxFavoritesHeader(
-                height: 48 + (_compactFavorites ? 0 : 100 * scale) + 56 * scale,
+                height:
+                    48 +
+                    (_compactFavorites ? 0 : _favoriteCardHeight) +
+                    56 * scale,
                 child: _favoritesHeader(categories, selectedCategory, scale),
               ),
             ),
@@ -1129,7 +1228,7 @@ class StudioDashboard extends StatelessWidget {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  appTr(tool['title'].toString()),
+                                  appTr(toolDisplayName(tool)),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -1153,7 +1252,7 @@ class StudioDashboard extends StatelessWidget {
             ToolRow(
               icon: workspaceIcon('${module['id']}'),
               color: accentFor('${module['id']}'),
-              title: appTr(module['title'].toString()),
+              title: appTr(toolDisplayName(module)),
               subtitle: module['category'].toString(),
               onTap: () => openModule(context, module),
             ),

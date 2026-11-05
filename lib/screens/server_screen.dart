@@ -1,5 +1,6 @@
 import '../widgets/send_to_network_sheet.dart';
 import '../services/app_localizations.dart';
+import '../services/workspace_catalog.dart';
 
 import 'dart:convert';
 
@@ -132,9 +133,7 @@ class ToolDirectory extends StatelessWidget {
           for (final tool in tools.where((tool) => tool['component'] == 'form'))
             Card(
               child: ListTile(
-                title: Text(
-                  appTr(tool['title']?.toString() ?? tool['id'].toString()),
-                ),
+                title: Text(appTr(toolDisplayName(tool))),
                 subtitle: Text(
                   appTr(
                     tool['description']?.toString() ?? 'Create with MagicAI',
@@ -521,7 +520,7 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
     );
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(title: Text(appTr(widget.tool['title'].toString()))),
+      appBar: AppBar(title: Text(appTr(toolDisplayName(widget.tool)))),
       body: !_supportsHistory
           ? generator
           : LayoutBuilder(

@@ -99,7 +99,7 @@ void main() {
       'Social & marketing',
     ]);
     expect(
-      workspaceTitle({
+      toolDisplayName({
         'title': 'Dashboard',
         'category': 'CRM',
         'display_title': 'Pipeline overview',
@@ -108,7 +108,7 @@ void main() {
     );
     expect(workspaceCategory({'category': '  '}), 'Work & productivity');
     expect(
-      workspaceTitle({
+      toolDisplayName({
         'title': 'Social Media Posts',
         'category': 'Social & marketing',
       }, duplicate: true),

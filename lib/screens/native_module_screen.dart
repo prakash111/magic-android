@@ -94,7 +94,7 @@ class NativeModuleScreen extends StatelessWidget {
     if (NativeModuleRegistry.ownsHeader(module)) return content;
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(title: Text(appTr(workspaceTitle(module)))),
+      appBar: AppBar(title: Text(appTr(toolDisplayName(module)))),
       body: content,
     );
   }
