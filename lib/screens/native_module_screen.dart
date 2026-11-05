@@ -1,3 +1,4 @@
+import 'native_connections_screen.dart';
 import 'inbox/inbox_screen.dart';
 import '../services/app_localizations.dart';
 
@@ -27,11 +28,21 @@ import 'schema_components.dart';
 
 class NativeModuleRegistry {
   static bool ownsHeader(Map<String, dynamic> module) =>
+      [
+        'chatbot_channels',
+        'agent_connections',
+      ].contains(module['route_type']) ||
       module['route_type'] == 'marketing_inbox' ||
       module['id'] == 'mobile:inbox' ||
       '${module['route']}'.contains('marketing-bot.inbox');
   static Widget build(Map<String, dynamic> module, {MobileApi? api}) {
     final client = api ?? MobileApi.instance;
+    if ([
+      'chatbot_channels',
+      'agent_connections',
+    ].contains(module['route_type'])) {
+      return NativeConnectionsScreen(api: client, moduleId: '${module['id']}');
+    }
     if (ownsHeader(module)) return InboxScreen(api: client);
     return switch (module['route_type']) {
       'ai_agents' ||

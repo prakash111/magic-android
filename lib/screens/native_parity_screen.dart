@@ -1,3 +1,4 @@
+import 'native_connections_screen.dart';
 import '../services/app_localizations.dart';
 
 import 'dart:async';
@@ -496,6 +497,26 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
     }
     final metrics = _maps(_data?['metrics']);
     return [
+      if (_kind == 'ai_agents')
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.hub_outlined),
+            label: Text(appTr('Channels and connectors')),
+            onPressed: () async {
+              await Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => NativeConnectionsScreen(
+                    api: widget.api,
+                    moduleId: '${widget.module['id']}',
+                  ),
+                ),
+              );
+              if (mounted) _load();
+            },
+          ),
+        ),
+
       Row(
         children: [
           Expanded(
@@ -1340,6 +1361,7 @@ class _AgentSetupScreenState extends State<AgentSetupScreen> {
         inputs: {
           'name': _values['name'],
           'description': _values['description'],
+          'role': _values['role'],
           'trigger_type': _values['trigger_type'] ?? 'schedule',
           'trigger_config': _trigger,
           'steps': _steps,
@@ -1408,6 +1430,15 @@ class _AgentSetupScreenState extends State<AgentSetupScreen> {
                       ),
                       maxLines: 3,
                       onSaved: (value) => _values['description'] = value,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      initialValue: '${_values['role'] ?? ''}',
+                      decoration: InputDecoration(
+                        labelText: appTr('Agent role'),
+                      ),
+                      maxLength: 255,
+                      onSaved: (value) => _values['role'] = value,
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
@@ -1632,7 +1663,10 @@ class NativeConfigFields extends StatefulWidget {
 }
 
 class _NativeConfigFieldsState extends State<NativeConfigFields> {
-  late final Map<String, dynamic> _values = widget.value;
+  late final Map<String, dynamic> _values = {
+    ..._map(_schemaDefault(widget.schema)),
+    ...widget.value,
+  };
   Widget _editor(
     String name,
     dynamic current,
@@ -1714,6 +1748,37 @@ class _NativeConfigFieldsState extends State<NativeConfigFields> {
         },
       );
     }
+    final options = _maps(schema['options']);
+    if (options.isNotEmpty) {
+      final selected = options.any((option) => option['value'] == current)
+          ? current
+          : null;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: DropdownButtonFormField<dynamic>(
+          initialValue: selected,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: appTr(_label(name)),
+            helperText:
+                selected == null &&
+                    current != null &&
+                    '$current'.isNotEmpty &&
+                    current != 0
+                ? '$current'
+                : null,
+          ),
+          items: [
+            for (final option in options)
+              DropdownMenuItem<dynamic>(
+                value: option['value'],
+                child: Text(appTr('${option['label']}')),
+              ),
+          ],
+          onChanged: change,
+        ),
+      );
+    }
     final choices = schema['enum'] as List? ?? [];
     if (choices.isNotEmpty && choices.contains(current)) {
       return Padding(
@@ -1745,7 +1810,10 @@ class _NativeConfigFieldsState extends State<NativeConfigFields> {
               : appTr(schema['description'].toString()),
         ),
         minLines: 1,
-        maxLines: current is num ? 1 : 5,
+        maxLines: schema['secret'] == true || current is num ? 1 : 5,
+        obscureText: schema['secret'] == true,
+        enableSuggestions: schema['secret'] != true,
+        autocorrect: schema['secret'] != true,
         keyboardType: current is num
             ? TextInputType.number
             : TextInputType.multiline,

@@ -338,6 +338,11 @@ class MobileApi {
           (method == 'POST' &&
               ((path == '/native/screen' && body?['action'] == null) ||
                   path == '/native/workspace' ||
+                  (path == '/native/connections' &&
+                      const [
+                        'load',
+                        'bot_form',
+                      ].contains(body?['operation'])) ||
                   (path == '/native/chat-tools' &&
                       body?['operation'] == 'list') ||
                   (path == '/native/extension' &&

@@ -129,6 +129,41 @@ void main() {
   });
 
   testWidgets(
+    'existing agents expose newly added schema fields without losing saved values',
+    (tester) async {
+      Map<String, dynamic>? changed;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: NativeConfigFields(
+                value: {'system_prompt': 'Keep my prompt'},
+                schema: const {
+                  'type': 'object',
+                  'properties': {
+                    'system_prompt': {'type': 'string'},
+                    'web_search': {'type': 'boolean'},
+                    'history_turns': {'type': 'integer', 'default': 10},
+                  },
+                },
+                onChanged: (value) => changed = value,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Keep my prompt'), findsOneWidget);
+      expect(find.text('History Turns'), findsOneWidget);
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      expect(changed?['system_prompt'], 'Keep my prompt');
+      expect(changed?['web_search'], true);
+      expect(changed?['history_turns'], 10);
+    },
+  );
+
+  testWidgets(
     'Add Agent opens searchable categorized templates and saves the selected backend workflow',
     (tester) async {
       Map? saved;
@@ -161,9 +196,11 @@ void main() {
       expect(find.text('Set up agent'), findsOneWidget);
       expect(find.text('0 9 * * *'), findsOneWidget);
       await tester.enterText(input('Agent name'), 'Morning sales report');
+      await tester.enterText(input('Agent role'), 'Sales assistant');
       await press(tester, find.text('Save agent'));
       expect(saved?['module_id'], 'test:ai_agents');
       expect(saved?['inputs']['name'], 'Morning sales report');
+      expect(saved?['inputs']['role'], 'Sales assistant');
       expect(saved?['inputs']['steps'][0]['type'], 'generate_report');
       expect(saved?['request_id'], isNotEmpty);
       expect(find.text('Your agents'), findsOneWidget);
