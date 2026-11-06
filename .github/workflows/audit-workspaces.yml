@@ -1,0 +1,43 @@
+name: MagicAI workspace feature audit
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test
+      - name: Exercise error handling for every installed workspace
+        env:
+          MAGICAI_QA_CATALOG_FILE: test/fixtures/workspace_audit_catalog.json
+          MAGICAI_QA_OUTPUT: ${{ runner.temp }}/workspace-audit
+        run: flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test test/qa_fault_workspace_audit_test.dart
+      - name: Verify recorded audit results
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          rows = json.loads((Path(os.environ['RUNNER_TEMP']) / 'workspace-audit/fault-widget-observations.json').read_text())
+          catalog = json.loads(Path('test/fixtures/workspace_audit_catalog.json').read_text())
+          assert len(rows) == len(catalog['modules']) * 8, 'The audit did not cover every workspace and fault mode'
+          failed = [r for r in rows if not r['meets_requested_10_second_state']]
+          for row in failed:
+              print(row['id'], row['mode'], row['framework_errors'])
+          assert not failed, f'{len(failed)} workspace error-handling checks failed'
+          print(f'{len(rows)} workspace error-handling checks passed')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: workspace-feature-audit
+          path: ${{ runner.temp }}/workspace-audit
