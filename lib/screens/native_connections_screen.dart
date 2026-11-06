@@ -720,6 +720,87 @@ class _NativeChatbotEditorState extends State<NativeChatbotEditor> {
     if (selected != null && mounted) _change({name: selected});
   }
 
+  Future<void> _choose(String name) async {
+    final options = ((_schema['properties']?[name]?['options'] as List?) ?? [])
+        .whereType<Map>()
+        .toList();
+    var query = '';
+    final value = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.sizeOf(context).height * .72,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Text(
+                    appTr(
+                      name == 'ai_model'
+                          ? 'Choose AI model'
+                          : 'Choose language',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search),
+                      labelText: appTr('Search'),
+                    ),
+                    onChanged: (value) =>
+                        update(() => query = value.toLowerCase()),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: options.isEmpty
+                        ? Center(
+                            child: Text(
+                              appTr(
+                                'No available options. Refresh and try again.',
+                              ),
+                            ),
+                          )
+                        : ListView(
+                            children: [
+                              for (final option in options.where(
+                                (option) => '${option['label']}'
+                                    .toLowerCase()
+                                    .contains(query),
+                              ))
+                                ListTile(
+                                  minVerticalPadding: 12,
+                                  title: Text('${option['label']}'),
+                                  trailing: _values?[name] == option['value']
+                                      ? const Icon(
+                                          Icons.check_circle,
+                                          color: Color(0xff6366f1),
+                                        )
+                                      : const Icon(Icons.circle_outlined),
+                                  onTap: () => Navigator.pop(
+                                    context,
+                                    '${option['value']}',
+                                  ),
+                                ),
+                            ],
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (value != null && mounted) _change({name: value});
+  }
+
   Widget _visualField(String name) {
     final label = appTr(
       name == 'logo'
@@ -728,6 +809,25 @@ class _NativeChatbotEditorState extends State<NativeChatbotEditor> {
           ? 'Chat button picture'
           : name.replaceAll('_', ' '),
     );
+    if (['ai_model', 'language'].contains(name)) {
+      final options =
+          ((_schema['properties']?[name]?['options'] as List?) ?? [])
+              .whereType<Map>();
+      final current = options
+          .where((option) => option['value'] == _values?[name])
+          .firstOrNull;
+      return Card(
+        child: ListTile(
+          leading: Icon(
+            name == 'ai_model' ? Icons.auto_awesome : Icons.language,
+          ),
+          title: Text(appTr(name == 'ai_model' ? 'AI model' : 'Language')),
+          subtitle: Text('${current?['label'] ?? _values?[name] ?? ''}'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _choose(name),
+        ),
+      );
+    }
     if (['logo', 'avatar', 'welcome_bg_image'].contains(name)) {
       final url = '${_values?[name] ?? ''}';
       return Card(
@@ -792,6 +892,8 @@ class _NativeChatbotEditorState extends State<NativeChatbotEditor> {
 
   Widget _fields(List<String> names) {
     const visual = [
+      'ai_model',
+      'language',
       'logo',
       'avatar',
       'welcome_bg_image',
