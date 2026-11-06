@@ -218,6 +218,16 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
   @override
   void initState() {
     super.initState();
+    for (final field
+        in (widget.tool['fields'] as List? ?? []).whereType<Map>()) {
+      if (field['default'] != null) {
+        final value = field['default'].toString();
+        if (field['type'] != 'select' ||
+            (field['options'] as List? ?? []).contains(value)) {
+          _inputs[field['name'].toString()] = value;
+        }
+      }
+    }
     if (['writer', 'image'].contains(widget.tool['kind'])) _loadModels();
   }
 
@@ -411,7 +421,15 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
                               .map(
                                 (option) => DropdownMenuItem(
                                   value: option.toString(),
-                                  child: Text(appTr(option.toString())),
+                                  child: Text(
+                                    appTr(
+                                      (field['option_labels'] is Map
+                                                  ? field['option_labels'][option]
+                                                  : null)
+                                              ?.toString() ??
+                                          option.toString(),
+                                    ),
+                                  ),
                                 ),
                               )
                               .toList(),
@@ -420,7 +438,7 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
                               : (value) => _inputs[field['name'].toString()] =
                                     value ?? '',
                           validator: (value) =>
-                              field[appTr('required')] == true &&
+                              field['required'] == true &&
                                   (value == null || value.isEmpty)
                               ? appTr('Required')
                               : null,
@@ -438,7 +456,7 @@ class _DynamicToolScreenState extends State<DynamicToolScreen> {
                           minLines: field['type'] == 'textarea' ? 3 : 1,
                           maxLines: field['type'] == 'textarea' ? 8 : 1,
                           validator: (value) =>
-                              field[appTr('required')] == true &&
+                              field['required'] == true &&
                                   (value?.trim().isEmpty ?? true)
                               ? appTr('Required')
                               : null,

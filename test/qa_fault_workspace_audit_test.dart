@@ -114,17 +114,25 @@ void main() {
               .byType(CircularProgressIndicator)
               .evaluate()
               .isNotEmpty;
-          final retryAt11 = find.text('Retry').evaluate().isNotEmpty;
+          final retryAt11 = find
+              .textContaining(RegExp(r'^Retry( models)?$'))
+              .evaluate()
+              .isNotEmpty;
           await tester.pump(const Duration(seconds: 40));
           await tester.pump();
-          final retryAfter = find.text('Retry').evaluate().isNotEmpty;
+          final retryAfter = find
+              .textContaining(RegExp(r'^Retry( models)?$'))
+              .evaluate()
+              .isNotEmpty;
           final spinnerAfter = find
               .byType(CircularProgressIndicator)
               .evaluate()
               .isNotEmpty;
           final before = client.attempts;
           if (retryAfter && mode != 'timeout' && mode != 'slow_response') {
-            await tester.tap(find.text('Retry').first);
+            await tester.tap(
+              find.textContaining(RegExp(r'^Retry( models)?$')).first,
+            );
             await tester.pump();
             await tester.pump(const Duration(seconds: 1));
           }

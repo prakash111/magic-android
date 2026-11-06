@@ -29,6 +29,7 @@ import 'schema_components.dart';
 class NativeModuleRegistry {
   static bool ownsHeader(Map<String, dynamic> module) =>
       [
+        'writer_tool',
         'chatbot_channels',
         'agent_connections',
       ].contains(module['route_type']) ||
@@ -42,6 +43,18 @@ class NativeModuleRegistry {
       'agent_connections',
     ].contains(module['route_type'])) {
       return NativeConnectionsScreen(api: client, moduleId: '${module['id']}');
+    }
+    if (module['route_type'] == 'writer_tool' && module['tool'] is Map) {
+      return DynamicToolScreen(
+        tool: Map<String, dynamic>.from(module['tool'] as Map),
+        api: client,
+      );
+    }
+    if (module['route_type'] == 'writer_tool') {
+      return Scaffold(
+        appBar: AppBar(title: Text(appTr(toolDisplayName(module)))),
+        body: Center(child: Text(appTr('This tool is currently unavailable.'))),
+      );
     }
     if (ownsHeader(module)) return InboxScreen(api: client);
     return switch (module['route_type']) {
