@@ -580,13 +580,14 @@ class _NativeChatbotEditorState extends State<NativeChatbotEditor> {
     });
     try {
       final data = await _call('bot_form') as Map;
-      if (mounted)
+      if (mounted) {
         setState(() {
           _values = _copy(data['values'] as Map);
           _original = _copy(_values!);
           _schema = Map<String, dynamic>.from(data['schema'] as Map);
           _dirty = false;
         });
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -709,8 +710,9 @@ class _NativeChatbotEditorState extends State<NativeChatbotEditor> {
           TextButton(
             onPressed: () {
               final value = controller.text.trim();
-              if (RegExp(r'^#[a-fA-F0-9]{6}$').hasMatch(value))
+              if (RegExp(r'^#[a-fA-F0-9]{6}$').hasMatch(value)) {
                 Navigator.pop(context, value);
+              }
             },
             child: Text(appTr('Apply')),
           ),
