@@ -11,10 +11,11 @@ void main() {
     'ReWriter uses one native header, web fields and language defaults',
     (tester) async {
       final api = nativeApi((path, body) async {
-        if (path == '/models')
+        if (path == '/models') {
           return [
             {'id': 'test-model', 'title': 'Test model'},
           ];
+        }
         return {'data': []};
       });
       final module = <String, dynamic>{
