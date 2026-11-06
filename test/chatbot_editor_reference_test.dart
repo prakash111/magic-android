@@ -46,6 +46,7 @@ void main() {
         expect(find.text(tab), findsOneWidget);
       }
       await tester.enterText(find.byType(TextFormField).first, 'New support');
+      await tester.pump();
       expect(find.text('Unsaved changes'), findsOneWidget);
       await tester.tap(find.text('Look'));
       await tester.pumpAndSettle();
@@ -56,6 +57,7 @@ void main() {
       await tester.tap(find.text('Save changes'));
       await tester.pumpAndSettle();
       expect(saved?['title'], 'New support');
+      await tester.pump();
       expect(saved?['active'], true);
       expect(saved?['instructions'], 'Help customers');
       expect(tester.takeException(), isNull);
@@ -81,6 +83,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, 'Changed');
+    await tester.pump();
     await tester.tap(find.text('Reset'));
     await tester.pumpAndSettle();
     expect(find.text('Support'), findsOneWidget);
