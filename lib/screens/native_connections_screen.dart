@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../services/app_localizations.dart';
+import '../services/image_attachment_picker.dart';
 import 'native_parity_screen.dart' show NativeConfigFields;
 import '../services/mobile_api.dart';
 import '../services/social_post_service.dart';
@@ -500,11 +501,55 @@ class NativeChatbotEditor extends StatefulWidget {
 }
 
 class _NativeChatbotEditorState extends State<NativeChatbotEditor> {
-  Map<String, dynamic>? _values;
+  Map<String, dynamic>? _values, _original;
   Map<String, dynamic> _schema = {};
   String? _error;
-  bool _busy = false;
+  bool _busy = false, _dirty = false;
+  int _tab = 0, _revision = 0;
   String _requestId = SocialPostService.requestId();
+  static const _tabs = ['Basics', 'Look', 'Behavior', 'More'];
+  static const _basics = [
+    'title',
+    'welcome_message',
+    'bubble_message',
+    'ai_model',
+    'language',
+    'instructions',
+  ];
+  static const _look = [
+    'logo',
+    'avatar',
+    'trigger_avatar_size',
+    'trigger_background',
+    'trigger_foreground',
+    'color',
+    'color_mode',
+    'position',
+    'show_logo',
+    'show_date_and_time',
+    'show_average_response_time',
+    'header_bg_type',
+    'header_bg_color',
+    'header_bg_gradient',
+    'welcome_bg_image',
+    'bubble_design',
+  ];
+  static const _behavior = [
+    'interaction_type',
+    'do_not_go_beyond_instructions',
+    'suggested_prompts_enabled',
+    'suggested_prompts',
+    'connect_message',
+    'human_agent_conditions',
+    'is_attachment',
+    'is_emoji',
+    'is_articles',
+    'is_links',
+    'is_email_collect',
+    'is_contact',
+    'active',
+    'is_gdpr',
+  ];
   @override
   void initState() {
     super.initState();
@@ -525,7 +570,9 @@ class _NativeChatbotEditorState extends State<NativeChatbotEditor> {
           ...extra,
         },
       )
-      .timeout(const Duration(seconds: 30));
+      .timeout(Duration(seconds: operation == 'bot_form' ? 10 : 30));
+  Map<String, dynamic> _copy(Map value) =>
+      Map<String, dynamic>.from(jsonDecode(jsonEncode(value)) as Map);
   Future<void> _load() async {
     setState(() {
       _busy = true;
@@ -533,17 +580,26 @@ class _NativeChatbotEditorState extends State<NativeChatbotEditor> {
     });
     try {
       final data = await _call('bot_form') as Map;
-      if (mounted) {
+      if (mounted)
         setState(() {
-          _values = Map<String, dynamic>.from(data['values'] as Map);
+          _values = _copy(data['values'] as Map);
+          _original = _copy(_values!);
           _schema = Map<String, dynamic>.from(data['schema'] as Map);
+          _dirty = false;
         });
-      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _change(Map<String, dynamic> values) {
+    setState(() {
+      _values!.addAll(values);
+      _dirty = jsonEncode(_values) != jsonEncode(_original);
+      _requestId = SocialPostService.requestId();
+    });
   }
 
   Future<void> _save() async {
@@ -561,40 +617,570 @@ class _NativeChatbotEditorState extends State<NativeChatbotEditor> {
     }
   }
 
+  Future<bool> _confirmExit() async {
+    if (!_dirty) return true;
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(appTr('Discard changes?')),
+            content: Text(appTr('Your unsaved changes will be lost.')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(appTr('Keep editing')),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(appTr('Discard')),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _picture(String name) async {
+    try {
+      final file = await ImageAttachmentPicker().pick(
+        moduleId: widget.moduleId,
+        field: name,
+        maxBytes: 2 * 1024 * 1024,
+      );
+      if (file == null || !mounted) return;
+      setState(() => _busy = true);
+      final data = await _call('upload_picture', {
+        'picture': base64Encode(file.bytes),
+        'request_id': SocialPostService.requestId(),
+      }) as Map;
+      if (mounted) _change({name: data['url']});
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _pickColor(String name) async {
+    final controller = TextEditingController(
+      text: '${_values?[name] ?? '#6366F1'}',
+    );
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(appTr('Choose color')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final hex in [
+                  '#6366F1',
+                  '#A855F7',
+                  '#22D3EE',
+                  '#10B981',
+                  '#F59E0B',
+                  '#F43F5E',
+                  '#FFFFFF',
+                  '#131620',
+                ])
+                  IconButton(
+                    tooltip: hex,
+                    onPressed: () => Navigator.pop(context, hex),
+                    icon: Icon(
+                      Icons.circle,
+                      color: Color(
+                        int.parse('ff${hex.substring(1)}', radix: 16),
+                      ),
+                      size: 36,
+                    ),
+                  ),
+              ],
+            ),
+            TextField(
+              controller: controller,
+              decoration: InputDecoration(labelText: appTr('Hex color')),
+              maxLength: 7,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (RegExp(r'^#[a-fA-F0-9]{6}$').hasMatch(value))
+                Navigator.pop(context, value);
+            },
+            child: Text(appTr('Apply')),
+          ),
+        ],
+      ),
+    );
+    if (selected != null && mounted) _change({name: selected});
+  }
+
+  Widget _visualField(String name) {
+    final label = appTr(
+      name == 'logo'
+          ? 'Logo'
+          : name == 'avatar'
+          ? 'Chat button picture'
+          : name.replaceAll('_', ' '),
+    );
+    if (['logo', 'avatar', 'welcome_bg_image'].contains(name)) {
+      final url = '${_values?[name] ?? ''}';
+      return Card(
+        child: ListTile(
+          contentPadding: const EdgeInsets.all(12),
+          leading: SizedBox(
+            width: 48,
+            height: 48,
+            child: url.isEmpty
+                ? const Icon(Icons.add_photo_alternate_outlined)
+                : Image.network(
+                    widget.api.origin.resolve(url).toString(),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        const Icon(Icons.image_not_supported_outlined),
+                  ),
+          ),
+          title: Text(label),
+          subtitle: Text(appTr('PNG, JPEG or WebP · up to 2 MB')),
+          onTap: _busy ? null : () => _picture(name),
+          trailing: url.isEmpty
+              ? const Icon(Icons.upload)
+              : IconButton(
+                  tooltip: appTr('Remove picture'),
+                  onPressed: () => _change({name: ''}),
+                  icon: const Icon(Icons.close),
+                ),
+        ),
+      );
+    }
+    if (name == 'trigger_avatar_size') {
+      final size =
+          double.tryParse('${_values?[name] ?? '60'}'.replaceAll('px', '')) ??
+          60;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${appTr('Chat button size')} · ${size.round()} px'),
+          Slider(
+            min: 40,
+            max: 96,
+            divisions: 28,
+            value: size.clamp(40, 96),
+            label: '${size.round()} px',
+            onChanged: (value) => _change({name: '${value.round()}px'}),
+          ),
+        ],
+      );
+    }
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(label),
+      subtitle: Text('${_values?[name] ?? ''}'),
+      trailing: Icon(
+        Icons.circle,
+        color: _color(name, const Color(0xff6366f1)),
+        size: 36,
+      ),
+      onTap: () => _pickColor(name),
+    );
+  }
+
+  Widget _fields(List<String> names) {
+    const visual = [
+      'logo',
+      'avatar',
+      'welcome_bg_image',
+      'trigger_avatar_size',
+      'color',
+      'header_bg_color',
+      'trigger_background',
+      'trigger_foreground',
+    ];
+    final values = <String, dynamic>{
+      for (final name in names)
+        if (_values!.containsKey(name) && !visual.contains(name))
+          name: _values![name],
+    };
+    return Column(
+      children: [
+        for (final name in names)
+          if (visual.contains(name) && _values!.containsKey(name))
+            _visualField(name),
+        NativeConfigFields(
+          key: ValueKey('$_tab-$_revision-${names.join()}'),
+          value: values,
+          schema: {
+            'type': 'object',
+            'properties': {
+              for (final name in names)
+                if ((_schema['properties'] as Map?)?.containsKey(name) ?? false)
+                  name: _schema['properties'][name],
+            },
+          },
+          onChanged: _change,
+        ),
+      ],
+    );
+  }
+
+  Widget _card(String title, String description, List<String> names) => Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            appTr(title),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          if (description.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 14),
+              child: Text(
+                appTr(description),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          _fields(names),
+        ],
+      ),
+    ),
+  );
+  Color _color(String name, Color fallback) {
+    final raw = '${_values?[name] ?? ''}'.replaceFirst('#', '');
+    return RegExp(r'^[a-fA-F0-9]{6}$').hasMatch(raw)
+        ? Color(int.parse('ff$raw', radix: 16))
+        : fallback;
+  }
+
+  Widget _preview() => Card(
+    clipBehavior: Clip.antiAlias,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          color: _color('header_bg_color', const Color(0xff6366f1)),
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              const Icon(Icons.chat_bubble_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '${_values?['title'] ?? ''}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${_values?['welcome_message'] ?? ''}'),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _color(
+                    'color',
+                    const Color(0xff6366f1),
+                  ).withValues(alpha: .18),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text('${_values?['bubble_message'] ?? ''}'),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                appTr('Appearance preview'),
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+  Widget _advanced(String title, List<String> names) => Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    child: ExpansionTile(
+      title: Text(appTr(title)),
+      childrenPadding: const EdgeInsets.all(16),
+      children: [_fields(names)],
+    ),
+  );
+  List<Widget> _content() {
+    switch (_tab) {
+      case 0:
+        return [
+          _card(
+            'Name and messages',
+            'What visitors see when they open the chat.',
+            _basics.take(3).toList(),
+          ),
+          _card('AI', 'Choose the brain and the language of this chatbot.', [
+            'ai_model',
+            'language',
+          ]),
+          _card(
+            'Instructions for the AI',
+            'Tell the AI who it is and what it should do.',
+            ['instructions'],
+          ),
+        ];
+      case 1:
+        return [
+          _preview(),
+          _card('Theme', 'Customize the chatbot colors.', [
+            'color',
+            'color_mode',
+          ]),
+          _advanced('Customize colors', [
+            'header_bg_type',
+            'header_bg_color',
+            'header_bg_gradient',
+            'trigger_background',
+            'trigger_foreground',
+          ]),
+          _card('Pictures', 'Use your chatbot logo and chat button picture.', [
+            'logo',
+            'avatar',
+            'trigger_avatar_size',
+            'welcome_bg_image',
+          ]),
+          _card('Layout', '', [
+            'position',
+            'show_logo',
+            'show_date_and_time',
+            'show_average_response_time',
+            'bubble_design',
+          ]),
+        ];
+      case 2:
+        return [
+          _card('Conversation', '', _behavior.take(7).toList()),
+          _card('Visitors can', '', [
+            'is_attachment',
+            'is_emoji',
+            'is_articles',
+            'is_links',
+            'is_email_collect',
+            'is_contact',
+          ]),
+          _card('Status and privacy', '', ['active', 'is_gdpr']),
+        ];
+      default:
+        const domains = ['trusted_domains'];
+        const links = [
+          'privacy_policy_link',
+          'terms_of_service_link',
+          'footer_link',
+          'whatsapp_link',
+          'telegram_link',
+          'facebook_link',
+          'instagram_link',
+          'watch_product_tour_link',
+          'show_social_links_in_first_message',
+        ];
+        const voice = ['voice_call_enabled', 'voice_call_first_message'];
+        const shop = [
+          'is_shop',
+          'shop_source',
+          'shop_features',
+          'shopify_domain',
+          'shopify_access_token',
+          'woocommerce_domain',
+          'woocommerce_consumer_key',
+          'woocommerce_consumer_secret',
+          'is_booking_assistant',
+          'booking_assistant_conditions',
+          'booking_assistant_iframe',
+        ];
+        final known = {
+          ..._basics,
+          ..._look,
+          ..._behavior,
+          ...domains,
+          ...links,
+          ...voice,
+          ...shop,
+        };
+        return [
+          _advanced('Websites that can use this chatbot', domains),
+          _advanced('Links and social', links),
+          _advanced('Voice calls', voice),
+          _advanced('Shop and booking', shop),
+          _advanced(
+            'Additional settings',
+            _values!.keys.where((name) => !known.contains(name)).toList(),
+          ),
+        ];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     AppLocalizations.watch(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          appTr(widget.chatbotId == null ? 'Create chatbot' : 'Edit chatbot'),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (_busy) const LinearProgressIndicator(),
-          if (_error != null) Text(appTr(_error!)),
-          if (_values == null && !_busy)
-            TextButton(onPressed: _load, child: Text(appTr('Retry'))),
-          if (_values != null)
-            AbsorbPointer(
-              absorbing: _busy,
-              child: NativeConfigFields(
-                value: _values!,
-                schema: _schema,
-                onChanged: (values) {
-                  _values = values;
-                  _requestId = SocialPostService.requestId();
-                },
+    return PopScope(
+      canPop: !_dirty && !_busy,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop || _busy) return;
+        if (await _confirmExit() && mounted) {
+          setState(() => _dirty = false);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) Navigator.pop(context);
+          });
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                appTr(
+                  widget.chatbotId == null ? 'Create chatbot' : 'Edit chatbot',
+                ),
+                style: const TextStyle(fontSize: 19),
               ),
+              Text(
+                appTr(
+                  _busy
+                      ? 'Loading…'
+                      : _dirty
+                      ? 'Unsaved changes'
+                      : 'All changes saved',
+                ),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _dirty ? Colors.amber : Colors.green,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton.icon(
+              onPressed: _values == null
+                  ? null
+                  : () => showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (context) => SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: SingleChildScrollView(child: _preview()),
+                        ),
+                      ),
+                    ),
+              icon: const Icon(Icons.visibility_outlined),
+              label: Text(appTr('Preview')),
             ),
-          if (_values != null)
-            FilledButton(
-              onPressed: _busy ? null : _save,
-              child: Text(appTr('Save')),
+          ],
+        ),
+        body: Column(
+          children: [
+            if (_busy) const LinearProgressIndicator(),
+            if (_values != null)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    for (var i = 0; i < _tabs.length; i++)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(end: 8),
+                        child: ChoiceChip(
+                          showCheckmark: false,
+                          selectedColor: const Color(0xff6366f1),
+                          label: Text(appTr(_tabs[i])),
+                          selected: _tab == i,
+                          onSelected: _busy
+                              ? null
+                              : (_) => setState(() => _tab = i),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  appTr(_error!),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            Expanded(
+              child: _values == null
+                  ? Center(
+                      child: _busy
+                          ? const SizedBox.shrink()
+                          : TextButton(
+                              onPressed: _load,
+                              child: Text(appTr('Retry')),
+                            ),
+                    )
+                  : AbsorbPointer(
+                      absorbing: _busy,
+                      child: ListView(
+                        padding: const EdgeInsets.all(14),
+                        children: _content(),
+                      ),
+                    ),
             ),
-        ],
+          ],
+        ),
+        bottomNavigationBar: _values == null
+            ? null
+            : SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      OutlinedButton(
+                        onPressed: _busy || !_dirty
+                            ? null
+                            : () => setState(() {
+                                _values = _copy(_original!);
+                                _revision++;
+                                _dirty = false;
+                                _requestId = SocialPostService.requestId();
+                              }),
+                        child: Text(appTr('Reset')),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _busy || !_dirty ? null : _save,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(appTr('Save changes')),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
       ),
     );
   }
