@@ -190,6 +190,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           (module) =>
               module['available'] == true &&
               (module['route_type'] == 'marketing_inbox' ||
+                  module['route_type'] == 'chatbot_channels' ||
                   '${module['route']}'.contains('marketing-bot.inbox')),
         );
     if (inboxEnabled) {

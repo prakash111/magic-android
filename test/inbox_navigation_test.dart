@@ -69,6 +69,7 @@ final auditModules = <Map<String, dynamic>>[
 ];
 MobileApi navigationApi({
   bool empty = false,
+  bool chatbotOnly = false,
   List<String>? requests,
   Completer<dynamic>? inboxPending,
 }) => workflowApi((request) async {
@@ -84,7 +85,16 @@ MobileApi navigationApi({
         {'id': 'explore', 'component': 'workspace', 'label': 'Explore'},
         {'id': 'account', 'component': 'account', 'label': 'Account'},
       ],
-      'modules': auditModules,
+      'modules': chatbotOnly
+          ? [
+              {
+                'id': 'web:chatbot',
+                'route_type': 'chatbot_channels',
+                'title': 'Chatbot',
+                'available': true,
+              },
+            ]
+          : auditModules,
       'tools': [],
       'user': {'id': 1},
       'credits': {},
@@ -285,6 +295,19 @@ void main() {
     singleHeader(pushed: false);
     expect(find.byTooltip('Refresh'), findsOneWidget);
     expect(find.byIcon(Icons.settings_outlined), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('Chatbot-only accounts receive the bottom navigation Inbox', (
+    tester,
+  ) async {
+    await fixture.mount(
+      tester,
+      HomeScreen(api: navigationApi(chatbotOnly: true), onThemeChanged: (_) {}),
+    );
+    expect(find.widgetWithText(NavigationDestination, 'Inbox'), findsOneWidget);
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Inbox'));
+    await tester.pumpAndSettle();
+    singleHeader(pushed: false);
     await tester.pumpWidget(const SizedBox());
   });
   testWidgets(
