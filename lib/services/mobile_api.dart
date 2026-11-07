@@ -245,6 +245,7 @@ class MobileApi {
     }
     return {
       'Accept': 'application/json',
+      'X-Mobile-Inbox-Channels': 'all',
       'Content-Type': 'application/json',
       if (languageCode != null)
         'Accept-Language': languageCode!.replaceAll('_', '-'),
