@@ -177,6 +177,7 @@ class MobileApi {
             uri('/license'),
             headers: {
               'Accept': 'application/json',
+              'X-Mobile-Inbox-Channels': 'all',
               'Content-Type': 'application/json',
             },
             body: jsonEncode({
