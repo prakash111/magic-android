@@ -295,7 +295,7 @@ void main() {
       await fixture.mount(tester, InboxScreen(api: api));
       expect(
         find.text(
-          'No chats yet. Connect Telegram or WhatsApp in Marketing Bot settings.',
+          'No chats yet. Connect channels in Chatbot or Marketing Bot settings.',
         ),
         findsOneWidget,
       );

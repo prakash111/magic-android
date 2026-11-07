@@ -171,6 +171,9 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                   ('', 'All'),
                   ('tg', 'Telegram'),
                   ('wa', 'WhatsApp'),
+                  ('ms', 'Messenger'),
+                  ('ig', 'Instagram'),
+                  ('wb', 'Web'),
                 ])
                   Padding(
                     padding: const EdgeInsetsDirectional.only(end: 8),
@@ -293,7 +296,7 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                     loading: loading,
                     error: error,
                     empty: (inbox.counts?.chatsTotal ?? 0) == 0
-                        ? 'No chats yet. Connect Telegram or WhatsApp in Marketing Bot settings.'
+                        ? 'No chats yet. Connect channels in Chatbot or Marketing Bot settings.'
                         : 'No chats match your search.',
                     actionLabel:
                         !loading &&

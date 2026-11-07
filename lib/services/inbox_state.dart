@@ -14,18 +14,30 @@ typedef InboxFetch = ({int revision, int sequence});
 
 @immutable
 class InboxCounts {
-  final int telegram, whatsapp, needsReply, chatsTotal;
+  final int telegram,
+      whatsapp,
+      messenger,
+      instagram,
+      web,
+      needsReply,
+      chatsTotal;
   const InboxCounts({
     required this.telegram,
     required this.whatsapp,
+    this.messenger = 0,
+    this.instagram = 0,
+    this.web = 0,
     required this.needsReply,
     required this.chatsTotal,
   });
-  int get all => telegram + whatsapp;
+  int get all => telegram + whatsapp + messenger + instagram + web;
   factory InboxCounts.fromJson(Map data) {
     final counts = InboxCounts(
       telegram: inboxNumber(data['telegram']),
       whatsapp: inboxNumber(data['whatsapp']),
+      messenger: inboxNumber(data['messenger'] ?? 0),
+      instagram: inboxNumber(data['instagram'] ?? 0),
+      web: inboxNumber(data['web'] ?? 0),
       needsReply: inboxNumber(data['needs_reply']),
       chatsTotal: inboxNumber(data['chats_total']),
     );
@@ -35,7 +47,13 @@ class InboxCounts {
     return counts;
   }
   factory InboxCounts.fromChats(Iterable<Map<String, dynamic>> chats) {
-    var telegram = 0, whatsapp = 0, needsReply = 0, total = 0;
+    var telegram = 0,
+        whatsapp = 0,
+        messenger = 0,
+        instagram = 0,
+        web = 0,
+        needsReply = 0,
+        total = 0;
     final seen = <String>{};
     for (final chat in chats) {
       if (!seen.add(InboxState.chatKey(chat))) continue;
@@ -47,10 +65,16 @@ class InboxCounts {
       );
       if (chat['network'] == 'tg') telegram += unread;
       if (chat['network'] == 'wa') whatsapp += unread;
+      if (chat['network'] == 'ms') messenger += unread;
+      if (chat['network'] == 'ig') instagram += unread;
+      if (chat['network'] == 'wb') web += unread;
     }
     return InboxCounts(
       telegram: telegram,
       whatsapp: whatsapp,
+      messenger: messenger,
+      instagram: instagram,
+      web: web,
       needsReply: needsReply,
       chatsTotal: total,
     );
@@ -59,14 +83,20 @@ class InboxCounts {
     'all': all,
     'telegram': telegram,
     'whatsapp': whatsapp,
+    'messenger': messenger,
+    'instagram': instagram,
+    'web': web,
     'needs_reply': needsReply,
     'chats_total': chatsTotal,
   };
-  int network(String value) => value == 'tg'
-      ? telegram
-      : value == 'wa'
-      ? whatsapp
-      : all;
+  int network(String value) => switch (value) {
+    'tg' => telegram,
+    'wa' => whatsapp,
+    'ms' => messenger,
+    'ig' => instagram,
+    'wb' => web,
+    _ => all,
+  };
   static String badge(int value, {bool cap = false}) =>
       cap && value > 99 ? '99+' : '$value';
 }
@@ -177,6 +207,14 @@ class InboxState extends ChangeNotifier {
             .clamp(0, 9007199254740991),
         whatsapp: (previous.whatsapp + (old['network'] == 'wa' ? delta : 0))
             .clamp(0, 9007199254740991),
+        messenger: (previous.messenger + (old['network'] == 'ms' ? delta : 0))
+            .clamp(0, 9007199254740991),
+        instagram: (previous.instagram + (old['network'] == 'ig' ? delta : 0))
+            .clamp(0, 9007199254740991),
+        web: (previous.web + (old['network'] == 'wb' ? delta : 0)).clamp(
+          0,
+          9007199254740991,
+        ),
         needsReply:
             (previous.needsReply +
                     (next['needs_reply'] == true ? 1 : 0) -

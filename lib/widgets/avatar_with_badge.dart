@@ -56,7 +56,13 @@ class AvatarWithBadge extends StatelessWidget {
                   ? const Color(0xff10b981)
                   : const Color(0xff24a9e5),
               child: Icon(
-                network == 'wa' ? Icons.chat : Icons.send,
+                switch (network) {
+                  'wa' => Icons.chat,
+                  'ms' => Icons.message,
+                  'ig' => Icons.camera_alt,
+                  'wb' => Icons.language,
+                  _ => Icons.send,
+                },
                 size: 11,
                 color: Colors.white,
               ),

@@ -123,6 +123,9 @@ void main() {
         'all': 107,
         'telegram': 3,
         'whatsapp': 104,
+        'messenger': 0,
+        'instagram': 0,
+        'web': 0,
         'needs_reply': 2,
         'chats_total': 4,
       });
