@@ -33,6 +33,11 @@ Direct Download: https://ai.zoomnearby.com/changelog.txt
     - Added dedicated validation rules for API key inputs, test requests, team invitations, and payout requests.
     - Updated NativeWorkspaceService validKinds whitelist to authorize `test_api_key` and `test_key` within the `api_keys` workspace.
     - Prevented PHP 8 undefined index warnings during partial or single-provider key saves.
+  * Live API Connection Testing Fix (Resolved False "Configured" Status on Random Keys):
+    - Anthropic Claude: Replaced static configuration check with live HTTP call to `https://api.anthropic.com/v1/messages` using `x-api-key`. Invalid or random keys now return the real Anthropic API error (e.g. `Anthropic test failed: invalid x-api-key`) with a "Test Failed" dialog.
+    - Google Gemini: Direct HTTP validation against Generative Language API endpoint with provided key, surfacing exact provider errors (e.g. `API key not valid`).
+    - OpenAI: Direct HTTP validation against `https://api.openai.com/v1/models` with Bearer token, surfacing exact provider errors (e.g. `Incorrect API key provided`).
+    - Draft Key Testing: The in-app test action now transmits the active text field value so keys can be tested both before and after saving.
   * Reset to Server Key:
     - Allows clearing personal keys to revert to server-configured default keys.
 

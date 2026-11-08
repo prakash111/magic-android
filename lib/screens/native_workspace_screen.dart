@@ -2095,15 +2095,19 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
     if (_testingApiKey) return;
     setState(() => _testingApiKey = true);
     try {
+      final activeKey = _getApiKeyController(provider).text.trim();
       final res = await _service.mutate(
         kind: 'test_api_key',
         operation: 'test',
         requestId: SocialPostService.requestId(),
-        inputs: {'provider': provider},
+        inputs: {
+          'provider': provider,
+          if (activeKey.isNotEmpty) 'key': activeKey,
+        },
       );
       if (!mounted) return;
       final msg = res['message'] ?? 'Connection test completed.';
-      final isSuccess = res['success'] != false;
+      final isSuccess = res['success'] == true;
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -2116,7 +2120,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isSuccess ? appTr('Test Successful') : appTr('Test Result'),
+                  isSuccess ? appTr('Test Successful') : appTr('Test Failed'),
                   style: const TextStyle(fontSize: 16),
                 ),
               ),

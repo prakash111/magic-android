@@ -178,6 +178,68 @@ void main() {
       expect(savedInputs['gemini_api_keys'], equals('AIzaSy_custom_gemini_key_123'));
     });
 
+    testWidgets('api keys workspace tests provider key and displays validation result dialog', (tester) async {
+      var testedProvider = '';
+      var testedKey = '';
+      final api = nativeApi((path, body) async {
+        if (path == '/native/records' && (body as Map?)?['operation'] == 'test') {
+          final inputs = body['inputs'] as Map? ?? {};
+          testedProvider = '${inputs['provider']}';
+          testedKey = '${inputs['key']}';
+          if (testedKey == 'random_invalid_key') {
+            return {'success': false, 'message': 'Anthropic test failed: invalid x-api-key'};
+          }
+          return {'success': true, 'message': 'Anthropic API key connection successful!'};
+        }
+        return {
+          'schema_version': 1,
+          'kind': 'api_keys',
+          'default_engine': 'anthropic',
+          'providers': [
+            {
+              'id': 'anthropic',
+              'provider': 'anthropic',
+              'title': 'Anthropic Claude API Key',
+              'label': 'Anthropic API Secret',
+              'is_default': true,
+              'is_configured': false,
+              'key_masked': '',
+            },
+          ],
+          'data': [],
+        };
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.darkTheme,
+          home: Scaffold(
+            body: NativeWorkspaceScreen(
+              module: const {
+                'id': 'web:api_keys',
+                'title': 'API Keys',
+                'category': 'Work & productivity',
+              },
+              api: api,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'random_invalid_key');
+      await tester.pump();
+
+      await tester.scrollUntilVisible(find.text('After Saving Setting, Click Here to Test Your Api Keys'), 200, scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.text('After Saving Setting, Click Here to Test Your Api Keys'));
+      await tester.pumpAndSettle();
+
+      expect(testedProvider, equals('anthropic'));
+      expect(testedKey, equals('random_invalid_key'));
+      expect(find.text('Test Failed'), findsOneWidget);
+      expect(find.text('Anthropic test failed: invalid x-api-key'), findsOneWidget);
+    });
+
     testWidgets('affiliates workspace renders referral link and payouts history', (tester) async {
       final api = nativeApi((path, body) async {
         return {
