@@ -28,6 +28,11 @@ Direct Download: https://ai.zoomnearby.com/changelog.txt
     - Prominent full-width "Save" button matching Web `settings_button`.
     - Updates `gemini_api_keys`, `api_keys`, and `anthropic_api_keys` simultaneously.
     - Resets draft fields and reloads workspace status badges instantly.
+  * Mutation Validation Fix (Resolved "The selected kind is invalid"):
+    - Updated MobileWorkspaceRecordRequest validation rules to accept `api_keys`, `key`, `test_api_key`, and `test_key` along with all workspace model types.
+    - Added dedicated validation rules for API key inputs, test requests, team invitations, and payout requests.
+    - Updated NativeWorkspaceService validKinds whitelist to authorize `test_api_key` and `test_key` within the `api_keys` workspace.
+    - Prevented PHP 8 undefined index warnings during partial or single-provider key saves.
   * Reset to Server Key:
     - Allows clearing personal keys to revert to server-configured default keys.
 
