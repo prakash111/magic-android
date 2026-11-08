@@ -113,6 +113,13 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
   int _generation = 0;
   Timer? _debounce;
   final _deleteRequests = <int, String>{};
+  final Map<String, TextEditingController> _apiKeyControllers = {};
+  bool _savingApiKeys = false;
+  bool _testingApiKey = false;
+
+  TextEditingController _getApiKeyController(String providerId) =>
+      _apiKeyControllers.putIfAbsent(providerId, () => TextEditingController());
+
   @override
   void initState() {
     super.initState();
@@ -123,6 +130,9 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
+    for (final c in _apiKeyControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -1595,6 +1605,545 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
     );
   }
 
+  Widget _buildApiKeysWorkspace() {
+    final providers = ((_workspace?['providers'] as List?) ??
+            (_workspace?['data'] as List?) ??
+            [])
+        .whereType<Map>()
+        .toList();
+    if (providers.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        children: [
+          Center(
+            child: Text(appTr('No API key providers available')),
+          ),
+        ],
+      );
+    }
+
+    final defaultEngine = '${_workspace?['default_engine'] ?? 'gemini'}';
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: .4),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.vpn_key_rounded,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            appTr('${_workspace?['title'] ?? 'Api Keys Setting'}'),
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            appTr('${_workspace?['subtitle'] ?? 'Integrate your own personal OpenAI API Key and generate AI content.'}'),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    Chip(
+                      avatar: const Icon(Icons.bolt, size: 16),
+                      label: Text(
+                        appTr('Active Engine: :engine', {'engine': defaultEngine.toUpperCase()}),
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                      ),
+                      backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: .15),
+                      side: BorderSide.none,
+                    ),
+                    Chip(
+                      avatar: const Icon(Icons.security, size: 16),
+                      label: Text(
+                        appTr('Rotated randomly per request'),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      side: BorderSide.none,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        for (final provider in providers) ...[
+          _buildApiKeyProviderCard(provider, defaultEngine),
+          const SizedBox(height: 16),
+        ],
+        FilledButton.icon(
+          onPressed: _savingApiKeys ? null : _saveApiKeysSettings,
+          icon: _savingApiKeys
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Icon(Icons.save),
+          label: Text(
+            _savingApiKeys ? appTr('Saving…') : appTr('Save'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  Widget _buildApiKeyProviderCard(Map provider, String defaultEngine) {
+    final providerId = '${provider['id'] ?? provider['provider'] ?? 'gemini'}';
+    final providerTitle = '${provider['title'] ?? (providerId == 'openai' ? 'OpenAI API Key' : (providerId == 'gemini' ? 'Google Gemini API Key' : (providerId == 'anthropic' ? 'Anthropic Claude API Key' : 'API Key')))}';
+    final providerLabel = '${provider['label'] ?? (providerId == 'openai' ? 'OpenAI API Secret' : (providerId == 'gemini' ? 'Gemini API Secret' : (providerId == 'anthropic' ? 'Anthropic API Secret' : 'API Secret')))}';
+    final description = '${provider['description'] ?? ''}';
+    final isConfigured = provider['is_configured'] == true;
+    final isDefault = provider['is_default'] == true || providerId == defaultEngine;
+    final masked = '${provider['key_masked'] ?? ''}';
+    final alertLimit = provider['alert_limit'] != null
+        ? '${provider['alert_limit']}'
+        : 'You can enter as much API KEY as you want. Click "Enter" after each api key.';
+    final alertBilling = provider['alert_billing'] != null
+        ? '${provider['alert_billing']}'
+        : 'Please ensure that your $providerTitle key is fully functional and billing defined on your account.';
+
+    final controller = _getApiKeyController(providerId);
+    final hintText = provider['placeholder'] != null
+        ? '${provider['placeholder']}'
+        : (providerId == 'gemini'
+            ? 'AIzaSy...'
+            : (providerId == 'openai' ? 'sk-...' : 'sk-ant-...'));
+
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: isDefault
+            ? BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: .5), width: 1.5)
+            : BorderSide.none,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              appTr(providerTitle),
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                          ),
+                          if (isDefault) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                appTr('Default Engine'),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (description.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          appTr(description),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (isConfigured)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: .15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle, size: 14, color: Colors.green),
+                        const SizedBox(width: 4),
+                        Text(
+                          appTr('Active'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Text(
+                    appTr('Using server-configured key'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (isConfigured) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: .5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.lock_outline,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            masked.isNotEmpty ? masked : appTr('Active key configured'),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      appTr('An API key is configured. Leave this field empty to keep it unchanged.'),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                            fontStyle: FontStyle.italic,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+            TextField(
+              controller: controller,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: appTr(providerLabel),
+                hintText: hintText,
+                alignLabelWithHint: true,
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.content_paste, size: 20),
+                  tooltip: appTr('Paste from clipboard'),
+                  onPressed: () async {
+                    final data = await Clipboard.getData('text/plain');
+                    if (data?.text != null && data!.text!.isNotEmpty) {
+                      controller.text = data.text!.trim();
+                    }
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: .3),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: .2),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      appTr(alertLimit),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.amber.withValues(alpha: .3)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: Colors.amber,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      appTr(alertBilling),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: _testingApiKey ? null : () => _testActiveApiKey(providerId),
+              icon: _testingApiKey
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.bolt, size: 18),
+              label: Text(
+                _testingApiKey
+                    ? appTr('Testing connection…')
+                    : appTr('After Saving Setting, Click Here to Test Your Api Keys'),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+              ),
+            ),
+            if (isConfigured) ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text(appTr('Reset to server key?')),
+                        content: Text(
+                          appTr('This will remove your custom key and use the server default for :provider.', {'provider': providerTitle}),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: Text(appTr('Cancel')),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            child: Text(appTr('Reset')),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await _service.mutate(
+                        kind: 'api_keys',
+                        operation: 'save',
+                        requestId: SocialPostService.requestId(),
+                        inputs: {'clear_$providerId': true},
+                      );
+                      await _load();
+                    }
+                  },
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  label: Text(appTr('Reset to server key')),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveApiKeysSettings() async {
+    if (_savingApiKeys) return;
+    setState(() => _savingApiKeys = true);
+    try {
+      final inputs = <String, dynamic>{};
+      for (final entry in _apiKeyControllers.entries) {
+        final val = entry.value.text.trim();
+        if (val.isNotEmpty) {
+          if (entry.key == 'gemini') {
+            inputs['gemini_api_keys'] = val;
+          } else if (entry.key == 'openai') {
+            inputs['api_keys'] = val;
+            inputs['openai_api_keys'] = val;
+          } else if (entry.key == 'anthropic') {
+            inputs['anthropic_api_keys'] = val;
+          } else {
+            inputs['${entry.key}_api_keys'] = val;
+          }
+        }
+      }
+
+      final res = await _service.mutate(
+        kind: 'api_keys',
+        operation: 'save',
+        requestId: SocialPostService.requestId(),
+        inputs: inputs,
+      );
+      if (!mounted) return;
+      for (final c in _apiKeyControllers.values) {
+        c.clear();
+      }
+      final msg = res['message'];
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            msg != null
+                ? appTr('$msg')
+                : appTr('Settings saved successfully.'),
+          ),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(appTr('Failed to save settings: :error', {'error': e.toString()})),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _savingApiKeys = false);
+    }
+  }
+
+  Future<void> _testActiveApiKey(String provider) async {
+    if (_testingApiKey) return;
+    setState(() => _testingApiKey = true);
+    try {
+      final res = await _service.mutate(
+        kind: 'test_api_key',
+        operation: 'test',
+        requestId: SocialPostService.requestId(),
+        inputs: {'provider': provider},
+      );
+      if (!mounted) return;
+      final msg = res['message'] ?? 'Connection test completed.';
+      final isSuccess = res['success'] != false;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                isSuccess ? Icons.check_circle_outline : Icons.error_outline,
+                color: isSuccess ? Colors.green : Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isSuccess ? appTr('Test Successful') : appTr('Test Result'),
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: Text(appTr('$msg')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(appTr('Close')),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(appTr('Connection test failed: :error', {'error': e.toString()})),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _testingApiKey = false);
+    }
+  }
+
   Widget _affiliateCard(Map record) {
     final amount = num.tryParse('${record['amount'] ?? 0}') ?? 0;
     final currency = (_workspace?['currency'] ?? r'$').toString();
@@ -1919,11 +2468,13 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
         Expanded(
           child: RefreshIndicator(
             onRefresh: _load,
-            child: ListView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(20),
-              children: [
+            child: kind == 'api_keys'
+                ? _buildApiKeysWorkspace()
+                : ListView(
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(20),
+                    children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

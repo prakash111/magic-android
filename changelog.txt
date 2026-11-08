@@ -1,10 +1,38 @@
 ================================================================================
 MagicAI Mobile & Backend Connector - Changelog
 Date: 2026-11-08
-Version: 1.6.0-work-productivity-creative-studio
+Version: 1.7.0-api-keys-web-parity
 Git Commit: origin/main
 CI Build: GitHub Actions Build (MagicAI Android CI/CD)
 Direct Download: https://ai.zoomnearby.com/changelog.txt
+================================================================================
+
+1. API KEYS SETTINGS WEB-EXACT BINDING (WORK & PRODUCTIVITY)
+--------------------------------------------------------------------------------
+- Full Web-Parity Alignment with MagicAI Web (`dashboard.user.apikeys.index`):
+  * Replaced generic workspace cards with dedicated inline settings form matching MagicAI Web architecture.
+  * Header banner: "Api Keys Setting" with subtitle "Integrate your own personal OpenAI API Key and generate AI content."
+  * Dynamic Default AI Engine detection: Highlights active server AI engine (e.g., Google Gemini) with prominent badge.
+  * Multi-key input support: Users can enter multiple API keys separated by commas or newlines for random request rotation.
+  * Configured status badge & masked preview:
+    - Displays "Configured" / "Active" badge with masked key preview (e.g. AIza...4X9q).
+    - Status notice matching Web: "An API key is configured. Leave this field empty to keep it unchanged."
+  * Alert callouts matching Web:
+    - Info Notice: "You can enter as much API KEY as you want. Click 'Enter' after each api key."
+    - Account Billing Notice: "Please ensure that your API key is fully functional and billing defined on your account. If you submit a key with insufficient balance, the system will not work."
+  * In-App API Key Connection Testing:
+    - Action button matching Web: "After Saving Setting, Click Here to Test Your Api Keys".
+    - Direct native connection verification endpoint (`test_api_key`) for Google Gemini, OpenAI, and Anthropic Claude.
+    - Test dialog displaying real connection status, latency, and error reporting.
+  * Single 1-Tap Save:
+    - Prominent full-width "Save" button matching Web `settings_button`.
+    - Updates `gemini_api_keys`, `api_keys`, and `anthropic_api_keys` simultaneously.
+    - Resets draft fields and reloads workspace status badges instantly.
+  * Reset to Server Key:
+    - Allows clearing personal keys to revert to server-configured default keys.
+
+================================================================================
+Version 1.6.0-work-productivity-creative-studio
 ================================================================================
 
 1. EXECUTIVE SUMMARY

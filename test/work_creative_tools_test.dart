@@ -112,10 +112,70 @@ void main() {
       );
 
       await tester.pumpAndSettle();
+      expect(find.text('Api Keys Setting'), findsOneWidget);
       expect(find.text('OpenAI API Key'), findsOneWidget);
       expect(find.text('sk-12...99aa'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Anthropic Claude API Key'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Anthropic Claude API Key'), findsOneWidget);
       expect(find.text('Using server-configured key'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Save'), 200, scrollable: find.byType(Scrollable).first);
+      expect(find.text('Save'), findsOneWidget);
+    });
+
+    testWidgets('api keys workspace saves entered personal keys', (tester) async {
+      var savedInputs = <String, dynamic>{};
+      final api = nativeApi((path, body) async {
+        if (path == '/native/records' && (body as Map?)?['operation'] == 'save') {
+          savedInputs = Map<String, dynamic>.from(body['inputs'] as Map? ?? {});
+          return {'success': true, 'message': 'Settings saved successfully.'};
+        }
+        return {
+          'schema_version': 1,
+          'kind': 'api_keys',
+          'default_engine': 'gemini',
+          'providers': [
+            {
+              'id': 'gemini',
+              'provider': 'gemini',
+              'title': 'Google Gemini API Key',
+              'label': 'Gemini API Secret',
+              'is_default': true,
+              'is_configured': false,
+              'key_masked': '',
+            },
+          ],
+          'data': [],
+        };
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.darkTheme,
+          home: Scaffold(
+            body: NativeWorkspaceScreen(
+              module: const {
+                'id': 'web:api_keys',
+                'title': 'API Keys',
+                'category': 'Work & productivity',
+              },
+              api: api,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('Api Keys Setting'), findsOneWidget);
+      expect(find.text('Gemini API Secret'), findsAtLeastNWidgets(1));
+
+      await tester.enterText(find.byType(TextField).first, 'AIzaSy_custom_gemini_key_123');
+      await tester.pump();
+
+      await tester.scrollUntilVisible(find.text('Save'), 200, scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(savedInputs['gemini_api_keys'], equals('AIzaSy_custom_gemini_key_123'));
     });
 
     testWidgets('affiliates workspace renders referral link and payouts history', (tester) async {
