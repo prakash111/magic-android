@@ -117,25 +117,37 @@ class NativeWorkspaceService {
         recordId: id,
       );
 
-  Future<void> publishPost({required String requestId, required int id}) =>
+  Future<void> publishPost({
+    required String requestId,
+    required int id,
+    String kind = 'blog_post',
+  }) =>
       mutate(
-        kind: 'blog_post',
+        kind: kind,
         operation: 'publish',
         requestId: requestId,
         recordId: id,
       );
 
-  Future<void> duplicatePost({required String requestId, required int id}) =>
+  Future<void> duplicatePost({
+    required String requestId,
+    required int id,
+    String kind = 'blog_post',
+  }) =>
       mutate(
-        kind: 'blog_post',
+        kind: kind,
         operation: 'duplicate',
         requestId: requestId,
         recordId: id,
       );
 
-  Future<void> toggleAgent({required String requestId, required int id}) =>
+  Future<void> toggleAgent({
+    required String requestId,
+    required int id,
+    String kind = 'blog_agent',
+  }) =>
       mutate(
-        kind: 'blog_agent',
+        kind: kind,
         operation: 'toggle_active',
         requestId: requestId,
         recordId: id,

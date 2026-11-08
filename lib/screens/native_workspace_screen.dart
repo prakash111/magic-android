@@ -74,6 +74,16 @@ class WorkspaceEmptyState extends StatelessWidget {
   }
 }
 
+IconData _platformIcon(String? platform) => switch (platform?.toLowerCase()) {
+  'twitter' || 'x' => Icons.alternate_email,
+  'facebook' => Icons.facebook,
+  'instagram' => Icons.camera_alt_outlined,
+  'linkedin' => Icons.business,
+  'tiktok' => Icons.music_note,
+  'youtube' || 'youtube-shorts' => Icons.play_circle_outline,
+  _ => Icons.share_outlined,
+};
+
 class NativeWorkspaceScreen extends StatefulWidget {
   final Map<String, dynamic> module;
   final MobileApi api;
@@ -214,7 +224,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
     }
   }
 
-  Future<void> _publishPost(Map post) async {
+  Future<void> _publishPost(Map post, {String? kind}) async {
     final id = int.tryParse('${post['id']}');
     if (id == null) return;
     setState(() => _loading = true);
@@ -222,6 +232,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
       await _service.publishPost(
         requestId: SocialPostService.requestId(),
         id: id,
+        kind: kind ?? ('${_workspace?['kind']}' == 'social_agent' ? 'social_post' : 'blog_post'),
       );
       if (mounted) await _load();
     } catch (error) {
@@ -231,7 +242,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
     }
   }
 
-  Future<void> _duplicatePost(Map post) async {
+  Future<void> _duplicatePost(Map post, {String? kind}) async {
     final id = int.tryParse('${post['id']}');
     if (id == null) return;
     setState(() => _loading = true);
@@ -239,6 +250,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
       await _service.duplicatePost(
         requestId: SocialPostService.requestId(),
         id: id,
+        kind: kind ?? ('${_workspace?['kind']}' == 'social_agent' ? 'social_post' : 'blog_post'),
       );
       if (mounted) await _load();
     } catch (error) {
@@ -248,7 +260,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
     }
   }
 
-  Future<void> _toggleAgent(Map agent) async {
+  Future<void> _toggleAgent(Map agent, {String? kind}) async {
     final id = int.tryParse('${agent['id']}');
     if (id == null) return;
     setState(() => _loading = true);
@@ -256,6 +268,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
       await _service.toggleAgent(
         requestId: SocialPostService.requestId(),
         id: id,
+        kind: kind ?? ('${_workspace?['kind']}' == 'social_agent' ? 'social_agent' : 'blog_agent'),
       );
       if (mounted) await _load();
     } catch (error) {
@@ -1130,6 +1143,8 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
   );
 
   Widget _agentCard(Map agent) {
+    final isSocial = '${_workspace?['kind']}' == 'social_agent';
+    final agentKind = isSocial ? 'social_agent' : 'blog_agent';
     final isActive = agent['is_active'] == true;
     final scheduleDays = (agent['schedule_days'] as List? ?? []).join(', ');
     final scheduleTimes = (agent['schedule_times'] as List? ?? []).join(', ');
@@ -1142,8 +1157,8 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const CircleAvatar(
-                  child: Icon(Icons.smart_toy_outlined),
+                CircleAvatar(
+                  child: Icon(isSocial ? Icons.hub_outlined : Icons.smart_toy_outlined),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -1166,11 +1181,11 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                   enabled: !_loading,
                   onSelected: (action) {
                     if (action == 'toggle') {
-                      _toggleAgent(agent);
+                      _toggleAgent(agent, kind: agentKind);
                     } else if (action == 'edit') {
-                      _edit('blog_agent', agent);
+                      _edit(agentKind, agent);
                     } else if (action == 'delete') {
-                      _delete('blog_agent', agent);
+                      _delete(agentKind, agent);
                     }
                   },
                   itemBuilder: (context) {
@@ -1217,6 +1232,15 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                     ),
                     visualDensity: VisualDensity.compact,
                   ),
+                for (final p in (agent['platforms'] as List? ?? []).whereType<Map>())
+                  Chip(
+                    avatar: Icon(_platformIcon('${p['platform']}'), size: 14),
+                    label: Text(
+                      '${p['name'] ?? p['platform']}',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
               ],
             ),
           ],
@@ -1226,8 +1250,16 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
   }
 
   Widget _agenda(Map post) {
+    final isSocial = '${_workspace?['kind']}' == 'social_agent';
+    final postKind = isSocial ? 'social_post' : 'blog_post';
     final status = '${post['status'] ?? 'draft'}';
     final isPublished = status == 'published';
+    final platform = post['platform'] != null ? '${post['platform']}' : null;
+    final postType = post['post_type'] != null ? '${post['post_type']}' : null;
+    final title = post['title'] ?? post['content'] ?? '';
+    final thumbnail = post['thumbnail'] != null && '${post['thumbnail']}'.isNotEmpty
+        ? '${post['thumbnail']}'
+        : null;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -1237,15 +1269,34 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.article_outlined),
-                const SizedBox(width: 14),
+                if (thumbnail != null) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      thumbnail,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                        isSocial ? _platformIcon(platform) : Icons.article_outlined,
+                        size: 32,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                ] else ...[
+                  Icon(isSocial ? _platformIcon(platform) : Icons.article_outlined),
+                  const SizedBox(width: 14),
+                ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${post['title']}',
+                        '$title',
                         style: Theme.of(context).textTheme.titleMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
                       if (post['agent'] != null) Text('${post['agent']}'),
@@ -1258,7 +1309,30 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: 10),
-                      _badge(status),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          _badge(status),
+                          if (platform != null)
+                            Chip(
+                              avatar: Icon(_platformIcon(platform), size: 14),
+                              label: Text(
+                                platform.toUpperCase(),
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          if (postType != null)
+                            Chip(
+                              label: Text(
+                                postType.replaceAll('_', ' '),
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -1266,13 +1340,13 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                   enabled: !_loading,
                   onSelected: (action) {
                     if (action == 'publish') {
-                      _publishPost(post);
+                      _publishPost(post, kind: postKind);
                     } else if (action == 'edit') {
-                      _edit('blog_post', post);
+                      _edit(postKind, post);
                     } else if (action == 'duplicate') {
-                      _duplicatePost(post);
+                      _duplicatePost(post, kind: postKind);
                     } else if (action == 'delete') {
-                      _delete('blog_post', post);
+                      _delete(postKind, post);
                     }
                   },
                   itemBuilder: (context) {
@@ -1418,7 +1492,9 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
         .whereType<Map>()
         .toList();
     final isBlog = kind == 'blog';
-    final isCalendar = isBlog && _workspace!['calendar'] == true;
+    final isSocialAgent = kind == 'social_agent';
+    final isAgentWorkspace = isBlog || isSocialAgent;
+    final isCalendar = isAgentWorkspace && _workspace!['calendar'] == true;
     final summary = switch (kind) {
       'invoices' =>
         'Stay on top of invoices, payments and outstanding balances.',
@@ -1431,6 +1507,8 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
       'companies' => 'Keep your business relationships in one place.',
       'campaigns' => 'Shape your message around the right audience.',
       'blog' => 'Plan your articles and see what’s coming next.',
+      'social_agent' =>
+        'Manage automated agents, schedules, and cross-platform publishing.',
       'photoshoot' => 'Create product images and explore your recent work.',
       _ =>
         'Discover the tools in ${widget.module['category'] ?? 'your workspace'}.',
@@ -1497,15 +1575,15 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                         ),
                       ),
                     ],
-                    if (isBlog && _workspace?['view_type'] != 'analytics') ...[
+                    if (isAgentWorkspace && _workspace?['view_type'] != 'analytics') ...[
                       const SizedBox(width: 12),
                       FilledButton.icon(
                         onPressed: _loading
                             ? null
                             : () => _edit(
                                 _workspace?['view_type'] == 'agents'
-                                    ? 'blog_agent'
-                                    : 'blog_post',
+                                    ? (isSocialAgent ? 'social_agent' : 'blog_agent')
+                                    : (isSocialAgent ? 'social_post' : 'blog_post'),
                               ),
                         icon: const Icon(Icons.add),
                         label: Text(
@@ -1535,11 +1613,11 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                       ),
                     ),
                   ),
-                if (isBlog && (_workspace!['metrics'] as List? ?? []).isNotEmpty) ...[
+                if (isAgentWorkspace && (_workspace!['metrics'] as List? ?? []).isNotEmpty) ...[
                   _metrics(_workspace!['metrics'] as List),
                   const SizedBox(height: 16),
                 ],
-                if (isBlog && _workspace?['view_type'] == 'dashboard') ...[
+                if (isAgentWorkspace && _workspace?['view_type'] == 'dashboard') ...[
                   Card(
                     color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: .35),
                     child: Padding(
@@ -1556,7 +1634,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  appTr('BlogPilot Status'),
+                                  appTr(isSocialAgent ? 'Social Media Agent Status' : 'BlogPilot Status'),
                                   style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 4),
@@ -1581,7 +1659,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
-                if (isBlog && _workspace?['view_type'] == 'analytics') ...[
+                if (isAgentWorkspace && _workspace?['view_type'] == 'analytics') ...[
                   _section('Publication Trend (Last 12 Months)'),
                   Card(
                     child: Padding(
@@ -1792,7 +1870,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                     ),
                   ),
                 ],
-                if (isBlog && !isCalendar && _workspace?['view_type'] != 'analytics') ...[
+                if (isAgentWorkspace && !isCalendar && _workspace?['view_type'] != 'analytics') ...[
                   const SizedBox(height: 8),
                   TextField(
                     controller: _search,
@@ -1800,7 +1878,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                       hintText: appTr(
                         _workspace?['view_type'] == 'agents'
                             ? 'Search agents…'
-                            : 'Search articles…',
+                            : (isSocialAgent ? 'Search posts…' : 'Search articles…'),
                       ),
                       prefixIcon: const Icon(Icons.search),
                     ),
@@ -1869,13 +1947,13 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                     ),
                   _section(_day == null ? 'Publishing agenda' : _date(_day)),
                 ],
-                if (isBlog && _workspace!['show_agents'] == true && _workspace?['view_type'] != 'agents') ...[
+                if (isAgentWorkspace && _workspace!['show_agents'] == true && _workspace?['view_type'] != 'agents') ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _section('Your agents'),
                       TextButton.icon(
-                        onPressed: _loading ? null : () => _edit('blog_agent'),
+                        onPressed: _loading ? null : () => _edit(isSocialAgent ? 'social_agent' : 'blog_agent'),
                         icon: const Icon(Icons.add, size: 18),
                         label: Text(appTr('New agent')),
                       ),
@@ -1893,7 +1971,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                       in (_workspace!['agents'] as List? ?? [])
                           .whereType<Map>())
                     _agentCard(agent),
-                  _section('Recent articles'),
+                  _section(isSocialAgent ? 'Recent posts' : 'Recent articles'),
                 ],
                 if (const [
                       'invoices',
@@ -1904,6 +1982,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                       'campaigns',
                       'photoshoot',
                       'blog',
+                      'social_agent',
                     ].contains(kind) &&
                     _records.isEmpty)
                   WorkspaceEmptyState(
@@ -1933,6 +2012,11 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                                   : (_workspace?['view_type'] == 'agents'
                                       ? 'No agents configured'
                                       : 'No articles found'),
+                              'social_agent' => isCalendar
+                                  ? 'A clear calendar, a fresh start'
+                                  : (_workspace?['view_type'] == 'agents'
+                                      ? 'No agents configured'
+                                      : 'No posts found'),
                               _ => 'A clear calendar, a fresh start',
                             },
                     ),
@@ -1959,13 +2043,18 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                                   : (_workspace?['view_type'] == 'agents'
                                       ? 'Create your first AI BlogPilot agent to start auto-generating articles.'
                                       : 'Your planned articles will appear here.'),
+                              'social_agent' => isCalendar
+                                  ? 'Your planned articles will appear in the agenda. Select a day to explore your publishing schedule.'
+                                  : (_workspace?['view_type'] == 'agents'
+                                      ? 'Create your first Social Media Agent to automate cross-platform publishing.'
+                                      : 'Your scheduled and published posts will appear here.'),
                               _ =>
                                 'Your planned articles will appear in the agenda. Select a day to explore your publishing schedule.',
                             },
                     ),
                     actionLabel: kind == 'photoshoot'
                         ? appTr('Create photoshoot')
-                        : (isBlog && !isCalendar
+                        : (isAgentWorkspace && !isCalendar
                             ? appTr(
                                 _workspace?['view_type'] == 'agents'
                                     ? 'Create agent'
@@ -1990,11 +2079,11 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                             ),
                             api: widget.api,
                           )
-                        : (isBlog && !isCalendar
+                        : (isAgentWorkspace && !isCalendar
                             ? () => _edit(
                                 _workspace?['view_type'] == 'agents'
-                                    ? 'blog_agent'
-                                    : 'blog_post',
+                                    ? (isSocialAgent ? 'social_agent' : 'blog_agent')
+                                    : (isSocialAgent ? 'social_post' : 'blog_post'),
                               )
                             : null),
                   ),
@@ -2006,7 +2095,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                     'estimates' => _estimate(record),
                     'companies' => _company(record),
                     'campaigns' => _campaign(record),
-                    'blog' => _workspace?['view_type'] == 'agents'
+                    'blog' || 'social_agent' => _workspace?['view_type'] == 'agents'
                         ? _agentCard(record)
                         : _agenda(record),
                     'photoshoot' => _photo(record),
@@ -2236,6 +2325,42 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
             ? DateTime.tryParse('${r!['scheduled_at']}')
             : null;
         break;
+      case 'social_agent':
+        _controllers['name'] =
+            TextEditingController(text: '${r?['name'] ?? ''}');
+        _controllers['target_audience'] = TextEditingController(
+          text: r?['target_audience'] is List
+              ? (r!['target_audience'] as List).join(', ')
+              : '${r?['target_audience'] ?? ''}',
+        );
+        _controllers['daily_post_count'] = TextEditingController(
+          text: '${r?['daily_post_count'] ?? 1}',
+        );
+        _selectedValues['platform_ids'] = r?['platform_ids'] is List
+            ? List<int>.from(
+                (r!['platform_ids'] as List)
+                    .map((e) => int.tryParse('$e'))
+                    .whereType<int>(),
+              )
+            : <int>[];
+        _selectedValues['language'] = r?['language'] ?? 'en';
+        _selectedValues['tone'] = r?['tone'] ?? 'professional';
+        _selectedValues['frequency'] = r?['frequency'] ?? 'daily';
+        _selectedValues['is_active'] = r?['is_active'] ?? true;
+        break;
+      case 'social_post':
+        _controllers['content'] =
+            TextEditingController(text: '${r?['content'] ?? ''}');
+        _selectedValues['post_type'] = r?['post_type'] ?? 'text';
+        _selectedValues['status'] = r?['status'] ?? 'draft';
+        _selectedValues['platform_id'] =
+            int.tryParse('${r?['platform_id'] ?? ''}');
+        _selectedValues['agent_id'] =
+            int.tryParse('${r?['agent_id'] ?? ''}');
+        _dateValues['scheduled_at'] = r?['scheduled_at'] != null
+            ? DateTime.tryParse('${r!['scheduled_at']}')
+            : null;
+        break;
       default:
         _controllers['name'] =
             TextEditingController(text: '${r?['name'] ?? ''}');
@@ -2445,6 +2570,10 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
         widget.record == null ? 'Create blog agent' : 'Edit blog agent',
       'blog_post' =>
         widget.record == null ? 'Create blog post' : 'Edit blog post',
+      'social_agent' =>
+        widget.record == null ? 'Create social agent' : 'Edit social agent',
+      'social_post' =>
+        widget.record == null ? 'Create social post' : 'Edit social post',
       _ => '${widget.record == null ? 'New' : 'Edit'} ${widget.kind}',
     };
     final buttonLabel = switch (widget.kind) {
@@ -2466,6 +2595,12 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
           ? 'Saving…'
           : (widget.record == null ? 'Create agent' : 'Save agent'),
       'blog_post' => _saving
+          ? 'Saving…'
+          : (widget.record == null ? 'Create post' : 'Save post'),
+      'social_agent' => _saving
+          ? 'Saving…'
+          : (widget.record == null ? 'Create agent' : 'Save agent'),
+      'social_post' => _saving
           ? 'Saving…'
           : (widget.record == null ? 'Create post' : 'Save post'),
       _ => _saving ? 'Saving…' : 'Save',
@@ -2973,6 +3108,160 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
                   'Tags',
                   hint: 'ai, technology, news (comma separated)',
                 ),
+              ],
+              if (widget.kind == 'social_agent') ...[
+                _textInput(
+                  'name',
+                  'Agent name',
+                  hint: 'e.g. Social Growth Agent',
+                  required: true,
+                ),
+                if ((widget.lookups?['platforms'] as List? ?? []).isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      appTr('Connected platforms'),
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final p in (widget.lookups?['platforms'] as List).whereType<Map>())
+                          FilterChip(
+                            avatar: Icon(_platformIcon('${p['platform']}'), size: 16),
+                            label: Text('${p['name'] ?? p['platform']}'),
+                            selected: (_selectedValues['platform_ids'] as List? ?? []).contains(p['id']),
+                            onSelected: (selected) {
+                              setState(() {
+                                final list = List<int>.from(_selectedValues['platform_ids'] as List? ?? []);
+                                final pid = int.tryParse('${p['id']}');
+                                if (pid != null) {
+                                  if (selected) {
+                                    list.add(pid);
+                                  } else {
+                                    list.remove(pid);
+                                  }
+                                }
+                                _selectedValues['platform_ids'] = list;
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+                _textInput(
+                  'target_audience',
+                  'Target audience',
+                  hint: 'e.g. Tech founders, startup creators (comma separated)',
+                  minLines: 2,
+                  maxLines: 3,
+                ),
+                _dropdownField<String>(
+                  label: 'Language',
+                  value: _selectedValues['language'],
+                  items: const [
+                    DropdownMenuItem(value: 'en', child: Text('English')),
+                    DropdownMenuItem(value: 'es', child: Text('Spanish')),
+                    DropdownMenuItem(value: 'fr', child: Text('French')),
+                    DropdownMenuItem(value: 'de', child: Text('German')),
+                    DropdownMenuItem(value: 'tr', child: Text('Turkish')),
+                    DropdownMenuItem(value: 'it', child: Text('Italian')),
+                    DropdownMenuItem(value: 'pt', child: Text('Portuguese')),
+                    DropdownMenuItem(value: 'ar', child: Text('Arabic')),
+                    DropdownMenuItem(value: 'hi', child: Text('Hindi')),
+                    DropdownMenuItem(value: 'zh', child: Text('Chinese')),
+                    DropdownMenuItem(value: 'ja', child: Text('Japanese')),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _selectedValues['language'] = v),
+                ),
+                _dropdownField<String>(
+                  label: 'Tone of voice',
+                  value: _selectedValues['tone'],
+                  items: const [
+                    DropdownMenuItem(value: 'professional', child: Text('Professional')),
+                    DropdownMenuItem(value: 'casual', child: Text('Casual / Conversational')),
+                    DropdownMenuItem(value: 'informative', child: Text('Informative / Educational')),
+                    DropdownMenuItem(value: 'humorous', child: Text('Humorous / Witty')),
+                    DropdownMenuItem(value: 'engaging', child: Text('Engaging / Storytelling')),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _selectedValues['tone'] = v),
+                ),
+                _dropdownField<String>(
+                  label: 'Posting frequency',
+                  value: _selectedValues['frequency'],
+                  items: const [
+                    DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                    DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                    DropdownMenuItem(value: 'custom', child: Text('Custom schedule')),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _selectedValues['frequency'] = v),
+                ),
+                _textInput(
+                  'daily_post_count',
+                  'Daily post count',
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+              if (widget.kind == 'social_post') ...[
+                _textInput(
+                  'content',
+                  'Post content',
+                  hint: 'Write your post caption or message…',
+                  minLines: 4,
+                  maxLines: 8,
+                  required: true,
+                ),
+                _dropdownField<int>(
+                  label: 'Platform',
+                  value: _selectedValues['platform_id'],
+                  items: _optionsList(widget.lookups?['platforms']),
+                  allowClear: true,
+                  onChanged: (v) =>
+                      setState(() => _selectedValues['platform_id'] = v),
+                ),
+                _dropdownField<int>(
+                  label: 'Author Agent (optional)',
+                  value: _selectedValues['agent_id'],
+                  items: _optionsList(
+                    widget.lookups?['agents'] ??
+                        widget.lookups?['agentsList'],
+                  ),
+                  allowClear: true,
+                  onChanged: (v) =>
+                      setState(() => _selectedValues['agent_id'] = v),
+                ),
+                _dropdownField<String>(
+                  label: 'Post type',
+                  value: _selectedValues['post_type'],
+                  items: const [
+                    DropdownMenuItem(value: 'text', child: Text('Text')),
+                    DropdownMenuItem(value: 'single_image', child: Text('Single Image')),
+                    DropdownMenuItem(value: 'carousel', child: Text('Carousel')),
+                    DropdownMenuItem(value: 'video', child: Text('Video')),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _selectedValues['post_type'] = v),
+                ),
+                _dropdownField<String>(
+                  label: 'Status',
+                  value: _selectedValues['status'],
+                  items: const [
+                    DropdownMenuItem(value: 'draft', child: Text('Draft')),
+                    DropdownMenuItem(value: 'scheduled', child: Text('Scheduled')),
+                    DropdownMenuItem(value: 'published', child: Text('Published')),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _selectedValues['status'] = v),
+                ),
+                _datePickerField('scheduled_at', 'Schedule publication date'),
               ],
               if (_error != null)
                 Padding(
