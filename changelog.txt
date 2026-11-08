@@ -1,7 +1,7 @@
 ================================================================================
 MagicAI Mobile & Backend Connector - Changelog
 Date: 2026-11-08
-Version: 1.2.1-crm-companies-fix
+Version: 1.5.0-phone-call-agent-parity
 Git Commit: origin/main
 CI Build: GitHub Actions Build (MagicAI Android CI/CD)
 Direct Download: https://ai.zoomnearby.com/changelog.txt
@@ -9,136 +9,104 @@ Direct Download: https://ai.zoomnearby.com/changelog.txt
 
 1. EXECUTIVE SUMMARY
 --------------------------------------------------------------------------------
-This release resolves the CRM Companies loading issue in the Flutter mobile app
-(https://ai.zoomnearby.com/dashboard/user/crm/companies), ensuring complete parity
-with the MagicAI web dashboard.
+This release establishes 100% full feature parity between the MagicAI Web Phone
+Call Agent module (https://ai.zoomnearby.com/dashboard/phone-call-agent) and the
+Flutter mobile app across all Phone Call Agent tools and workflows:
 
-In addition to the previous release (which established full Sales parity for
-Invoices, Payments, Proposals, and Estimates, Studio fixes, and Archived Posts),
-this update fixes the nested workspace response structure, handles legacy and
-modern payload shapes gracefully in Flutter, links the CRM Companies route to the
-native workspace screen, and updates the customer installer connector.
+  1. Phone Call Agent Dashboard & Overview (dashboard.phone-call-agent.index):
+     - Interactive 3-tab navigation matching web: "Agents", "Call History", "Outbound".
+     - Real KPI stat cards: Total Agents, Active Agents, Today's Calls, Outbound Calls.
+     - Gradient Hero banner with quick action buttons: "Create New Agent", "Call History", and "Outbound Calls".
+     - Real-time live search filter by agent title, phone number, or prompt instructions.
+     - Agent cards with provider badges (ElevenLabs / Twilio), attached phone numbers, voice names, today's call counter, and active status indicator.
+     - 1-tap live Active switcher (optimistic UI update with live backend toggle).
+     - Direct "Test Call" action launching realistic mobile Call Simulator.
+     - Agent options dropdown: "Configure", "Train Knowledge", "Phone Numbers", "Test Simulator", and "Delete Agent".
+
+  2. Agent Creation & Configuration Wizard (dashboard.phone-call-agent.new / store / update):
+     - 3-step wizard with step pills: "1. Configure", "2. Train", "3. Phone Numbers".
+     - Step 1 (Configure): Agent title, initial welcome message, instructions (system prompt), language selector, AI model selector (gpt-4o-mini, gpt-4o, claude-3-haiku), max call duration (sec), silence timeout (sec), active switch, and booking assistant integration (Cal.com / Calendly, event type URI, API key, timezone).
+     - ElevenLabs Voice Selection: searchable voices list with category, language tags, and instant audio sample preview playback simulation.
+     - Step 2 (Train Knowledge Base): URL, Text, and File knowledge management with embedding status chips and delete actions.
+     - Step 3 (Phone Numbers): View attached phone number, connect/import new Twilio/SIP/Exotel numbers, and release phone number.
+
+  3. Phone Call Simulator (phone-simulator.blade.php):
+     - Mobile phone mockup modal supporting live agent test simulation.
+     - State progression: Ready to Call -> Connecting... -> Connected & In-Call with active pulse animation and mm:ss timer -> End Call -> Call Ended summary.
+     - Binds to backend /simulate mutation to generate signed conversation session.
+
+  4. Call History & Turn-by-Turn Transcripts (dashboard.phone-call-agent.history / calls):
+     - Search calls by caller or called phone number.
+     - Status filter chips: All, Completed, Busy, No-Answer, Failed.
+     - Direction filter chips: All, Inbound, Outbound.
+     - Call cards displaying caller/called numbers, agent title, duration (formatted mm:ss), direction arrow, status badge, and pinned indicator.
+     - Interactive Call Detail bottom sheet with turn-by-turn chat bubbles (Agent vs Caller messages), pin/unpin call action, and delete call action.
+
+  5. Outbound Calling & Campaigns (dashboard.phone-call-agent.outbound.index / calls / campaigns):
+     - "Place a Call" bottom sheet: select agent with phone number, enter recipient phone number in E.164 format, optional schedule datetime, and place call immediately or queued.
+     - "New Campaign" bottom sheet: select agent, campaign name, batch recipient phone numbers list, and dispatch campaign.
+     - Outbound campaigns feed showing campaign status, completed/total progress indicator, and recipient counts.
+     - Paginated outbound calls list with status chips and durations.
 
 
-2. CRM COMPANIES MODULE FIX (https://ai.zoomnearby.com/dashboard/user/crm/companies)
+2. TECHNICAL ARCHITECTURE & BACKEND CONNECTOR
 --------------------------------------------------------------------------------
-[PROBLEM STATEMENT]
-  When navigating to the CRM Companies workspace in the mobile app, the screen
-  failed to display company records and raised:
-  "Unable to load this workspace. Please retry."
+[BACKEND SERVICES & CONNECTORS]
+  1. app/Services/Mobile/NativeScreenService.php:
+     - Mapped 'dashboard.phone-call-agent.*' and 'dashboard.phone-call-agent.index' directly to 'phone_agent' route type.
+  2. app/Services/Mobile/NativeWorkspaceService.php:
+     - Added 'phone_agent' workspace kind in view() and kind() dispatcher.
+     - Implemented phoneAgent() providing:
+       * Metrics: Total Agents, Active Agents, Today's Calls, Outbound Calls.
+       * Agents list with today_calls_count, total_calls_count, voice_name, provider.
+       * ElevenLabs & Polly voice catalog with audio preview URLs.
+       * Call history pagination with transcripts and pinned sorting.
+       * Outbound calls, campaigns, and eligible caller agents.
+       * Knowledge base training records.
+     - Added comprehensive mutate() handler for kinds:
+       * 'phone_agent' / 'agent': save (create/update agent + ElevenLabs sync), delete, toggle_active, simulate.
+       * 'call': delete, pin, place_call (create call + dispatch PlaceOutboundCallJob).
+       * 'campaign': save_campaign (batch recipient creation).
+       * 'train': train knowledge base and delete.
+       * 'phone_number': attach and release phone numbers.
+  3. distribution / magicai-mobile-install.php:
+     - Rebuilt and synced customer package installer containing updated NativeWorkspaceService and NativeScreenService.
 
-[ROOT CAUSE ANALYSIS]
-  1. Backend Response Nesting:
-     In app/Services/Mobile/NativeWorkspaceService.php:
-     'companies' => ['data' => $this->companies($user, $data)],
-     Because $this->companies() already calls $this->page(), which returns
-     ['data' => $records, 'current_page' => ..., 'last_page' => ..., 'total' => ...],
-     wrapping it in an extra ['data' => ...] caused the workspace payload to have
-     an associative Map under 'data' instead of a List:
-     {"data": {"data": [...], "current_page": 1, ...}}
-  2. Flutter Strict Type Assertion:
-     In lib/services/native_workspace_service.dart:
-     data['data'] is! List threw an ApiFailure exception when encountering the
-     nested Map structure.
-  3. Route Type Mapping:
-     In app/Services/Mobile/NativeScreenService.php:
-     dashboard.user.crm.companies.index was missing an explicit route mapping,
-     falling back to 'schema'.
-  4. Flutter Module Registry:
-     In lib/screens/native_module_screen.dart:
-     'companies' route type was not explicitly registered in the module switch.
-
-[IMPLEMENTED SOLUTIONS]
-  1. Backend (NativeWorkspaceService.php & MagicaiMobile/System/Services/NativeWorkspaceService.php):
-     - Changed 'companies' => ['data' => $this->companies($user, $data)]
-       to 'companies' => $this->companies($user, $data).
-     - Changed 'campaigns' => ['data' => $this->campaigns($user, $data)]
-       to 'campaigns' => $this->campaigns($user, $data).
-     - Verified via Artisan Tinker: $service->view() now returns 'data' as a flat
-       JSON array (List) containing company records (e.g., Zoomnearby Network).
-  2. Backend Route Registry (NativeScreenService.php & MagicaiMobile/System/Services/NativeScreenService.php):
-     - Added explicit route match:
-       $route === 'dashboard.user.crm.companies.index' => 'companies'
-  3. Flutter Workspace Service (lib/services/native_workspace_service.dart):
-     - Added robust normalization in NativeWorkspaceService.load():
-       If 'data' is a Map (nested from legacy or unpatched servers), it automatically
-       extracts rawData['data'] as the list and extracts pagination metadata.
-       If 'data' is already a List, it uses it directly.
-       Guarantees 'data' and 'modules' are always valid Lists.
-  4. Flutter Workspace Screen (lib/screens/native_workspace_screen.dart):
-     - Enhanced _NativeWorkspaceScreenState._load() to safely flatten records
-       regardless of top-level or nested response structure.
-     - Full support for Company listing, search filter, creation ('New company'),
-       editing, and deletion confirmed active.
-  5. Flutter Module Registry (lib/screens/native_module_screen.dart):
-     - Added 'companies' => NativeWorkspaceScreen(module: module, api: client).
+[FLUTTER MOBILE CLIENT]
+  1. lib/screens/native_phone_agent_screen.dart:
+     - Dedicated NativePhoneAgentScreen with 3-tab layout, Hero banner, KPI cards, agent cards, status toggles, Call Simulator, Call History with transcripts, and Outbound call/campaign wizards.
+  2. lib/screens/native_module_screen.dart:
+     - Registered 'phone_agent' => NativePhoneAgentScreen in NativeModuleRegistry.
+  3. lib/screens/native_workspace_screen.dart:
+     - Dispatches kind == 'phone_agent' directly to NativePhoneAgentScreen.
+  4. lib/services/native_workspace_service.dart:
+     - Enhanced load() with optional viewType, agentId, direction, and extra payload parameters.
 
 
-3. SALES TOOLS FULL PARITY (INVOICES, PAYMENTS, PROPOSALS, ESTIMATES)
+3. AUTOMATED VERIFICATION & TEST SUITE
 --------------------------------------------------------------------------------
-[FEATURE 1] Sales Invoices (dashboard/user/sales/invoices)
-  - Native "Create invoice" button in page header and empty state.
-  - Full modal creation/editing form with auto-generated document numbers (INV-xxxxx),
-    currency selection, customer company dropdown, contact dropdown, deal dropdown,
-    status selector (draft, sent, paid, cancelled), issue date & due date pickers,
-    and multiline notes.
-  - Integrated card action menu:
-    * "Record payment": opens payment recording pre-filled with invoice ID, customer,
-      balance due, and currency.
-    * "Edit invoice": edit total amount, dates, contact/company, and status.
-    * "Delete invoice": confirmation dialog with real invoice identifier.
-  - KPI summary cards: Total Invoiced, Outstanding Balance, Paid, and Overdue.
-  - Status filter chips: All invoices, Draft, Sent, Paid, Overdue.
+  - flutter analyze: Passed with 0 errors and 0 warnings.
+  - flutter test test/phone_call_agent_test.dart: 7/7 tests passed.
+  - Full mobile workspace suite: 48/48 tests passed:
+    * test/phone_call_agent_test.dart (7 passed)
+    * test/social_media_agent_workspace_test.dart (6 passed)
+    * test/blogpilot_workspace_test.dart (7 passed)
+    * test/sales_tools_test.dart (8 passed)
+    * test/production_polish_test.dart (20 passed)
 
-[FEATURE 2] Sales Payments (dashboard/user/sales/payments)
-  - Native "Record payment" button in page header.
-  - Record payment form supporting:
-    * Link to Sales Invoice.
-    * Payment amount with decimal validation.
-    * Currency selector.
-    * Payment method (Bank Transfer, Credit Card, Cash, PayPal, Stripe, Other).
-    * Status (Completed, Pending, Failed, Refunded).
-    * Transaction / Reference ID.
-    * Payment date picker.
-    * Customer company and contact association.
-    * Payment notes.
-  - Automatic invoice reconciliation: Recording a completed payment updates invoice
-    paid amounts and auto-advances invoice status ('paid' or 'partial').
+================================================================================
+PREVIOUS RELEASES:
+================================================================================
+Version: 1.4.0-social-media-agent-parity (2026-11-08)
+- Complete Social Media Agent parity (dashboard, agents grid, archived posts, calendar, analytics).
+- 41/41 automated tests passed.
 
-[FEATURE 3] Sales Proposals (dashboard/user/sales/proposals)
-  - Native "Create proposal" action, auto-numbered (PROP-xxxxx), client company/contact
-    pickers, deal association, proposal date & valid-until date pickers, notes.
+Version: 1.3.0-blogpilot-parity (2026-11-08)
+- Complete AI BlogPilot parity (dashboard, agents, archived posts, calendar, analytics).
 
-[FEATURE 4] Sales Estimates (dashboard/user/sales/estimates)
-  - Native "Create estimate" action, auto-numbered (EST-xxxxx), company/contact/deal
-    pickers, estimated amount, estimate & expiry date pickers.
+Version: 1.2.1-crm-companies-fix (2026-11-08)
+- Resolved CRM Companies loading issue and normalized nested payloads.
 
-
-4. BACKEND CONNECTOR & CLIENT PACKAGING
---------------------------------------------------------------------------------
-  - Rebuilt customer distribution package via build_customer_packages.py:
-    Output: app/Extensions/Mobile/distribution/magicai-mobile-install.php
-  - Synced to live distribution connector:
-    public/magicai-mobile-install.php
-  - Formatted all modified PHP files with Laravel Pint.
-
-
-5. VERIFICATION & CI/CD PIPELINE
---------------------------------------------------------------------------------
-  - Flutter Analysis:
-    Ran 'flutter analyze' -> 0 issues found (clean pass in both local and git worktree).
-  - Flutter Tests:
-    Ran 'flutter test test/sales_tools_test.dart':
-      * sales invoices workspace renders metrics, cards, and create button (Passed)
-      * sales payments workspace renders metrics, payment cards, and record button (Passed)
-      * sales proposals and estimates workspaces render successfully (Passed)
-      * WorkspaceRecordEditor validates and saves invoice and payment mutations (Passed)
-      * crm companies workspace renders company cards and New company button (Passed)
-      * crm companies workspace normalizes legacy nested Map data gracefully (Passed)
-      * NativeWorkspaceService normalizes both nested Map and direct List payloads (Passed)
-      * NativeModuleRegistry dispatches companies route_type to NativeWorkspaceScreen (Passed)
-      All 8 tests passed!
-  - Git & CI/CD:
-    Changes staged and committed to origin/main on GitHub (prakash111/magic-android).
-    GitHub Actions Android build triggered.
+Version: 1.2.0-sales-parity (2026-11-08)
+- Full Sales parity for Invoices, Payments, Proposals, and Estimates.
 ================================================================================

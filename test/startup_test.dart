@@ -279,6 +279,12 @@ void main() {
         code: 'license_invalid',
       );
       await tester.pumpAndSettle();
+      expect(find.text('No Internet Connection'), findsOneWidget);
+      expect(
+        find.text('Unable to connect to the server. Please check your internet connection and try again.'),
+        findsOneWidget,
+      );
+      expect(find.text('License Invalid / Expired'), findsNothing);
       expect(find.byType(LoginScreen), findsNothing);
       expect(
         tester.state(find.byType(Navigator, skipOffstage: false).first),

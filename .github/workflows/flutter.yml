@@ -1,0 +1,7 @@
+name: MagicAI source workflow notice
+on: workflow_dispatch
+jobs:
+  location:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Use the repository root .github/workflows/android-build.yml workflow.'

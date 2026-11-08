@@ -52,13 +52,3 @@ app.*.map.json
 
 *.jks
 *.keystore
-
-# Private workstation and signing configuration
-**/key.properties
-**/local.properties
-**/.env
-**/.env.*
-**/*.p12
-**/*.pem
-**/*.key
-tool/customization.json

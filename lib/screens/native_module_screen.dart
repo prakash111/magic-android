@@ -24,6 +24,7 @@ import 'extension_workflow_screen.dart';
 import 'native_visual_editor.dart';
 import 'native_workspace_screen.dart';
 import 'native_parity_screen.dart';
+import 'native_phone_agent_screen.dart';
 import 'schema_components.dart';
 
 class NativeModuleRegistry {
@@ -103,6 +104,7 @@ class NativeModuleRegistry {
       'companies' => NativeWorkspaceScreen(module: module, api: client),
       'blog' => NativeWorkspaceScreen(module: module, api: client),
       'social_agent' => NativeWorkspaceScreen(module: module, api: client),
+      'phone_agent' => NativePhoneAgentScreen(module: module, api: client),
       'invoices' => NativeWorkspaceScreen(module: module, api: client),
       'payments' => NativeWorkspaceScreen(module: module, api: client),
       'proposals' => NativeWorkspaceScreen(module: module, api: client),

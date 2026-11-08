@@ -12,6 +12,8 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+!zoom-pos-key.jks
+!app/zoom-pos-key.jks
 
 /key.properties
 *.jks

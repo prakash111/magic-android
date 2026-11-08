@@ -11,6 +11,10 @@ class NativeWorkspaceService {
     String status = 'all',
     String? currency,
     DateTime? day,
+    String? viewType,
+    int? agentId,
+    String? direction,
+    Map<String, dynamic>? extra,
   }) async {
     final data = await api
         .request(
@@ -22,6 +26,10 @@ class NativeWorkspaceService {
             'page': page,
             'status': status,
             'currency': ?currency,
+            'view_type': ?viewType,
+            'agent_id': ?agentId,
+            'direction': ?direction,
+            ...?extra,
             if (day != null) ...{
               'from': DateTime(
                 day.year,

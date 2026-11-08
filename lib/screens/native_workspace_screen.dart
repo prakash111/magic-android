@@ -12,6 +12,7 @@ import '../services/workspace_catalog.dart';
 import 'native_module_screen.dart' show NativeSchemaScreen;
 import 'native_settings_screen.dart';
 import 'native_parity_screen.dart';
+import 'native_phone_agent_screen.dart';
 import 'server_screen.dart' show RetryPanel;
 import 'workspace_screen.dart' show openModule, workspaceIcon;
 
@@ -1478,6 +1479,9 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
       );
     }
     final kind = '${_workspace!['kind']}';
+    if (kind == 'phone_agent') {
+      return NativePhoneAgentScreen(module: widget.module, api: widget.api);
+    }
     if (kind == 'fashion_settings') {
       return NativeParityScreen(
         module: {...widget.module, 'route_type': kind},

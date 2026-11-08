@@ -296,17 +296,15 @@ class MagicSparklePainter extends CustomPainter {
 }
 
 class AuthBrandLogo extends StatelessWidget {
-  const AuthBrandLogo({super.key, this.base64Image});
-  final String? base64Image;
+  const AuthBrandLogo({super.key});
   static String _encoded = '';
   static MemoryImage? _image;
   @override
   Widget build(BuildContext context) {
     AppLocalizations.watch(context);
 
-    final source = base64Image ?? BrandConfig.logoBase64;
-    if (_image == null || _encoded != source) {
-      _encoded = source;
+    if (_image == null || _encoded != BrandConfig.logoBase64) {
+      _encoded = BrandConfig.logoBase64;
       _image = MemoryImage(base64Decode(_encoded));
     }
     return Image(image: _image!, fit: BoxFit.contain);

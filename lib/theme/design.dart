@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
+import '../widgets/magic_motion.dart';
 
 /// Shared design tokens and small widgets for the MagicAI redesign.
 
@@ -140,54 +141,57 @@ class ToolRow extends StatelessWidget {
     this.locked = false,
   });
   @override
-  Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 10),
-    clipBehavior: Clip.antiAlias,
-    child: InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            IconChip(icon: icon, color: color),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                  if (subtitle != null && subtitle!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        subtitle!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: mutedText(context),
-                          fontSize: 12.5,
-                        ),
+  Widget build(BuildContext context) {
+    final row = Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              IconChip(icon: icon, color: color),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
                       ),
                     ),
-                ],
+                    if (subtitle != null && subtitle!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          subtitle!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: mutedText(context),
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            Icon(
-              locked ? Icons.lock_outline : Icons.chevron_right,
-              size: 20,
-              color: mutedText(context),
-            ),
-          ],
+              Icon(
+                locked ? Icons.lock_outline : Icons.chevron_right,
+                size: 20,
+                color: mutedText(context),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+    return onTap == null ? row : MagicPressFeedback(child: row);
+  }
 }
 
 /// Dashed "add" style card.

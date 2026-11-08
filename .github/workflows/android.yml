@@ -1,0 +1,93 @@
+name: MagicAI customer Android
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: Your HTTPS MagicAI origin
+        type: string
+        required: true
+      application_id:
+        type: string
+        default: com.example.magicai_mobile
+      app_name:
+        type: string
+        default: MagicAI
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: python3 tool/test-check-android-jni.py
+      - run: flutter analyze
+      - run: flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test
+  android:
+    if: github.event_name == 'workflow_dispatch'
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Customize native application
+        env:
+          APPLICATION_ID: ${{ inputs.application_id }}
+          APP_NAME: ${{ inputs.app_name }}
+        run: python3 tool/customize.py --application-id "$APPLICATION_ID" --app-name "$APP_NAME"
+      - name: Prepare signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          python3 - <<'PY'
+          import base64, os
+          from pathlib import Path
+          keys = ['KEYSTORE_BASE64', 'STORE_PASSWORD', 'KEY_PASSWORD', 'KEY_ALIAS']
+          if any(not os.environ.get(key) for key in keys):
+              raise SystemExit('Configure your four Android signing secrets.')
+          path = Path(os.environ['RUNNER_TEMP']) / 'customer-release.jks'
+          path.write_bytes(base64.b64decode(os.environ['KEYSTORE_BASE64'], validate=True))
+          path.chmod(0o600)
+          def escape(value):
+              return value.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace(' ', '\\ ').replace(':', '\\:').replace('=', '\\=')
+          values = {'storeFile': str(path), 'storePassword': os.environ['STORE_PASSWORD'], 'keyPassword': os.environ['KEY_PASSWORD'], 'keyAlias': os.environ['KEY_ALIAS']}
+          Path('android/key.properties').write_text(''.join(key+'='+escape(value)+'\n' for key,value in values.items()))
+          Path('android/key.properties').chmod(0o600)
+          PY
+      - name: Build signed release
+        env:
+          SERVER_URL: ${{ inputs.server_url }}
+          APP_NAME: ${{ inputs.app_name }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          flutter build apk --release --build-number="$BUILD_NUMBER" --dart-define=MAGICAI_SERVER_URL="$SERVER_URL" --dart-define=MAGICAI_APP_NAME="$APP_NAME"
+          flutter build appbundle --release --build-number="$BUILD_NUMBER" --dart-define=MAGICAI_SERVER_URL="$SERVER_URL" --dart-define=MAGICAI_APP_NAME="$APP_NAME"
+      - name: Verify release JNI descriptors
+        run: python3 tool/check-android-jni.py build/app/outputs/flutter-apk/app-release.apk build/app/outputs/bundle/release/app-release.aab
+      - uses: actions/upload-artifact@v4
+        with:
+          name: magicai-android
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+      - name: Remove signing files
+        if: always()
+        run: rm -f android/key.properties "$RUNNER_TEMP/customer-release.jks"

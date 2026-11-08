@@ -152,12 +152,12 @@ class _MagicAIMobileAppState extends State<MagicAIMobileApp>
             return ThemeSettings(
               mode: _themeMode,
               onChanged: _updateTheme,
-              child: ValueListenableBuilder<ApiFailure?>(
-                valueListenable: MobileApi.failure,
-                builder: (context, problem, _) {
-                  AppLocalizations.watch(context);
-                  return MagicInteractionLayer(
-                    child: Stack(
+              child: MagicInteractionLayer(
+                child: ValueListenableBuilder<ApiFailure?>(
+                  valueListenable: MobileApi.failure,
+                  builder: (context, problem, _) {
+                    AppLocalizations.watch(context);
+                    return Stack(
                       fit: StackFit.expand,
                       children: [
                         Offstage(offstage: problem != null, child: child!),
@@ -253,9 +253,9 @@ class _MagicAIMobileAppState extends State<MagicAIMobileApp>
                             ),
                           ),
                       ],
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             );
           },

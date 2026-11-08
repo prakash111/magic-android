@@ -90,6 +90,10 @@ void main() {
     );
     await expectLater(api.bootstrap(), throwsA(isA<ApiFailure>()));
     expect(MobileApi.failure.value?.code, 'license_invalid');
+    expect(
+      MobileApi.failure.value?.message,
+      'Unable to connect to the server. Please check your internet connection and try again.',
+    );
   });
   test('a rejected login stays on the credential form', () async {
     final api = MobileApi(
