@@ -256,7 +256,7 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                       }, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(height: 14),
                       Text(
-                        appTr((metric['label']).toString()),
+                        appTr((metric['label'] ?? metric['title'] ?? '').toString()),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: 8),
@@ -1092,7 +1092,17 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.check),
-                label: Text(appTr(_saving ? 'Saving…' : 'Save ${widget.kind}')),
+                label: Text(
+                  appTr(
+                    _saving
+                        ? 'Saving…'
+                        : widget.kind.trim().isEmpty
+                        ? 'Save'
+                        : widget.kind.trim().toLowerCase().startsWith('save')
+                        ? widget.kind.trim()
+                        : 'Save ${widget.kind.trim()}',
+                  ),
+                ),
               ),
             ],
           ),

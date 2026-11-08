@@ -100,6 +100,7 @@ class NativeModuleRegistry {
         title: appTr('Documents'),
         api: client,
       ),
+      'invoices' => NativeWorkspaceScreen(module: module, api: client),
       'tool_directory' => NativeToolDirectory(api: client),
       'server_form' => NativeSchemaScreen(module: module, api: client),
       _ => NativeWorkspaceScreen(module: module, api: client),
@@ -467,55 +468,72 @@ class _NativeSchemaScreenState extends State<NativeSchemaScreen> {
         attachments: attachments,
       ),
     ),
-    'table' => Column(
-      children: [
-        for (final row
-            in (item['rows'] is List ? item['rows'] as List : const [])
-                .whereType<List>())
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final cell in row.whereType<Map>())
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              appTr((cell['label']).toString()),
-                              style: const TextStyle(
-                                color: AppTheme.textMuted,
-                                fontSize: 13,
-                              ),
+    'empty_state' => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: WorkspaceEmptyState(
+        icon: Icons.inbox_outlined,
+        title: appTr((item['title'] ?? 'No records found').toString()),
+        message: appTr((item['message'] ?? '').toString()),
+      ),
+    ),
+    'table' => (item['rows'] is List && (item['rows'] as List).isNotEmpty)
+        ? Column(
+            children: [
+              for (final row in (item['rows'] as List).whereType<List>())
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final cell in row.whereType<Map>())
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    appTr((cell['label'] ?? '').toString()),
+                                    style: const TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 3,
+                                  child: Text(
+                                    '${cell['value'] ?? ''}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              '${cell['value']}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
-                ],
+                  ),
+                ),
+            ],
+          )
+        : Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: WorkspaceEmptyState(
+              icon: Icons.table_chart_outlined,
+              title: appTr((item['title'] ?? 'No records found').toString()),
+              message: appTr(
+                (item['empty_message'] ?? item['message'] ?? 'There are no entries to display.').toString(),
               ),
             ),
           ),
-      ],
-    ),
     'stat' => Card(
       child: ListTile(
-        title: Text('${item['value']}'),
-        subtitle: Text(appTr((item['label']).toString())),
+        title: Text('${item['value'] ?? ''}'),
+        subtitle: Text(appTr((item['label'] ?? item['title'] ?? '').toString())),
       ),
     ),
     'image' => Image.network(
@@ -911,7 +929,14 @@ class _NativeSchemaFormState extends State<NativeSchemaForm> {
                         }
                       },
                 child: Text(
-                  appTr((widget.definition['title'] ?? 'Save').toString()),
+                  appTr(
+                    (widget.definition['title'] ?? 'Save')
+                        .toString()
+                        .replaceAll(
+                          RegExp(r'\bSave\s+Saving[.…]*', caseSensitive: false),
+                          'Save',
+                        ),
+                  ),
                 ),
               ),
             ],

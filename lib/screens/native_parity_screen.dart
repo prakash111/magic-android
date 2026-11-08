@@ -878,10 +878,13 @@ class _NativeParityScreenState extends State<NativeParityScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RetryPanel(message: appTr(_error!), retry: _load);
     }
+    if (_rows.isEmpty && _error != null) {
+      return RetryPanel(message: appTr(_error!), retry: _load);
+    }
     return Column(
       children: [
         if (_busy) const LinearProgressIndicator(),
-        if (_error != null)
+        if (_error != null && _rows.isNotEmpty)
           MaterialBanner(
             content: Text(appTr(_error!)),
             actions: [

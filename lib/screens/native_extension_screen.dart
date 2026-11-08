@@ -898,10 +898,13 @@ class _NativeExtensionScreenState extends State<NativeExtensionScreen> {
           : RetryPanel(message: appTr(_error!), retry: _load);
     }
     if (widget.conversationId != null) return _thread();
+    if (_records.isEmpty && _error != null) {
+      return RetryPanel(message: appTr(_error!), retry: _load);
+    }
     return Column(
       children: [
         if (_loading || _busy) const LinearProgressIndicator(),
-        if (_error != null) _errorPanel(),
+        if (_error != null && _records.isNotEmpty) _errorPanel(),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => _load(),

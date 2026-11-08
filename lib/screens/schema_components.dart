@@ -3,6 +3,7 @@ import '../services/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'native_workspace_screen.dart' show WorkspaceEmptyState;
 
 /// Styled rendering for the flat `components` list returned by `/native/screen`.
 ///
@@ -85,6 +86,21 @@ List<Widget> buildStyledComponents(
       continue;
     }
 
+    if (type == 'empty_state') {
+      out.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: WorkspaceEmptyState(
+            icon: Icons.inbox_outlined,
+            title: appTr((item['title'] ?? 'No records found').toString()),
+            message: appTr((item['message'] ?? '').toString()),
+          ),
+        ),
+      );
+      i++;
+      continue;
+    }
+
     if (type == 'stat') {
       final stats = <Map>[];
       var j = i;
@@ -97,7 +113,7 @@ List<Widget> buildStyledComponents(
           children: [
             for (final s in stats)
               SchemaTile(
-                label: appTr((s['label'] ?? '').toString()),
+                label: appTr((s['label'] ?? s['title'] ?? '').toString()),
                 value: s['value'] == null ? null : '${s['value']}',
               ),
           ],
