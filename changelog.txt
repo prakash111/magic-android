@@ -1,7 +1,7 @@
 ================================================================================
 MagicAI Mobile & Backend Connector - Changelog
 Date: 2026-11-08
-Version: 1.5.0-phone-call-agent-parity
+Version: 1.6.0-work-productivity-creative-studio
 Git Commit: origin/main
 CI Build: GitHub Actions Build (MagicAI Android CI/CD)
 Direct Download: https://ai.zoomnearby.com/changelog.txt
@@ -9,104 +9,86 @@ Direct Download: https://ai.zoomnearby.com/changelog.txt
 
 1. EXECUTIVE SUMMARY
 --------------------------------------------------------------------------------
-This release establishes 100% full feature parity between the MagicAI Web Phone
-Call Agent module (https://ai.zoomnearby.com/dashboard/phone-call-agent) and the
-Flutter mobile app across all Phone Call Agent tools and workflows:
+This release completes full end-to-end integration, routing, and native mobile
+UI binding for all 33 tools across "Work & productivity" (15 tools) and "Creative studio"
+(18 tools), resolving all 503/404/429 errors and eliminating generic HTML scraping:
 
-  1. Phone Call Agent Dashboard & Overview (dashboard.phone-call-agent.index):
-     - Interactive 3-tab navigation matching web: "Agents", "Call History", "Outbound".
-     - Real KPI stat cards: Total Agents, Active Agents, Today's Calls, Outbound Calls.
-     - Gradient Hero banner with quick action buttons: "Create New Agent", "Call History", and "Outbound Calls".
-     - Real-time live search filter by agent title, phone number, or prompt instructions.
-     - Agent cards with provider badges (ElevenLabs / Twilio), attached phone numbers, voice names, today's call counter, and active status indicator.
-     - 1-tap live Active switcher (optimistic UI update with live backend toggle).
-     - Direct "Test Call" action launching realistic mobile Call Simulator.
-     - Agent options dropdown: "Configure", "Train Knowledge", "Phone Numbers", "Test Simulator", and "Delete Agent".
+  A. Work & Productivity (15 Tools):
+     1. Dashboard (web:dashboard) -> NativeDashboard
+     2. Workbook (web:workbook) -> ServerListScreen (/documents)
+     3. Favorites (web:favorites) -> NativeToolDirectory
+     4. SEO Tool (web:seo_tool_extension) -> NativeToolDirectory
+     5. AI Rewriter (web:ai_rewriter) -> DynamicToolScreen (writer_tool)
+     6. AI Editor (web:ai_editor) -> NativeToolDirectory (templates catalog)
+     7. AI Article Wizard (web:ai_article_wizard) -> DynamicToolScreen (writer_tool)
+     8. AI Plagiarism (web:ai_plagiarism_extension) -> DynamicToolScreen (writer_tool)
+     9. AI Content Detector (web:ai_detector_extension) -> DynamicToolScreen (writer_tool)
+    10. Team Management (web:team_menu) -> NativeWorkspaceScreen (team)
+    11. API Keys (web:api_keys) -> NativeWorkspaceScreen (api_keys)
+    12. Affiliates (web:affiliates) -> NativeWorkspaceScreen (affiliates)
+    13. Integrations (web:integration) -> NativeWorkspaceScreen (integration)
+    14. AI Influencer (web:ai_influencer) -> NativeWorkspaceScreen (ai_influencer)
+    15. AI Persona (web:ai_persona) -> NativeWorkspaceScreen (ai_persona)
 
-  2. Agent Creation & Configuration Wizard (dashboard.phone-call-agent.new / store / update):
-     - 3-step wizard with step pills: "1. Configure", "2. Train", "3. Phone Numbers".
-     - Step 1 (Configure): Agent title, initial welcome message, instructions (system prompt), language selector, AI model selector (gpt-4o-mini, gpt-4o, claude-3-haiku), max call duration (sec), silence timeout (sec), active switch, and booking assistant integration (Cal.com / Calendly, event type URI, API key, timezone).
-     - ElevenLabs Voice Selection: searchable voices list with category, language tags, and instant audio sample preview playback simulation.
-     - Step 2 (Train Knowledge Base): URL, Text, and File knowledge management with embedding status chips and delete actions.
-     - Step 3 (Phone Numbers): View attached phone number, connect/import new Twilio/SIP/Exotel numbers, and release phone number.
+  B. Creative Studio (18 Tools):
+     1. Creative Suite (web:creative_suite) -> NativeCreativeScreen
+     2. URL to Video (web:url_to_video) -> ExtensionWorkflowScreen (native_media)
+     3. Influencer Avatar (web:influencer_avatar) -> ExtensionWorkflowScreen (native_media)
+     4. AI Realtime Image (web:ai_realtime_image) -> ExtensionWorkflowScreen
+     5. AI Image Pro Realtime (web:ai_image_pro_real_time) -> ExtensionWorkflowScreen
+     6. AI Image Pro Smart Edit (web:ai_image_pro_edit) -> ExtensionWorkflowScreen (native_media)
+     7. Advanced Image Editor (web:advanced_image) -> ExtensionWorkflowScreen (native_media)
+     8. AI Captions (web:ai_captions) -> ExtensionWorkflowScreen
+     9. Video Editor (web:video_editor) -> ExtensionWorkflowScreen
+    10. Video Studio Hub (web:video_studio) -> NativeWorkspaceScreen (video_studio)
+    11. AI Video Pro (web:ai_video_pro) -> NativeWorkspaceScreen (video_pro)
+    12. Video Agent (web:video_agent) -> NativeWorkspaceScreen (video_agent)
+    13. Auto Edit Videos (web:auto_edit_videos) -> NativeWorkspaceScreen (auto_edit)
+    14. AI Product Shot (web:ai_product_shot) -> NativeWorkspaceScreen (product_shot)
+    15. AI Presentation (web:ai_presentation) -> NativeWorkspaceScreen (presentation)
+    16. AI Avatar (web:ai_avatar) -> NativeWorkspaceScreen (ai_avatar)
+    17. AI Image Pro Gallery (web:ai_image_pro_get_inspired) -> NativeWorkspaceScreen (image_pro)
+    18. Viral Clips (web:viral_clips) -> NativeWorkspaceScreen (viral_clips)
 
-  3. Phone Call Simulator (phone-simulator.blade.php):
-     - Mobile phone mockup modal supporting live agent test simulation.
-     - State progression: Ready to Call -> Connecting... -> Connected & In-Call with active pulse animation and mm:ss timer -> End Call -> Call Ended summary.
-     - Binds to backend /simulate mutation to generate signed conversation session.
-
-  4. Call History & Turn-by-Turn Transcripts (dashboard.phone-call-agent.history / calls):
-     - Search calls by caller or called phone number.
-     - Status filter chips: All, Completed, Busy, No-Answer, Failed.
-     - Direction filter chips: All, Inbound, Outbound.
-     - Call cards displaying caller/called numbers, agent title, duration (formatted mm:ss), direction arrow, status badge, and pinned indicator.
-     - Interactive Call Detail bottom sheet with turn-by-turn chat bubbles (Agent vs Caller messages), pin/unpin call action, and delete call action.
-
-  5. Outbound Calling & Campaigns (dashboard.phone-call-agent.outbound.index / calls / campaigns):
-     - "Place a Call" bottom sheet: select agent with phone number, enter recipient phone number in E.164 format, optional schedule datetime, and place call immediately or queued.
-     - "New Campaign" bottom sheet: select agent, campaign name, batch recipient phone numbers list, and dispatch campaign.
-     - Outbound campaigns feed showing campaign status, completed/total progress indicator, and recipient counts.
-     - Paginated outbound calls list with status chips and durations.
-
-
-2. TECHNICAL ARCHITECTURE & BACKEND CONNECTOR
+2. BACKEND ROUTING & WORKSPACE HANDLERS
 --------------------------------------------------------------------------------
-[BACKEND SERVICES & CONNECTORS]
-  1. app/Services/Mobile/NativeScreenService.php:
-     - Mapped 'dashboard.phone-call-agent.*' and 'dashboard.phone-call-agent.index' directly to 'phone_agent' route type.
-  2. app/Services/Mobile/NativeWorkspaceService.php:
-     - Added 'phone_agent' workspace kind in view() and kind() dispatcher.
-     - Implemented phoneAgent() providing:
-       * Metrics: Total Agents, Active Agents, Today's Calls, Outbound Calls.
-       * Agents list with today_calls_count, total_calls_count, voice_name, provider.
-       * ElevenLabs & Polly voice catalog with audio preview URLs.
-       * Call history pagination with transcripts and pinned sorting.
-       * Outbound calls, campaigns, and eligible caller agents.
-       * Knowledge base training records.
-     - Added comprehensive mutate() handler for kinds:
-       * 'phone_agent' / 'agent': save (create/update agent + ElevenLabs sync), delete, toggle_active, simulate.
-       * 'call': delete, pin, place_call (create call + dispatch PlaceOutboundCallJob).
-       * 'campaign': save_campaign (batch recipient creation).
-       * 'train': train knowledge base and delete.
-       * 'phone_number': attach and release phone numbers.
-  3. distribution / magicai-mobile-install.php:
-     - Rebuilt and synced customer package installer containing updated NativeWorkspaceService and NativeScreenService.
+- ToolCatalog & ExtensionCatalog (App/Services/Mobile & App/Extensions/MagicaiMobile):
+  * Registered built-in tool definitions for `ai_plagiarism`, `ai_content_detect`, and `ai_article_wizard_generator`.
+  * Bound dedicated native tool schemas with inputs, tokens, and response contracts.
+- NativeScreenService:
+  * Mapped exact `routeType()` for all 33 tools so none fall through to web scraping.
+- NativeWorkspaceService:
+  * Added kind() resolution for: `team`, `api_keys`, `affiliates`, `integration`, `ai_influencer`, `ai_persona`, `video_studio`, `video_pro`, `video_agent`, `auto_edit`, `product_shot`, `presentation`, `ai_avatar`, `image_pro`, `viral_clips`.
+  * Implemented query methods with real Eloquent queries and KPI metric cards.
+  * Implemented mutation handlers for:
+    - Team: invite member (validates email & role, sends SendTeamInviteEmail), delete member.
+    - API Keys: save custom OpenAI, Claude, and Gemini API keys.
+    - Affiliates: request payout (validates available balance, logs UserAffiliate), send partner invite.
+    - Integrations: connect/disconnect credentials.
+    - Media outputs: delete record across UserFall, VideoAgentVideo, AutoEditRender, UserPebblely, AiPresentation, AiAvatar, AiImageProModel, ExportedVideo.
+- Rate Limiting:
+  * Upgraded /mobile/open/{ticket} throttle from 20 req/min to 120 req/min to prevent 429 Too Many Requests during rapid module exploration.
 
-[FLUTTER MOBILE CLIENT]
-  1. lib/screens/native_phone_agent_screen.dart:
-     - Dedicated NativePhoneAgentScreen with 3-tab layout, Hero banner, KPI cards, agent cards, status toggles, Call Simulator, Call History with transcripts, and Outbound call/campaign wizards.
-  2. lib/screens/native_module_screen.dart:
-     - Registered 'phone_agent' => NativePhoneAgentScreen in NativeModuleRegistry.
-  3. lib/screens/native_workspace_screen.dart:
-     - Dispatches kind == 'phone_agent' directly to NativePhoneAgentScreen.
-  4. lib/services/native_workspace_service.dart:
-     - Enhanced load() with optional viewType, agentId, direction, and extra payload parameters.
-
-
-3. AUTOMATED VERIFICATION & TEST SUITE
+3. FLUTTER NATIVE WORKSPACE UI & CONTROLS
 --------------------------------------------------------------------------------
-  - flutter analyze: Passed with 0 errors and 0 warnings.
-  - flutter test test/phone_call_agent_test.dart: 7/7 tests passed.
-  - Full mobile workspace suite: 48/48 tests passed:
-    * test/phone_call_agent_test.dart (7 passed)
-    * test/social_media_agent_workspace_test.dart (6 passed)
-    * test/blogpilot_workspace_test.dart (7 passed)
-    * test/sales_tools_test.dart (8 passed)
-    * test/production_polish_test.dart (20 passed)
+- NativeWorkspaceScreen:
+  * Renderers for all 15 workspace kinds:
+    - Team: `_teamMember(record)` card with avatar, name, email, role/status badges, and remove member action.
+    - API Keys: `_apiKeyCard(record)` with provider icon, description, masked key pill, active status badge, and update action.
+    - Affiliates: `_affiliateCard(record)` with amount, status badge, date, and top Referral Link card with 1-tap copy button and Request Payout header button.
+    - Integrations: `_integrationCard(record)` with integration logo, description, and connected/disconnected badge.
+    - Video Studio: Studio Tools launcher row with direct launch cards and aggregated outputs across all video engines.
+    - Media Cards: `_mediaCard(record, kind)` with thumbnail preview, play action, tool/model badge, duration badge, resolution badge, 1-tap copy link, and delete action.
+  * Form Editor (WorkspaceRecordEditor):
+    - Added form inputs, validation, and submission for `team_member` (email, role), `api_keys` (OpenAI, Claude, Gemini), `affiliate_withdrawal` (amount, bank info), and `affiliate_invite` (partner email).
 
-================================================================================
-PREVIOUS RELEASES:
-================================================================================
-Version: 1.4.0-social-media-agent-parity (2026-11-08)
-- Complete Social Media Agent parity (dashboard, agents grid, archived posts, calendar, analytics).
-- 41/41 automated tests passed.
-
-Version: 1.3.0-blogpilot-parity (2026-11-08)
-- Complete AI BlogPilot parity (dashboard, agents, archived posts, calendar, analytics).
-
-Version: 1.2.1-crm-companies-fix (2026-11-08)
-- Resolved CRM Companies loading issue and normalized nested payloads.
-
-Version: 1.2.0-sales-parity (2026-11-08)
-- Full Sales parity for Invoices, Payments, Proposals, and Estimates.
-================================================================================
+4. VERIFICATION & QUALITY ASSURANCE
+--------------------------------------------------------------------------------
+- Flutter Analysis:
+  * Ran `flutter analyze` across the entire flutter-app codebase: 0 errors, 0 warnings.
+- Flutter Test Suite:
+  * Added comprehensive `test/work_creative_tools_test.dart` covering all 33 tools, workspace rendering, cards, forms, and route resolution: 7/7 tests passed.
+  * Ran regression tests `sales_tools_test.dart`, `native_screen_test.dart`, `media_workflow_test.dart`: 24/24 tests passed.
+- Backend Verification:
+  * Pint agent formatting applied cleanly across all PHP service and controller files.
+  * Tested all 33 tool endpoints in Laravel Tinker: 33/33 resolved with 100% success.

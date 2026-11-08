@@ -3,6 +3,7 @@ import '../services/app_localizations.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../services/mobile_api.dart';
@@ -1424,6 +1425,386 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
     );
   }
 
+  void _openMediaUrl(String url) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(appTr('Media playback')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(appTr('Stream or download URL:')),
+            const SizedBox(height: 8),
+            SelectableText(
+              url,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: url));
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(appTr('Link copied to clipboard'))),
+              );
+            },
+            child: Text(appTr('Copy link')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(appTr('Close')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _teamMember(Map record) {
+    final name = '${record['name'] ?? 'Team Member'}';
+    final email = '${record['email'] ?? ''}';
+    final role = '${record['role'] ?? 'member'}';
+    final status = '${record['status'] ?? 'active'}';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+              foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : 'M',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  if (email.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      email,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      _badge(role.toUpperCase()),
+                      _badge(status),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 20),
+              tooltip: appTr('Remove member'),
+              onPressed: _loading ? null : () => _delete('team_member', record),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _apiKeyCard(Map record) {
+    final title = '${record['title'] ?? 'API Key'}';
+    final description = '${record['description'] ?? ''}';
+    final isConfigured = record['is_configured'] == true;
+    final masked = '${record['key_masked'] ?? ''}';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.vpn_key_outlined,
+                  color: isConfigured
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.outline,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+                _badge(isConfigured ? 'Active' : 'Default'),
+              ],
+            ),
+            if (description.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                description,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: .5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      isConfigured ? masked : appTr('Using server-configured key'),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontFamily: 'monospace',
+                            color: isConfigured ? null : Theme.of(context).colorScheme.outline,
+                          ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _edit('api_keys', record),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: Text(appTr(isConfigured ? 'Change' : 'Set key')),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _affiliateCard(Map record) {
+    final amount = num.tryParse('${record['amount'] ?? 0}') ?? 0;
+    final currency = (_workspace?['currency'] ?? r'$').toString();
+    final status = '${record['status'] ?? 'pending'}';
+    final date = _date(record['created_at']);
+
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+          child: const Icon(Icons.account_balance_wallet_outlined, size: 20),
+        ),
+        title: Text(
+          '$currency${amount.toStringAsFixed(2)}',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        subtitle: Text(date),
+        trailing: _badge(status.toUpperCase()),
+      ),
+    );
+  }
+
+  Widget _integrationCard(Map record) {
+    final title = '${record['title'] ?? 'Integration'}';
+    final description = '${record['description'] ?? ''}';
+    final isConnected = record['is_connected'] == true;
+    final image = Uri.tryParse('${record['image'] ?? ''}');
+    final url = image == null ? null : widget.api.origin.resolveUri(image);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: url != null && url.scheme == 'https'
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        '$url',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.extension_outlined),
+                      ),
+                    )
+                  : const Icon(Icons.extension_outlined),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  if (description.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  _badge(isConnected ? 'Connected' : 'Disconnected'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mediaCard(Map record, String kind) {
+    final title = '${record['title'] ?? record['prompt'] ?? record['name'] ?? 'Media output'}';
+    final status = '${record['status'] ?? 'complete'}';
+    final duration = record['duration'] ?? (record['duration_seconds'] != null ? '${record['duration_seconds']}s' : null);
+    final resolution = record['resolution'] ?? record['target_resolution'];
+    final tool = record['tool'] ?? record['used_ai_tool'] ?? record['model'];
+    final date = _date(record['created_at']);
+
+    final rawVideo = record['video_url'] ?? record['remote_url'] ?? record['local_path'];
+    final rawThumb = record['thumbnail_url'] ?? record['cover_url'] ?? record['image_url'];
+    final thumbUri = rawThumb != null ? Uri.tryParse('$rawThumb') : null;
+    final resolvedThumb = thumbUri == null ? null : widget.api.origin.resolveUri(thumbUri);
+
+    final videoUri = rawVideo != null ? Uri.tryParse('$rawVideo') : null;
+    final resolvedVideo = videoUri == null ? null : widget.api.origin.resolveUri(videoUri);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (resolvedThumb != null && resolvedThumb.scheme == 'https')
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.network(
+                  '$resolvedThumb',
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 120,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    child: const Icon(Icons.video_library_outlined, size: 40),
+                  ),
+                ),
+                if (resolvedVideo != null)
+                  CircleAvatar(
+                    backgroundColor: Colors.black54,
+                    radius: 24,
+                    child: IconButton(
+                      icon: const Icon(Icons.play_arrow, color: Colors.white),
+                      onPressed: () => _openMediaUrl(resolvedVideo.toString()),
+                    ),
+                  ),
+              ],
+            )
+          else if (resolvedVideo != null)
+            Container(
+              height: 120,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: Center(
+                child: FilledButton.icon(
+                  onPressed: () => _openMediaUrl(resolvedVideo.toString()),
+                  icon: const Icon(Icons.play_arrow),
+                  label: Text(appTr('Play video')),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _badge(status),
+                    if (tool != null) _badge('$tool'),
+                    if (duration != null) _badge('$duration'),
+                    if (resolution != null) _badge('$resolution'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text(
+                      date,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                    ),
+                    const Spacer(),
+                    if (resolvedVideo != null || resolvedThumb != null)
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 18),
+                        tooltip: appTr('Copy link'),
+                        onPressed: () {
+                          final target = resolvedVideo?.toString() ?? resolvedThumb?.toString();
+                          if (target != null) {
+                            Clipboard.setData(ClipboardData(text: target));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(appTr('Link copied to clipboard'))),
+                            );
+                          }
+                        },
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      tooltip: appTr('Delete'),
+                      onPressed: _loading ? null : () => _delete(kind, record),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _tools(List<Map> tools) => [
     for (final tool in tools)
       Card(
@@ -1514,6 +1895,21 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
       'social_agent' =>
         'Manage automated agents, schedules, and cross-platform publishing.',
       'photoshoot' => 'Create product images and explore your recent work.',
+      'team' => 'Manage your team members, roles and seat allocations.',
+      'api_keys' => 'Configure your personal API keys for OpenAI, Anthropic and Gemini.',
+      'affiliates' => 'Track your affiliate referrals, earnings, and payout requests.',
+      'integration' => 'Connect external applications and manage API integrations.',
+      'video_studio' => 'Unified hub for video creation, editing, dubbing, and captions.',
+      'video_pro' => 'Generate cinematic AI videos from text prompts and images.',
+      'video_agent' => 'Generate interactive talking agent videos and sessions.',
+      'auto_edit' => 'Transform raw footage into polished, auto-edited videos.',
+      'product_shot' => 'Generate studio-grade product photography with AI backgrounds.',
+      'presentation' => 'Generate professional slide presentations from outlines and ideas.',
+      'ai_avatar' => 'Create and customize lifelike AI talking avatars.',
+      'image_pro' => 'Generate and enhance high-resolution AI artwork and photos.',
+      'viral_clips' => 'Extract high-engagement viral shorts and clips from long videos.',
+      'ai_influencer' => 'Create AI influencer videos and export social content.',
+      'ai_persona' => 'Build custom AI personas, virtual twins, and talking heads.',
       _ =>
         'Discover the tools in ${widget.module['category'] ?? 'your workspace'}.',
     };
@@ -1577,6 +1973,22 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                             _ => 'Add record',
                           }),
                         ),
+                      ),
+                    ],
+                    if (kind == 'team') ...[
+                      const SizedBox(width: 12),
+                      FilledButton.icon(
+                        onPressed: _loading ? null : () => _edit('team_member'),
+                        icon: const Icon(Icons.person_add_outlined),
+                        label: Text(appTr('Invite member')),
+                      ),
+                    ],
+                    if (kind == 'affiliates') ...[
+                      const SizedBox(width: 12),
+                      FilledButton.icon(
+                        onPressed: _loading ? null : () => _edit('affiliate_withdrawal'),
+                        icon: const Icon(Icons.payments_outlined),
+                        label: Text(appTr('Request payout')),
                       ),
                     ],
                     if (isAgentWorkspace && _workspace?['view_type'] != 'analytics') ...[
@@ -1931,6 +2343,92 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                   ),
                   _section('Your gallery'),
                 ],
+                if (kind == 'video_studio') ...[
+                  _metrics(_workspace!['metrics'] as List? ?? []),
+                  const SizedBox(height: 16),
+                  _section('Video Studio Tools'),
+                  ..._tools(
+                    tools
+                        .where(
+                          (tool) => !['workspace', 'schema', 'server_form'].contains(tool['route_type']),
+                        )
+                        .toList(),
+                  ),
+                  _section('Recent video outputs'),
+                ],
+                if (kind == 'affiliates') ...[
+                  _metrics(_workspace!['metrics'] as List? ?? []),
+                  const SizedBox(height: 16),
+                  if (_workspace?['referral_url'] != null)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              appTr('Your Referral Link'),
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '${_workspace!['referral_url']}',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy, size: 18),
+                                  tooltip: appTr('Copy link'),
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: '${_workspace!['referral_url']}'));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(appTr('Referral link copied'))),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  _section('Withdrawals history'),
+                ],
+                if (const [
+                  'team',
+                  'api_keys',
+                  'integration',
+                  'video_pro',
+                  'video_agent',
+                  'auto_edit',
+                  'product_shot',
+                  'presentation',
+                  'ai_avatar',
+                  'image_pro',
+                  'viral_clips',
+                  'ai_influencer',
+                  'ai_persona',
+                ].contains(kind)) ...[
+                  _metrics(_workspace!['metrics'] as List? ?? []),
+                  const SizedBox(height: 16),
+                  _section(switch (kind) {
+                    'team' => 'Team members',
+                    'api_keys' => 'AI Model providers',
+                    'integration' => 'Connected integrations',
+                    'product_shot' => 'Product photography outputs',
+                    'presentation' => 'Generated presentations',
+                    'ai_avatar' => 'Avatar videos',
+                    'image_pro' => 'Generated image gallery',
+                    'viral_clips' => 'Viral short clips',
+                    'ai_influencer' => 'Influencer video exports',
+                    'ai_persona' => 'Custom AI personas',
+                    _ => 'Recent outputs',
+                  }),
+                ],
                 if (isCalendar) ...[
                   CalendarDatePicker(
                     initialDate: _day ?? DateTime.now(),
@@ -2103,6 +2601,22 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                         ? _agentCard(record)
                         : _agenda(record),
                     'photoshoot' => _photo(record),
+                    'team' => _teamMember(record),
+                    'api_keys' => _apiKeyCard(record),
+                    'affiliates' => _affiliateCard(record),
+                    'integration' => _integrationCard(record),
+                    'video_studio' ||
+                    'video_pro' ||
+                    'video_agent' ||
+                    'auto_edit' ||
+                    'product_shot' ||
+                    'presentation' ||
+                    'ai_avatar' ||
+                    'image_pro' ||
+                    'viral_clips' ||
+                    'ai_influencer' ||
+                    'ai_persona' =>
+                      _mediaCard(record, kind),
                     _ => const SizedBox.shrink(),
                   },
                 if ((_workspace!['current_page'] as int? ?? 1) <
@@ -2365,6 +2879,24 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
             ? DateTime.tryParse('${r!['scheduled_at']}')
             : null;
         break;
+      case 'team_member':
+        _controllers['email'] =
+            TextEditingController(text: '${r?['email'] ?? ''}');
+        _selectedValues['role'] = r?['role'] ?? 'member';
+        break;
+      case 'api_keys':
+        _controllers['openai_key'] = TextEditingController(text: '');
+        _controllers['anthropic_key'] = TextEditingController(text: '');
+        _controllers['gemini_key'] = TextEditingController(text: '');
+        break;
+      case 'affiliate_withdrawal':
+        _controllers['amount'] = TextEditingController(text: '');
+        _controllers['bank_account'] =
+            TextEditingController(text: '${l?['bank_account'] ?? ''}');
+        break;
+      case 'affiliate_invite':
+        _controllers['to_mail'] = TextEditingController(text: '');
+        break;
       default:
         _controllers['name'] =
             TextEditingController(text: '${r?['name'] ?? ''}');
@@ -2578,6 +3110,10 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
         widget.record == null ? 'Create social agent' : 'Edit social agent',
       'social_post' =>
         widget.record == null ? 'Create social post' : 'Edit social post',
+      'team_member' => 'Invite team member',
+      'api_keys' => 'Configure API keys',
+      'affiliate_withdrawal' => 'Request affiliate payout',
+      'affiliate_invite' => 'Invite affiliate partner',
       _ => '${widget.record == null ? 'New' : 'Edit'} ${widget.kind}',
     };
     final buttonLabel = switch (widget.kind) {
@@ -2607,6 +3143,10 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
       'social_post' => _saving
           ? 'Saving…'
           : (widget.record == null ? 'Create post' : 'Save post'),
+      'team_member' => _saving ? 'Sending…' : 'Send invitation',
+      'api_keys' => _saving ? 'Saving…' : 'Save keys',
+      'affiliate_withdrawal' => _saving ? 'Submitting…' : 'Submit request',
+      'affiliate_invite' => _saving ? 'Sending…' : 'Send invite',
       _ => _saving ? 'Saving…' : 'Save',
     };
 
@@ -3266,6 +3806,61 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
                       setState(() => _selectedValues['status'] = v),
                 ),
                 _datePickerField('scheduled_at', 'Schedule publication date'),
+              ],
+              if (widget.kind == 'team_member') ...[
+                _textInput(
+                  'email',
+                  'Member email',
+                  keyboardType: TextInputType.emailAddress,
+                  required: true,
+                ),
+                _dropdownField<String>(
+                  label: 'Role',
+                  value: _selectedValues['role'] ?? 'member',
+                  items: const [
+                    DropdownMenuItem(value: 'member', child: Text('Member')),
+                    DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                  ],
+                  onChanged: (v) => setState(() => _selectedValues['role'] = v),
+                ),
+              ],
+              if (widget.kind == 'api_keys') ...[
+                _textInput(
+                  'openai_key',
+                  'OpenAI API Key',
+                  hint: 'sk-...',
+                ),
+                _textInput(
+                  'anthropic_key',
+                  'Anthropic Claude API Key',
+                  hint: 'sk-ant-...',
+                ),
+                _textInput(
+                  'gemini_key',
+                  'Google Gemini API Key',
+                  hint: 'AIza...',
+                ),
+              ],
+              if (widget.kind == 'affiliate_withdrawal') ...[
+                _textInput(
+                  'amount',
+                  'Withdrawal amount',
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  required: true,
+                ),
+                _textInput(
+                  'bank_account',
+                  'Payout details / Bank account info',
+                  maxLines: 3,
+                ),
+              ],
+              if (widget.kind == 'affiliate_invite') ...[
+                _textInput(
+                  'to_mail',
+                  'Partner email address',
+                  keyboardType: TextInputType.emailAddress,
+                  required: true,
+                ),
               ],
               if (_error != null)
                 Padding(
