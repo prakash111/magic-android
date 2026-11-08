@@ -44,12 +44,23 @@ class NativeWorkspaceService {
         );
     if (data is! Map ||
         data['schema_version'] != 1 ||
-        data['kind'] is! String ||
-        data['data'] is! List ||
-        data['modules'] is! List) {
+        data['kind'] is! String) {
       throw const ApiFailure('Unable to load this workspace. Please retry.');
     }
-    return Map<String, dynamic>.from(data);
+    final normalized = Map<String, dynamic>.from(data);
+    final rawData = normalized['data'];
+    if (rawData is Map) {
+      normalized['data'] = (rawData['data'] as List? ?? []).toList();
+      normalized['current_page'] ??= rawData['current_page'];
+      normalized['last_page'] ??= rawData['last_page'];
+      normalized['total'] ??= rawData['total'];
+    } else if (rawData is! List) {
+      normalized['data'] = <dynamic>[];
+    }
+    if (normalized['modules'] is! List) {
+      normalized['modules'] = <dynamic>[];
+    }
+    return normalized;
   }
 
   Future<void> save({

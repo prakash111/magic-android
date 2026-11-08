@@ -1,152 +1,126 @@
 ================================================================================
 MagicAI Mobile & Backend Connector - Changelog
 Date: 2026-11-08
-Version: 1.2.0-sales-parity
-Git Commit: b454ca1 (origin/main)
+Version: 1.2.1-crm-companies-fix
+Git Commit: origin/main
 CI Build: GitHub Actions Build (MagicAI Android CI/CD)
 Direct Download: https://ai.zoomnearby.com/changelog.txt
 ================================================================================
 
 1. EXECUTIVE SUMMARY
 --------------------------------------------------------------------------------
-This release establishes complete parity between the MagicAI Mobile App Explore
-tab (118 tools across 17 functional categories) and the MagicAI web dashboard.
-In addition to resolving previously reported screenshot bugs (Invoices, Studio,
-and Archived Posts), this update adds full native create, edit, delete, and payment
-recording features for all Sales tools (Invoices, Payments, Proposals, Estimates),
-making all options available on web panel directly accessible in the mobile app.
+This release resolves the CRM Companies loading issue in the Flutter mobile app
+(https://ai.zoomnearby.com/dashboard/user/crm/companies), ensuring complete parity
+with the MagicAI web dashboard.
+
+In addition to the previous release (which established full Sales parity for
+Invoices, Payments, Proposals, and Estimates, Studio fixes, and Archived Posts),
+this update fixes the nested workspace response structure, handles legacy and
+modern payload shapes gracefully in Flutter, links the CRM Companies route to the
+native workspace screen, and updates the customer installer connector.
 
 
-2. SALES TOOLS FULL PARITY (INVOICES, PAYMENTS, PROPOSALS, ESTIMATES)
+2. CRM COMPANIES MODULE FIX (https://ai.zoomnearby.com/dashboard/user/crm/companies)
+--------------------------------------------------------------------------------
+[PROBLEM STATEMENT]
+  When navigating to the CRM Companies workspace in the mobile app, the screen
+  failed to display company records and raised:
+  "Unable to load this workspace. Please retry."
+
+[ROOT CAUSE ANALYSIS]
+  1. Backend Response Nesting:
+     In app/Services/Mobile/NativeWorkspaceService.php:
+     'companies' => ['data' => $this->companies($user, $data)],
+     Because $this->companies() already calls $this->page(), which returns
+     ['data' => $records, 'current_page' => ..., 'last_page' => ..., 'total' => ...],
+     wrapping it in an extra ['data' => ...] caused the workspace payload to have
+     an associative Map under 'data' instead of a List:
+     {"data": {"data": [...], "current_page": 1, ...}}
+  2. Flutter Strict Type Assertion:
+     In lib/services/native_workspace_service.dart:
+     data['data'] is! List threw an ApiFailure exception when encountering the
+     nested Map structure.
+  3. Route Type Mapping:
+     In app/Services/Mobile/NativeScreenService.php:
+     dashboard.user.crm.companies.index was missing an explicit route mapping,
+     falling back to 'schema'.
+  4. Flutter Module Registry:
+     In lib/screens/native_module_screen.dart:
+     'companies' route type was not explicitly registered in the module switch.
+
+[IMPLEMENTED SOLUTIONS]
+  1. Backend (NativeWorkspaceService.php & MagicaiMobile/System/Services/NativeWorkspaceService.php):
+     - Changed 'companies' => ['data' => $this->companies($user, $data)]
+       to 'companies' => $this->companies($user, $data).
+     - Changed 'campaigns' => ['data' => $this->campaigns($user, $data)]
+       to 'campaigns' => $this->campaigns($user, $data).
+     - Verified via Artisan Tinker: $service->view() now returns 'data' as a flat
+       JSON array (List) containing company records (e.g., Zoomnearby Network).
+  2. Backend Route Registry (NativeScreenService.php & MagicaiMobile/System/Services/NativeScreenService.php):
+     - Added explicit route match:
+       $route === 'dashboard.user.crm.companies.index' => 'companies'
+  3. Flutter Workspace Service (lib/services/native_workspace_service.dart):
+     - Added robust normalization in NativeWorkspaceService.load():
+       If 'data' is a Map (nested from legacy or unpatched servers), it automatically
+       extracts rawData['data'] as the list and extracts pagination metadata.
+       If 'data' is already a List, it uses it directly.
+       Guarantees 'data' and 'modules' are always valid Lists.
+  4. Flutter Workspace Screen (lib/screens/native_workspace_screen.dart):
+     - Enhanced _NativeWorkspaceScreenState._load() to safely flatten records
+       regardless of top-level or nested response structure.
+     - Full support for Company listing, search filter, creation ('New company'),
+       editing, and deletion confirmed active.
+  5. Flutter Module Registry (lib/screens/native_module_screen.dart):
+     - Added 'companies' => NativeWorkspaceScreen(module: module, api: client).
+
+
+3. SALES TOOLS FULL PARITY (INVOICES, PAYMENTS, PROPOSALS, ESTIMATES)
 --------------------------------------------------------------------------------
 [FEATURE 1] Sales Invoices (dashboard/user/sales/invoices)
-  - Flutter & Backend parity:
-    * Native "Create invoice" button in page header and empty state.
-    * Full modal creation/editing form with auto-generated document numbers (INV-xxxxx),
-      currency selection, customer company dropdown, contact dropdown, deal dropdown,
-      status selector (draft, sent, paid, cancelled), issue date & due date pickers,
-      and multiline notes.
-    * Each invoice card and bottom sheet now includes an integrated action menu:
-      - "Record payment": opens payment recording pre-filled with invoice ID, customer,
-        balance due, and currency.
-      - "Edit invoice": edit total amount, dates, contact/company, and status.
-      - "Delete invoice": confirmation dialog with real invoice identifier.
-    * KPI summary cards: Total Invoiced, Outstanding Balance, Paid, and Overdue.
-    * Status filter chips: All invoices, Draft, Sent, Paid, Overdue.
+  - Native "Create invoice" button in page header and empty state.
+  - Full modal creation/editing form with auto-generated document numbers (INV-xxxxx),
+    currency selection, customer company dropdown, contact dropdown, deal dropdown,
+    status selector (draft, sent, paid, cancelled), issue date & due date pickers,
+    and multiline notes.
+  - Integrated card action menu:
+    * "Record payment": opens payment recording pre-filled with invoice ID, customer,
+      balance due, and currency.
+    * "Edit invoice": edit total amount, dates, contact/company, and status.
+    * "Delete invoice": confirmation dialog with real invoice identifier.
+  - KPI summary cards: Total Invoiced, Outstanding Balance, Paid, and Overdue.
+  - Status filter chips: All invoices, Draft, Sent, Paid, Overdue.
 
 [FEATURE 2] Sales Payments (dashboard/user/sales/payments)
-  - Flutter & Backend parity:
-    * Native "Record payment" button in page header.
-    * Record payment form supporting:
-      - Link to Sales Invoice (optional or linked directly from invoice card).
-      - Payment amount with decimal validation.
-      - Currency selector.
-      - Payment method (Bank Transfer, Credit Card, Cash, PayPal, Stripe, Other).
-      - Status (Completed, Pending, Failed, Refunded).
-      - Transaction / Reference ID.
-      - Payment date picker.
-      - Customer company and contact association.
-      - Payment notes.
-    * Automatic invoice reconciliation: Recording a completed payment against an
-      invoice updates the invoice's `amount_paid` and status (`partially_paid` or `paid`).
-      Deleting or modifying payments recalculates invoice balances accordingly.
-    * KPI summary cards: Total Received, Completed, Pending, and Total Payments.
-    * Status filter chips: All payments, Completed, Pending, Refunded, Failed.
+  - Native "Record payment" button in page header.
+  - Record payment form supporting:
+    * Link to Sales Invoice.
+    * Payment amount with decimal validation.
+    * Currency selector.
+    * Payment method (Bank Transfer, Credit Card, Cash, PayPal, Stripe, Other).
+    * Status (Completed, Pending, Failed, Refunded).
+    * Transaction / Reference ID.
+    * Payment date picker.
+    * Customer company and contact association.
+    * Payment notes.
+  - Automatic invoice reconciliation: Recording a completed payment updates invoice
+    paid amounts and auto-advances invoice status ('paid' or 'partial').
 
 [FEATURE 3] Sales Proposals (dashboard/user/sales/proposals)
-  - Flutter & Backend parity:
-    * Native "Create proposal" button in page header.
-    * Proposal editor supporting:
-      - Title & auto-generated proposal number (PRP-xxxxx).
-      - Total proposal value and currency.
-      - Company, contact, and deal lookups.
-      - Status selector (Draft, Sent, Accepted, Rejected, Expired).
-      - Issue date and Valid until date pickers.
-      - Detailed proposal notes.
-    * KPI summary cards: Total Proposals, Accepted, Pending / Sent, and Total Value.
-    * Status filter chips: All proposals, Draft, Sent, Accepted, Rejected, Expired.
+  - Native "Create proposal" action, auto-numbered (PROP-xxxxx), client company/contact
+    pickers, deal association, proposal date & valid-until date pickers, notes.
 
 [FEATURE 4] Sales Estimates (dashboard/user/sales/estimates)
-  - Flutter & Backend parity:
-    * Native "Create estimate" button in page header.
-    * Estimate editor supporting:
-      - Title & auto-generated estimate number (EST-xxxxx).
-      - Total estimate value and currency.
-      - Company and contact lookups.
-      - Status selector (Draft, Sent, Accepted, Rejected, Expired).
-      - Issue date and Valid until date pickers.
-      - Detailed estimate notes.
-    * KPI summary cards: Total Estimates, Accepted, Pending / Sent, and Total Value.
-    * Status filter chips: All estimates, Draft, Sent, Accepted, Rejected, Expired.
-
-
-3. SCREENSHOT & PREVIOUS CRITICAL BUG FIXES
---------------------------------------------------------------------------------
-[BUG 1] Invoices Screen (Stat cards unlabeled, empty state rendered as a table row)
-  - Root Cause:
-    1. KPI summary cards were parsed without their preceding section labels.
-    2. Empty database results rendered as an empty single-cell <tr> with colspan,
-       which the parser treated as a regular data row.
-    3. Flutter module registry routed 'invoices' to fallback generic schema
-       handling without metric fallback keys.
-  - Fix:
-    * Flutter (lib/screens/native_module_screen.dart):
-      Mapped 'invoices', 'payments', 'proposals', and 'estimates' to NativeWorkspaceScreen.
-    * Flutter (lib/screens/native_workspace_screen.dart & schema_components.dart):
-      Added fallback resolution for stat metrics: metric['label'] ?? metric['title'].
-    * Flutter (lib/screens/schema_components.dart & native_module_screen.dart):
-      Added support for 'empty_state' schema type using WorkspaceEmptyState widget.
-    * Backend (app/Services/Mobile/NativeMarkupParser.php):
-      Enhanced KPI card parser to extract text labels from preceding <div> elements.
-      Added detection for single-cell colspan empty rows and emitted structured
-      {type: 'empty_state', title: ..., message: ...} instead of malformed table rows.
-    * Backend (app/Services/Mobile/NativeScreenService.php):
-      Mapped all sales routes:
-      - 'dashboard.user.sales.invoices.index' => 'invoices'
-      - 'dashboard.user.sales.payments.index' => 'payments'
-      - 'dashboard.user.sales.proposals.index' => 'proposals'
-      - 'dashboard.user.sales.estimates.index' => 'estimates'
-
-[BUG 2] Studio Screen (Multiple overlapping states, button text "Save Saving...")
-  - Root Cause:
-    1. Transient Alpine.js progress nodes (x-show="saving", "!loaded", etc.) were
-       being captured as visible text by the HTML parser, causing "Save Saving...".
-    2. Flutter UI did not enforce mutually exclusive states; loading, error banner,
-       and record views could render simultaneously.
-  - Fix:
-    * Flutter (lib/screens/native_workspace_screen.dart & native_module_screen.dart):
-      Added deduplication logic in WorkspaceRecordEditor and NativeSchemaForm to
-      clean concatenated labels into clean "Saving…" / "Save".
-    * Flutter (lib/screens/native_extension_screen.dart):
-      Enforced single-state rendering model: displays RetryPanel when errors occur
-      with empty records; secondary banners only appear when cached data exists.
-    * Backend (app/Services/Mobile/NativeMarkupParser.php):
-      Filtered out transient Alpine state nodes using XPath:
-      not(starts-with(@x-show, "!")) and contains(@x-show, "saving|submitting|loading|cropSaving|!loaded|x-cloak").
-
-[BUG 3] Archived Posts Screen ("Could not be loaded" failure)
-  - Root Cause:
-    Mobile client queried /api/mobile/workspace/record with module_id='archived_posts'
-    without required date boundaries ('from', 'until'), causing 500 Unprocessable Entity.
-  - Fix:
-    * Flutter (lib/screens/native_workspace_screen.dart):
-      Added automatic ISO-8601 UTC date window generation for scheduled and archived feeds.
-    * Backend (app/Services/Mobile/NativeWorkspaceService.php):
-      Tolerates null date ranges and falls back to latest published posts.
+  - Native "Create estimate" action, auto-numbered (EST-xxxxx), company/contact/deal
+    pickers, estimated amount, estimate & expiry date pickers.
 
 
 4. BACKEND CONNECTOR & CLIENT PACKAGING
 --------------------------------------------------------------------------------
-  - Enhanced NativeWorkspaceService.php and MobileWorkspaceRecordRequest.php:
-    * Allowed kinds: 'company', 'campaign', 'invoice', 'payment', 'proposal', 'estimate'.
-    * Integrated database relationships: Contacts, Companies, Deals, and Invoices.
-    * Handled payment reconciliation and status transitions.
   - Rebuilt customer distribution package via build_customer_packages.py:
     Output: app/Extensions/Mobile/distribution/magicai-mobile-install.php
   - Synced to live distribution connector:
     public/magicai-mobile-install.php
-  - Verified installer idempotency and safe re-runs across client installations.
-  - Formatted backend PHP codebase with Laravel Pint.
+  - Formatted all modified PHP files with Laravel Pint.
 
 
 5. VERIFICATION & CI/CD PIPELINE
@@ -154,11 +128,17 @@ making all options available on web panel directly accessible in the mobile app.
   - Flutter Analysis:
     Ran 'flutter analyze' -> 0 issues found (clean pass in both local and git worktree).
   - Flutter Tests:
-    * test/sales_tools_test.dart: 4 test suites covering invoices, payments, proposals,
-      estimates, and WorkspaceRecordEditor mutations (100% pass).
-    * test/production_polish_test.dart: all 20 regression tests passed.
-    * test/native_parity_test.dart: all 13 parity tests passed.
+    Ran 'flutter test test/sales_tools_test.dart':
+      * sales invoices workspace renders metrics, cards, and create button (Passed)
+      * sales payments workspace renders metrics, payment cards, and record button (Passed)
+      * sales proposals and estimates workspaces render successfully (Passed)
+      * WorkspaceRecordEditor validates and saves invoice and payment mutations (Passed)
+      * crm companies workspace renders company cards and New company button (Passed)
+      * crm companies workspace normalizes legacy nested Map data gracefully (Passed)
+      * NativeWorkspaceService normalizes both nested Map and direct List payloads (Passed)
+      * NativeModuleRegistry dispatches companies route_type to NativeWorkspaceScreen (Passed)
+      All 8 tests passed!
   - Git & CI/CD:
-    Committed (b454ca1) and pushed to remote 'main' on GitHub (prakash111/magic-android).
-    GitHub Actions Workflow automatically triggered for Android CI/CD.
+    Changes staged and committed to origin/main on GitHub (prakash111/magic-android).
+    GitHub Actions Android build triggered.
 ================================================================================

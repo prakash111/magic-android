@@ -130,11 +130,14 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
         page: more ? (_workspace?['current_page'] as int? ?? 1) + 1 : 1,
       );
       if (!mounted || generation != _generation) return;
+      final rawList = data['data'] is List
+          ? (data['data'] as List)
+          : (data['data'] is Map ? (data['data']['data'] as List? ?? []) : []);
       setState(() {
         _workspace = data;
         _records = more
-            ? [..._records, ...(data['data'] as List? ?? []).whereType<Map>()]
-            : (data['data'] as List? ?? []).whereType<Map>().toList();
+            ? [..._records, ...rawList.whereType<Map>()]
+            : rawList.whereType<Map>().toList();
         _currency = data['currency'] as String?;
       });
     } catch (error) {

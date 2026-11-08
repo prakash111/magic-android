@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:magicai_mobile/screens/native_module_screen.dart';
 import 'package:magicai_mobile/screens/native_workspace_screen.dart';
+import 'package:magicai_mobile/services/native_workspace_service.dart';
 import 'package:magicai_mobile/theme/app_theme.dart';
 
 import 'native_screen_test.dart' show nativeApi;
@@ -234,5 +236,145 @@ void main() {
     expect(savedRecord, isNotNull);
     expect(savedRecord?['kind'], 'invoice');
     expect(savedRecord?['inputs']['total'], '750.50');
+  });
+
+  testWidgets('crm companies workspace renders company cards and New company button with direct List data', (tester) async {
+    final api = nativeApi((path, body) async {
+      return {
+        'schema_version': 1,
+        'kind': 'companies',
+        'module': {
+          'id': 'web:crm_companies',
+          'title': 'Companies',
+          'category': 'CRM',
+        },
+        'modules': [],
+        'data': [
+          {
+            'id': 3,
+            'name': 'Zoomnearby Network',
+            'industry': 'textiles',
+            'website': 'https://zoomnearby.com',
+            'phone': '918535075196',
+            'email': 'prakashks045@gmail.com',
+            'city': 'delhi',
+          },
+        ],
+        'current_page': 1,
+        'last_page': 1,
+        'total': 1,
+      };
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: NativeWorkspaceScreen(
+            module: const {
+              'id': 'web:crm_companies',
+              'title': 'Companies',
+              'category': 'CRM',
+            },
+            api: api,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Zoomnearby Network'), findsOneWidget);
+    expect(find.text('textiles'), findsOneWidget);
+    expect(find.text('New company'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('crm companies workspace normalizes legacy nested Map data gracefully', (tester) async {
+    final api = nativeApi((path, body) async {
+      return {
+        'schema_version': 1,
+        'kind': 'companies',
+        'module': {
+          'id': 'web:crm_companies',
+          'title': 'Companies',
+          'category': 'CRM',
+        },
+        'modules': [],
+        'data': {
+          'data': [
+            {
+              'id': 7,
+              'name': 'Acme Global Ventures',
+              'industry': 'technology',
+            },
+          ],
+          'current_page': 1,
+          'last_page': 1,
+          'total': 1,
+        },
+      };
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: NativeWorkspaceScreen(
+            module: const {
+              'id': 'web:crm_companies',
+              'title': 'Companies',
+              'category': 'CRM',
+            },
+            api: api,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Acme Global Ventures'), findsOneWidget);
+    expect(find.text('technology'), findsOneWidget);
+    expect(find.text('New company'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('NativeWorkspaceService normalizes both nested Map and direct List payloads', () async {
+    final flatApi = nativeApi((path, body) async => {
+      'schema_version': 1,
+      'kind': 'companies',
+      'modules': [],
+      'data': [{'id': 1, 'name': 'Alpha'}],
+    });
+    final flatService = NativeWorkspaceService(flatApi, 'web:crm_companies');
+    final flatResult = await flatService.load();
+    expect(flatResult['data'], isA<List>());
+    expect((flatResult['data'] as List).length, 1);
+
+    final nestedApi = nativeApi((path, body) async => {
+      'schema_version': 1,
+      'kind': 'companies',
+      'modules': [],
+      'data': {
+        'data': [{'id': 2, 'name': 'Beta'}],
+        'current_page': 1,
+        'last_page': 1,
+        'total': 1,
+      },
+    });
+    final nestedService = NativeWorkspaceService(nestedApi, 'web:crm_companies');
+    final nestedResult = await nestedService.load();
+    expect(nestedResult['data'], isA<List>());
+    expect((nestedResult['data'] as List).length, 1);
+    expect(nestedResult['total'], 1);
+  });
+
+  test('NativeModuleRegistry dispatches companies route_type to NativeWorkspaceScreen', () {
+    final api = nativeApi((path, body) async => {});
+    final widget = NativeModuleRegistry.build({
+      'id': 'web:crm_companies',
+      'title': 'Companies',
+      'route_type': 'companies',
+    }, api: api);
+    expect(widget, isA<NativeWorkspaceScreen>());
   });
 }
