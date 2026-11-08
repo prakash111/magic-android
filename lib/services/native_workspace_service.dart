@@ -83,21 +83,61 @@ class NativeWorkspaceService {
     );
   }
 
-  Future<void> delete({
+  Future<Map<String, dynamic>> mutate({
     required String kind,
+    required String operation,
     required String requestId,
-    required int id,
+    Map<String, dynamic>? inputs,
+    int? recordId,
   }) async {
-    await api.request(
+    final response = await api.request(
       '/native/records',
       method: 'POST',
       body: {
         'module_id': moduleId,
         'kind': kind,
-        'operation': 'delete',
+        'operation': operation,
         'request_id': requestId,
-        'record_id': id,
+        'inputs': ?inputs,
+        'record_id': ?recordId,
       },
     );
+    return response is Map ? Map<String, dynamic>.from(response) : {};
   }
+
+  Future<void> delete({
+    required String kind,
+    required int id,
+    required String requestId,
+  }) =>
+      mutate(
+        kind: kind,
+        operation: 'delete',
+        requestId: requestId,
+        recordId: id,
+      );
+
+  Future<void> publishPost({required String requestId, required int id}) =>
+      mutate(
+        kind: 'blog_post',
+        operation: 'publish',
+        requestId: requestId,
+        recordId: id,
+      );
+
+  Future<void> duplicatePost({required String requestId, required int id}) =>
+      mutate(
+        kind: 'blog_post',
+        operation: 'duplicate',
+        requestId: requestId,
+        recordId: id,
+      );
+
+  Future<void> toggleAgent({required String requestId, required int id}) =>
+      mutate(
+        kind: 'blog_agent',
+        operation: 'toggle_active',
+        requestId: requestId,
+        recordId: id,
+      );
 }

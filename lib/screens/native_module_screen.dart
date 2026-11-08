@@ -101,6 +101,7 @@ class NativeModuleRegistry {
         api: client,
       ),
       'companies' => NativeWorkspaceScreen(module: module, api: client),
+      'blog' => NativeWorkspaceScreen(module: module, api: client),
       'invoices' => NativeWorkspaceScreen(module: module, api: client),
       'payments' => NativeWorkspaceScreen(module: module, api: client),
       'proposals' => NativeWorkspaceScreen(module: module, api: client),
