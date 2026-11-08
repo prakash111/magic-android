@@ -55,7 +55,7 @@ class NativeWorkspaceService {
   Future<void> save({
     required String kind,
     required String requestId,
-    required Map<String, String> inputs,
+    required Map<String, dynamic> inputs,
     int? id,
   }) async {
     await api.request(
