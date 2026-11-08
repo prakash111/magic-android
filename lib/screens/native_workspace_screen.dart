@@ -3426,10 +3426,23 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
             TextEditingController(text: '${r?['content'] ?? ''}');
         _selectedValues['post_type'] = r?['post_type'] ?? 'text';
         _selectedValues['status'] = r?['status'] ?? 'draft';
+        final platforms = (widget.lookups?['platforms'] as List? ?? [])
+            .whereType<Map>()
+            .toList();
+        final agents = ((widget.lookups?['agents'] ??
+                widget.lookups?['agentsList']) as List? ?? [])
+            .whereType<Map>()
+            .toList();
         _selectedValues['platform_id'] =
-            int.tryParse('${r?['platform_id'] ?? ''}');
+            int.tryParse('${r?['platform_id'] ?? ''}') ??
+                (platforms.isNotEmpty
+                    ? int.tryParse('${platforms.first['id']}')
+                    : null);
         _selectedValues['agent_id'] =
-            int.tryParse('${r?['agent_id'] ?? ''}');
+            int.tryParse('${r?['agent_id'] ?? ''}') ??
+                (agents.isNotEmpty
+                    ? int.tryParse('${agents.first['id']}')
+                    : null);
         _dateValues['scheduled_at'] = r?['scheduled_at'] != null
             ? DateTime.tryParse('${r!['scheduled_at']}')
             : null;
@@ -4322,18 +4335,18 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
                   label: 'Platform',
                   value: _selectedValues['platform_id'],
                   items: _optionsList(widget.lookups?['platforms']),
-                  allowClear: true,
+                  allowClear: false,
                   onChanged: (v) =>
                       setState(() => _selectedValues['platform_id'] = v),
                 ),
                 _dropdownField<int>(
-                  label: 'Author Agent (optional)',
+                  label: 'Author Agent',
                   value: _selectedValues['agent_id'],
                   items: _optionsList(
                     widget.lookups?['agents'] ??
                         widget.lookups?['agentsList'],
                   ),
-                  allowClear: true,
+                  allowClear: false,
                   onChanged: (v) =>
                       setState(() => _selectedValues['agent_id'] = v),
                 ),
