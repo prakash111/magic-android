@@ -231,6 +231,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final modules = (_config!['modules'] as List? ?? [])
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
+        .where(isSupportedWorkspace)
         .toList();
     final user = Map<String, dynamic>.from(_config!['user'] as Map? ?? {});
     final credits = Map<String, dynamic>.from(

@@ -24,13 +24,30 @@ String toolDisplayName(Map module, {bool duplicate = false}) {
       : '$prefix $title';
 }
 
+/// Filter out redundant root/parent CRM entry that fails to load and causes Retry.
+bool isSupportedWorkspace(Map module) {
+  final id = '${module['id']}'.toLowerCase();
+  final title = '${module['title'] ?? module['name'] ?? ''}'.trim().toLowerCase();
+  final displayTitle = '${module['display_title'] ?? ''}'.trim().toLowerCase();
+  final category = workspaceCategory(module).toLowerCase();
+
+  if (id == 'web:ext_crm_dropdown' || id == 'ext_crm_dropdown') {
+    return false;
+  }
+  if (category == 'crm' && (title == 'crm' || displayTitle == 'crm')) {
+    return false;
+  }
+  return true;
+}
+
 List<Map<String, dynamic>> namedWorkspaces(List<Map<String, dynamic>> modules) {
+  final validModules = modules.where(isSupportedWorkspace).toList();
   final counts = <String, int>{};
-  for (final module in modules) {
+  for (final module in validModules) {
     final title = toolDisplayName(module).toLowerCase();
     counts[title] = (counts[title] ?? 0) + 1;
   }
-  return modules
+  return validModules
       .map(
         (module) => <String, dynamic>{
           ...module,

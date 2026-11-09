@@ -702,7 +702,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     final colors = AppColors.of(context);
     final categories = [
       'All',
-      ...widget.modules.map(workspaceCategory).toSet(),
+      ...widget.modules.where(isSupportedWorkspace).map(workspaceCategory).toSet(),
     ];
     final selectedCategory = categories.contains(_category) ? _category : 'All';
     final sections = groupedWorkspaces(

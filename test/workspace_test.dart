@@ -9,6 +9,7 @@ import 'package:http/testing.dart';
 import 'package:magicai_mobile/screens/workspace_screen.dart';
 import 'package:magicai_mobile/screens/auth/login_screen.dart';
 import 'package:magicai_mobile/services/mobile_api.dart';
+import 'package:magicai_mobile/services/workspace_catalog.dart';
 import 'package:magicai_mobile/services/workspace_service.dart';
 import 'package:magicai_mobile/theme/app_theme.dart';
 
@@ -326,4 +327,59 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  test('isSupportedWorkspace filters out root CRM container and keeps sub-items', () {
+    final modules = <Map<String, dynamic>>[
+      {
+        'id': 'web:ext_crm_dropdown',
+        'title': 'CRM',
+        'category': 'CRM',
+        'available': true,
+      },
+      {
+        'id': 'ext_crm_dropdown',
+        'title': 'CRM',
+        'category': 'CRM',
+        'available': true,
+      },
+      {
+        'id': 'crm',
+        'title': 'CRM',
+        'category': 'CRM',
+        'available': true,
+      },
+      {
+        'id': 'web:crm_dashboard',
+        'title': 'Dashboard',
+        'category': 'CRM',
+        'available': true,
+      },
+      {
+        'id': 'web:crm_contacts',
+        'title': 'CRM Contacts',
+        'category': 'CRM',
+        'available': true,
+      },
+      {
+        'id': 'web:crm_deals',
+        'title': 'CRM Deals',
+        'category': 'CRM',
+        'available': true,
+      },
+    ];
+
+    final supported = modules.where(isSupportedWorkspace).toList();
+    expect(supported.map((m) => m['id']).toList(), [
+      'web:crm_dashboard',
+      'web:crm_contacts',
+      'web:crm_deals',
+    ]);
+
+    final named = namedWorkspaces(modules);
+    expect(named.map((m) => m['id']).toList(), [
+      'web:crm_dashboard',
+      'web:crm_contacts',
+      'web:crm_deals',
+    ]);
+  });
 }
