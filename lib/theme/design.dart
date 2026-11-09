@@ -29,27 +29,19 @@ Color accentFor(String key) {
   return kAccentPalette[h % kAccentPalette.length];
 }
 
-/// 142005000 -> 142M, 45000000 -> 45M, 90000 -> 90K, 5000 -> 5K, 87 -> 87.
+/// 142005000 -> 142.0M, 45000000 -> 45.0M, 1240 -> 1.2K, 87 -> 87.
 /// Non-numeric values (for example "Unlimited" or "—") are returned as-is.
 String compactNumber(Object? value) {
   final raw = '$value'.trim();
   final n = num.tryParse(raw.replaceAll(',', ''));
   if (n == null) return raw;
   final a = n.abs();
-
-  String formatCompact(num val, num divisor, String suffix) {
-    final d = val / divisor;
-    if (d % 1 == 0) {
-      return '${d.toInt()}$suffix';
-    }
-    return '${d.toStringAsFixed(1)}$suffix';
-  }
-
-  if (a >= 1e9) return formatCompact(n, 1e9, 'B');
-  if (a >= 1e6) return formatCompact(n, 1e6, 'M');
-  if (a >= 1e3) return formatCompact(n, 1e3, 'K');
+  String one(double v) => v.toStringAsFixed(1);
+  if (a >= 1e9) return '${one(n / 1e9)}B';
+  if (a >= 1e6) return '${one(n / 1e6)}M';
+  if (a >= 1e4) return '${one(n / 1e3)}K';
   if (n % 1 == 0) return n.toInt().toString();
-  return n.toStringAsFixed(1);
+  return one(n.toDouble());
 }
 
 Color mutedText(BuildContext context) =>
