@@ -152,8 +152,8 @@ class ToolDirectory extends StatelessWidget {
                     ),
                     Text(
                       appTr(":value words • :value2 images", {
-                        "value": credits['words'] ?? '—',
-                        "value2": credits['images'] ?? '—',
+                        "value": compactNumber(credits['words'] ?? '—'),
+                        "value2": compactNumber(credits['images'] ?? '—'),
                       }),
                     ),
                     if (credits['shared'] != null)
