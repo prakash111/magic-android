@@ -110,6 +110,8 @@ jobs:
         env:
           TARGET_PLATFORM: ${{ matrix.platform }}
           BUILD_VERSION: ${{ inputs.build_version }}
+          CL: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
+          _CL_: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
         run: |
           flutter build "$TARGET_PLATFORM" --release --build-name="$BUILD_VERSION"
           python3 .github/scripts/package-magicai.py "$TARGET_PLATFORM"
