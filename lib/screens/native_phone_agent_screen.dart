@@ -275,7 +275,10 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
         call: call,
         service: _service,
         onChanged: () {
-          _load();
+          setState(() {
+            _records.removeWhere((item) => item['id'] == call['id']);
+          });
+          _load(silent: true);
         },
       ),
     );
@@ -2653,21 +2656,39 @@ class _CallDetailSheet extends StatelessWidget {
   });
 
   Future<void> _pinCall(BuildContext context) async {
+    final callId = call['id'];
+    if (callId == null) return;
     try {
       await service.mutate(
         kind: 'call',
         operation: 'pin',
         requestId: SocialPostService.requestId(),
-        recordId: call['id'] as int,
+        recordId: (callId as num).toInt(),
       );
       if (!context.mounted) return;
-      onChanged();
       Navigator.pop(context);
+      onChanged();
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(appTr(e.toString()))),
-      );
+      final isNotFound = (e is ApiFailure && e.status == 404) ||
+          e.toString().contains('404') ||
+          e.toString().toLowerCase().contains('not found') ||
+          e.toString().contains('No query results');
+
+      if (isNotFound) {
+        Navigator.pop(context);
+        onChanged();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(appTr('Call record not found or has been removed.'))),
+        );
+      } else {
+        final rawMsg = e is ApiFailure
+            ? e.message
+            : e.toString().replaceFirst('Exception: ', '').trim();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to update pin state.'))),
+        );
+      }
     }
   }
 
@@ -2689,21 +2710,49 @@ class _CallDetailSheet extends StatelessWidget {
     );
     if (confirm != true || !context.mounted) return;
 
+    final callId = call['id'];
+    if (callId == null) {
+      Navigator.pop(context);
+      return;
+    }
+
     try {
       await service.mutate(
         kind: 'call',
         operation: 'delete',
         requestId: SocialPostService.requestId(),
-        recordId: call['id'] as int,
+        recordId: (callId as num).toInt(),
       );
       if (!context.mounted) return;
-      onChanged();
+      // Immediately navigate back to the call list screen
       Navigator.pop(context);
+      onChanged();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(appTr('Call deleted successfully.'))),
+      );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(appTr(e.toString()))),
-      );
+      final isNotFound = (e is ApiFailure && e.status == 404) ||
+          e.toString().contains('404') ||
+          e.toString().toLowerCase().contains('not found') ||
+          e.toString().contains('No query results');
+
+      // Pop immediately back to call list on success or if already gone
+      Navigator.pop(context);
+      onChanged();
+
+      if (isNotFound) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(appTr('Call record not found or has been removed.'))),
+        );
+      } else {
+        final rawMsg = e is ApiFailure
+            ? e.message
+            : e.toString().replaceFirst('Exception: ', '').trim();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to delete call record.'))),
+        );
+      }
     }
   }
 

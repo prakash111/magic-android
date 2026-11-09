@@ -695,4 +695,107 @@ void main() {
     // Verify selected model is displayed
     expect(find.textContaining('Claude 3.5 Sonnet'), findsOneWidget);
   });
+
+  testWidgets('Deleting a call from Call Detail immediately pops back to call list without re-fetching call ID', (tester) async {
+    final mutations = <Map<String, dynamic>>[];
+    final mockHistoryData = {
+      'schema_version': 1,
+      'kind': 'phone_agent',
+      'view_type': 'history',
+      'metrics': [],
+      'data': [
+        {
+          'id': 101,
+          'caller_number': '+14155552671',
+          'called_number': '+16184237161',
+          'agent_title': 'Sales Support AI',
+          'direction': 'inbound',
+          'duration': 145,
+          'status': 'completed',
+          'started_at': '2026-11-08 15:30:00',
+          'pinned': 0,
+          'transcripts': [
+            {'id': 1, 'role': 'agent', 'message': 'Hello, thanks for calling!'},
+          ],
+        },
+      ],
+      'stats': {'total': 1, 'completed': 1, 'failed': 0},
+      'modules': [],
+    };
+
+    final api = nativeApi((path, body) async {
+      if (path == '/native/records') {
+        mutations.add(Map<String, dynamic>.from(body));
+        return {'status': true, 'message': 'Call deleted.', 'record_id': 101};
+      }
+      if (body['view_type'] == 'history') {
+        if (mutations.isNotEmpty) {
+          return {
+            ...mockHistoryData,
+            'data': [],
+          };
+        }
+        return mockHistoryData;
+      }
+      return mockPhoneAgentData;
+    });
+
+    final module = {
+      'id': 'web:ext_phone_call_agent_dashboard',
+      'title': 'Phone Call Agent',
+      'category': 'Phone Call Agent',
+      'route_type': 'phone_agent',
+      'route': 'dashboard.phone-call-agent.index',
+    };
+
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: NativePhoneAgentScreen(module: module, api: api),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Call History Tab
+    await tester.tap(find.text('Call History').first);
+    await tester.pumpAndSettle();
+
+    // Verify call is visible
+    expect(find.text('+14155552671 → +16184237161'), findsOneWidget);
+
+    // Tap call to open call details
+    await tester.tap(find.text('+14155552671 → +16184237161'));
+    await tester.pumpAndSettle();
+
+    // Verify Call Detail Sheet is open
+    expect(find.byTooltip('Delete call'), findsOneWidget);
+
+    // Tap delete icon
+    await tester.tap(find.byTooltip('Delete call'));
+    await tester.pumpAndSettle();
+
+    // Confirmation dialog appears
+    expect(find.text('Delete Call Record?'), findsOneWidget);
+
+    // Click confirm Delete
+    await tester.tap(find.text('Delete').last);
+    await tester.pumpAndSettle();
+
+    // Verify mutation was sent
+    expect(mutations.length, 1);
+    expect(mutations[0]['kind'], 'call');
+    expect(mutations[0]['operation'], 'delete');
+    expect(mutations[0]['record_id'], 101);
+
+    // Verify call detail sheet popped back to call list immediately
+    expect(find.text('Delete Call Record?'), findsNothing);
+    expect(find.byTooltip('Delete call'), findsNothing);
+    expect(find.text('Call deleted successfully.'), findsOneWidget);
+
+    // Verify the deleted call card is removed from view
+    expect(find.text('+14155552671 → +16184237161'), findsNothing);
+  });
 }
