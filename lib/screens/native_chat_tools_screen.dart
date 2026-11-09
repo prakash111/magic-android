@@ -170,11 +170,13 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
         } else {
           await _load();
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(appTr('Training Completed Successfully.')),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(appTr('Training Completed Successfully.')),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -344,10 +346,7 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                                 DropdownMenuItem(
                                   value: '${m['id']}',
                                   child: Text(
-                                    '${m['title'] ?? m['id']}' +
-                                        (m['provider'] != null
-                                            ? ' (${m['provider']})'
-                                            : ''),
+                                    '${m['title'] ?? m['id']}${m['provider'] != null ? ' (${m['provider']})' : ''}',
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -364,8 +363,7 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                             if (key.currentState!.validate()) {
                               Navigator.pop(context, {
                                 'title': titleController.text.trim(),
-                                if (selectedModel != null)
-                                  'model': selectedModel,
+                                'model': ?selectedModel,
                               });
                             }
                           },
