@@ -886,4 +886,87 @@ void main() {
     // Modal is closed
     expect(find.text('New Outbound Campaign'), findsNothing);
   });
+
+  testWidgets('Deleting a training item removes it directly from state without re-fetching', (tester) async {
+    final mutations = <Map<String, dynamic>>[];
+    int trainFetchCount = 0;
+
+    final mockTrainData = {
+      'schema_version': 1,
+      'kind': 'phone_agent',
+      'status': true,
+      'data': [
+        {
+          'id': 42,
+          'name': 'Company Knowledge Base FAQ',
+          'type': 'url',
+          'trained_at': '2026-11-08 10:00:00',
+        },
+      ],
+    };
+
+    final api = nativeApi((path, body) async {
+      if (path == '/native/records') {
+        mutations.add(Map<String, dynamic>.from(body));
+        return {
+          'status': true,
+          'message': 'Training item deleted.',
+          'record_id': 42,
+        };
+      }
+      if (body['view_type'] == 'train') {
+        trainFetchCount++;
+        return mockTrainData;
+      }
+      return mockPhoneAgentData;
+    });
+
+    final module = {
+      'id': 'web:ext_phone_call_agent_dashboard',
+      'title': 'Phone Call Agent',
+      'category': 'Phone Call Agent',
+      'route_type': 'phone_agent',
+      'route': 'dashboard.phone-call-agent.index',
+    };
+
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: NativePhoneAgentScreen(module: module, api: api),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Edit button on second agent card
+    await tester.tap(find.text('Edit').last);
+    await tester.pumpAndSettle();
+
+    // Tap step pill "2. Train"
+    await tester.tap(find.text('2. Train'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Company Knowledge Base FAQ'), findsOneWidget);
+    expect(trainFetchCount, 1);
+
+    // Tap the delete button on the training item
+    final deleteIcon = find.byIcon(Icons.delete_outline);
+    expect(deleteIcon, findsOneWidget);
+    await tester.tap(deleteIcon);
+    await tester.pumpAndSettle();
+
+    // Item should be removed immediately from the screen
+    expect(find.text('Company Knowledge Base FAQ'), findsNothing);
+
+    // Verify mutation was called with correct parameters
+    expect(mutations.length, 1);
+    expect(mutations[0]['kind'], 'phone_agent');
+    expect(mutations[0]['operation'], 'delete_train');
+    expect(mutations[0]['record_id'], 42);
+
+    // Verify no re-fetch occurred
+    expect(trainFetchCount, 1);
+  });
 }

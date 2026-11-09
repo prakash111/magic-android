@@ -207,28 +207,43 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
     );
     if (confirm != true) return;
 
-    setState(() => _busy = true);
+    final agentId = agent['id'];
+    setState(() {
+      _records.removeWhere((item) => item['id'] == agentId);
+      _busy = true;
+    });
+
     try {
       await _service.mutate(
         kind: 'phone_agent',
         operation: 'delete',
         requestId: SocialPostService.requestId(),
-        recordId: agent['id'] as int,
+        recordId: (agentId as num).toInt(),
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(appTr('Agent deleted successfully.'))),
         );
       }
-      _load();
+      _load(silent: true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(appTr(e.toString())),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        final isNotFound = (e is ApiFailure && e.status == 404) ||
+            e.toString().contains('404') ||
+            e.toString().toLowerCase().contains('not found') ||
+            e.toString().contains('No query results');
+
+        if (!isNotFound) {
+          final rawMsg = e is ApiFailure
+              ? e.message
+              : e.toString().replaceFirst('Exception: ', '').trim();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to delete agent.')),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -1491,6 +1506,9 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
 
   Future<void> _deleteTrainItem(int id) async {
     if (widget.agent == null) return;
+    setState(() {
+      _trainItems.removeWhere((item) => item['id'] == id);
+    });
     try {
       await widget.service.mutate(
         kind: 'phone_agent',
@@ -1499,12 +1517,23 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
         recordId: id,
         inputs: {'agent_id': widget.agent!['id']},
       );
-      _loadTrainData();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(appTr(e.toString()))),
-        );
+        final isNotFound = (e is ApiFailure && e.status == 404) ||
+            e.toString().contains('404') ||
+            e.toString().toLowerCase().contains('not found') ||
+            e.toString().contains('No query results');
+
+        if (!isNotFound) {
+          final rawMsg = e is ApiFailure
+              ? e.message
+              : e.toString().replaceFirst('Exception: ', '').trim();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to delete training item.')),
+            ),
+          );
+        }
       }
     }
   }
