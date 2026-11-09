@@ -32,13 +32,21 @@ class NativeModuleRegistry {
       [
         'writer_tool',
         'chatbot_channels',
+        'chatbot_agent',
         'agent_connections',
       ].contains(module['route_type']) ||
       module['route_type'] == 'marketing_inbox' ||
       module['id'] == 'mobile:inbox' ||
+      module['id'] == 'web:ext_chat_bot_agent' ||
+      '${module['route']}'.contains('chatbot-agent') ||
       '${module['route']}'.contains('marketing-bot.inbox');
   static Widget build(Map<String, dynamic> module, {MobileApi? api}) {
     final client = api ?? MobileApi.instance;
+    if (module['route_type'] == 'chatbot_agent' ||
+        module['id'] == 'web:ext_chat_bot_agent' ||
+        '${module['route']}'.contains('chatbot-agent')) {
+      return InboxScreen(api: client);
+    }
     if ([
       'chatbot_channels',
       'agent_connections',

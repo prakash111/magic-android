@@ -191,6 +191,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               module['available'] == true &&
               (module['route_type'] == 'marketing_inbox' ||
                   module['route_type'] == 'chatbot_channels' ||
+                  module['route_type'] == 'chatbot_agent' ||
+                  module['id'] == 'web:ext_chat_bot_agent' ||
+                  '${module['route']}'.contains('chatbot-agent') ||
                   '${module['route']}'.contains('marketing-bot.inbox')),
         );
     if (inboxEnabled) {

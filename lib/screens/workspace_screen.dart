@@ -55,15 +55,48 @@ Future<void> openModule(
   MobileApi? api,
 }) async {
   if (module['available'] != true) {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (localizationContext) {
-          AppLocalizations.watch(localizationContext);
-          return const PlansScreen();
-        },
-      ),
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        AppLocalizations.watch(dialogContext);
+        return AlertDialog(
+          icon: Icon(
+            Icons.workspace_premium_rounded,
+            size: 40,
+            color: Theme.of(dialogContext).colorScheme.primary,
+          ),
+          title: Text(appTr('Upgrade to Unlock')),
+          content: Text(
+            appTr(
+              'This feature requires a plan upgrade. Would you like to view our available plans?',
+            ),
+            textAlign: TextAlign.center,
+          ),
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(appTr('View Plans')),
+            ),
+          ],
+        );
+      },
     );
+    if (confirmed == true && context.mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (localizationContext) {
+            AppLocalizations.watch(localizationContext);
+            return const PlansScreen();
+          },
+        ),
+      );
+    }
     return;
   }
   try {

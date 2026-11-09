@@ -28,9 +28,75 @@ class RetryPanel extends StatelessWidget {
   final String message;
   final Future<void> Function() retry;
   const RetryPanel({super.key, required this.message, required this.retry});
+
+  bool get isUpgradeRequired {
+    final lower = message.toLowerCase();
+    return lower.contains('subscription') ||
+        lower.contains('plan') ||
+        lower.contains('upgrade') ||
+        lower.contains('permission') ||
+        lower.contains('premium') ||
+        lower.contains('no longer allow') ||
+        lower.contains('403');
+  }
+
   @override
   Widget build(BuildContext context) {
     AppLocalizations.watch(context);
+    if (isUpgradeRequired) {
+      return Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.lock_outline_rounded,
+                size: 56,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                appTr('Upgrade Required'),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                appTr(message),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                    ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (ctx) {
+                        AppLocalizations.watch(ctx);
+                        return const PlansScreen();
+                      },
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.star_rounded),
+                label: Text(appTr('View Plans & Upgrade')),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: retry,
+                child: Text(appTr('Retry')),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(

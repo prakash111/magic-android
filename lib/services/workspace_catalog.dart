@@ -24,7 +24,7 @@ String toolDisplayName(Map module, {bool duplicate = false}) {
       : '$prefix $title';
 }
 
-/// Filter out redundant root/parent CRM entry that fails to load and causes Retry.
+/// Filter out redundant root/parent CRM entry or unconfigured modules that cause Retry.
 bool isSupportedWorkspace(Map module) {
   final id = '${module['id']}'.toLowerCase();
   final title = '${module['title'] ?? module['name'] ?? ''}'.trim().toLowerCase();
@@ -35,6 +35,12 @@ bool isSupportedWorkspace(Map module) {
     return false;
   }
   if (category == 'crm' && (title == 'crm' || displayTitle == 'crm')) {
+    return false;
+  }
+  if (module['configured'] == false) {
+    return false;
+  }
+  if ((id == 'web:ai_youtube' || id == 'ai_youtube') && module['available'] == false) {
     return false;
   }
   return true;

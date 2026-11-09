@@ -381,5 +381,18 @@ void main() {
       'web:crm_contacts',
       'web:crm_deals',
     ]);
+
+    expect(isSupportedWorkspace({
+      'id': 'web:ai_youtube',
+      'title': 'AI YouTube',
+      'available': false,
+    }), isFalse);
+
+    expect(isSupportedWorkspace({
+      'id': 'web:ai_youtube',
+      'title': 'AI YouTube',
+      'available': true,
+      'configured': true,
+    }), isTrue);
   });
 }
