@@ -28,18 +28,35 @@ import 'native_phone_agent_screen.dart';
 import 'schema_components.dart';
 
 class NativeModuleRegistry {
-  static bool ownsHeader(Map<String, dynamic> module) =>
-      [
-        'writer_tool',
-        'chatbot_channels',
-        'chatbot_agent',
-        'agent_connections',
-      ].contains(module['route_type']) ||
-      module['route_type'] == 'marketing_inbox' ||
-      module['id'] == 'mobile:inbox' ||
-      module['id'] == 'web:ext_chat_bot_agent' ||
-      '${module['route']}'.contains('chatbot-agent') ||
-      '${module['route']}'.contains('marketing-bot.inbox');
+  static bool isGeneratorTool(Map<String, dynamic> module) {
+    final moduleId = '${module['id']}'.toLowerCase();
+    final routeSlug = '${module['route_slug'] ?? ''}'.toLowerCase();
+    return module['route_type'] == 'writer_tool' ||
+        ['ai_code_generator', 'ai_youtube', 'ai_rss'].contains(routeSlug) ||
+        [
+          'web:ai_code_generator',
+          'web:ai_youtube',
+          'web:ai_rss',
+          'ai_code_generator',
+          'ai_youtube',
+          'ai_rss',
+        ].contains(moduleId);
+  }
+
+  static bool ownsHeader(Map<String, dynamic> module) {
+    if (isGeneratorTool(module)) return true;
+    return [
+          'chatbot_channels',
+          'chatbot_agent',
+          'agent_connections',
+        ].contains(module['route_type']) ||
+        module['route_type'] == 'marketing_inbox' ||
+        module['id'] == 'mobile:inbox' ||
+        module['id'] == 'web:ext_chat_bot_agent' ||
+        '${module['route']}'.contains('chatbot-agent') ||
+        '${module['route']}'.contains('marketing-bot.inbox');
+  }
+
   static Widget build(Map<String, dynamic> module, {MobileApi? api}) {
     final client = api ?? MobileApi.instance;
     if (module['route_type'] == 'chatbot_agent' ||
@@ -53,17 +70,14 @@ class NativeModuleRegistry {
     ].contains(module['route_type'])) {
       return NativeConnectionsScreen(api: client, moduleId: '${module['id']}');
     }
-    if (module['route_type'] == 'writer_tool' && module['tool'] is Map) {
-      return DynamicToolScreen(
-        tool: Map<String, dynamic>.from(module['tool'] as Map),
-        api: client,
-      );
-    }
-    if (module['route_type'] == 'writer_tool') {
-      return Scaffold(
-        appBar: AppBar(title: Text(appTr(toolDisplayName(module)))),
-        body: Center(child: Text(appTr('This tool is currently unavailable.'))),
-      );
+    if (isGeneratorTool(module)) {
+      if (module['tool'] is Map) {
+        return DynamicToolScreen(
+          tool: Map<String, dynamic>.from(module['tool'] as Map),
+          api: client,
+        );
+      }
+      return DynamicToolLoaderScreen(module: module, api: client);
     }
     if (ownsHeader(module)) return InboxScreen(api: client);
     return switch (module['route_type']) {
@@ -140,6 +154,106 @@ class NativeModuleScreen extends StatelessWidget {
       resizeToAvoidBottomInset: true,
       appBar: AppBar(title: Text(appTr(toolDisplayName(module)))),
       body: content,
+    );
+  }
+}
+
+class DynamicToolLoaderScreen extends StatefulWidget {
+  final Map<String, dynamic> module;
+  final MobileApi api;
+  const DynamicToolLoaderScreen({
+    super.key,
+    required this.module,
+    required this.api,
+  });
+
+  @override
+  State<DynamicToolLoaderScreen> createState() =>
+      _DynamicToolLoaderScreenState();
+}
+
+class _DynamicToolLoaderScreenState extends State<DynamicToolLoaderScreen> {
+  Map<String, dynamic>? _tool;
+  String? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final slug = (widget.module['route_slug'] ??
+            widget.module['id']?.toString().replaceAll('web:', ''))
+        ?.toString()
+        .toLowerCase();
+    try {
+      final res = await widget.api.request('/dashboard');
+      final tools = (res is Map ? res['tools'] : null) as List? ?? [];
+      final match = tools.whereType<Map>().firstWhere(
+            (t) =>
+                '${t['id']}'.toLowerCase() == slug ||
+                'web:${t['id']}'.toLowerCase() ==
+                    widget.module['id']?.toString().toLowerCase(),
+            orElse: () => {},
+          );
+      if (match.isNotEmpty && mounted) {
+        setState(() {
+          _tool = Map<String, dynamic>.from(match);
+          _loading = false;
+        });
+        return;
+      }
+      throw const ApiFailure('This tool could not be loaded.');
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    AppLocalizations.watch(context);
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_tool != null) {
+      return DynamicToolScreen(tool: _tool!, api: widget.api);
+    }
+    return Scaffold(
+      appBar: AppBar(title: Text(appTr(toolDisplayName(widget.module)))),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                appTr(_error ?? 'This tool is currently unavailable.'),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () {
+                  setState(() {
+                    _loading = true;
+                    _error = null;
+                  });
+                  _load();
+                },
+                child: Text(appTr('Retry')),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
