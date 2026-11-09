@@ -1,11 +1,99 @@
 ================================================================================
 MagicAI Mobile & Backend Connector - Changelog
-Date: 2026-11-08
-Version: 1.7.0-api-keys-web-parity
-Git Commit: origin/main
-CI Build: GitHub Actions Build (MagicAI Android CI/CD)
+Date: 2026-11-09
+Version: 1.1.0 (Build 90157016) - Google Play Production & Internal Published
+Git Commit: origin/main (538b03c)
+CI Build: GitHub Actions Build 65 (Verified & Signed Release)
+Google Play Production Status: Published & Completed (Edit ID: 03887627406943352276)
 Direct Download: https://ai.zoomnearby.com/changelog.txt
 ================================================================================
+
+1. PHONE CALL AGENT & OUTBOUND CAMPAIGN ENHANCEMENTS
+--------------------------------------------------------------------------------
+- Safe Training Item & Call Deletion (No Query Results Fix):
+  * Backend: Replaced strict findOrFail() with graceful find() returning 404 JSON response.
+  * Flutter App: Directly updates local widget state upon deletion without re-querying deleted record IDs.
+  * Gracefully catches and suppresses 404 / ModelNotFound exceptions in mobile UI.
+- Outbound Campaign Form Validation:
+  * Resolved validation error ("The inputs field must be an array") when launching outbound campaigns.
+  * Array parsing for recipients and campaign payloads added across backend and mobile client.
+- Phone Call Agent AI Models & Voices:
+  * Full multi-provider AI model selection (OpenAI, Anthropic Claude 3.5, Gemini 1.5, DeepSeek V3, ElevenLabs).
+  * Audio voice audition preview playback and active toggling.
+
+2. GOOGLE PLAY CONSOLE RELEASE SPECIFICATIONS (BUILD 90157016)
+--------------------------------------------------------------------------------
+- Google Play Production & Internal Release Status:
+  * Package ID: com.zoomnearby.ai.zoomnearby_mobile
+  * Version Name: 1.1.0
+  * Version Code: 90157016
+  * Tracks: production (100% completed rollout) & internal (active)
+  * Release Name: MagicAI 1.1.0 (90157016)
+  * Service Account: play-publisher@sms-gateway-e94bc.iam.gserviceaccount.com
+  * Edit Session ID: 03887627406943352276 (Committed to Production & Internal Tracks)
+  * Release Notes: MagicAI creative workspace, AI chat, CRM, BlogPilot, Phone Call Agent, and Social Media Agent. Latest updates include safe deletion handling, outbound campaign recipient fixes, and enhanced model selection.
+- Signed Android App Bundle (.aab):
+  * URL: https://ai.zoomnearby.com/downloads/magicai-release.aab
+  * Size: 60.54 MB
+  * SHA256: 9ef8a7a1b2636c8a3e854534a09acb8dd38e66375e9c103b98de8c9a3611794c
+- Standalone Release APK (.apk):
+  * URL: https://ai.zoomnearby.com/downloads/magicai-release.apk
+  * Size: 63.1 MB
+  * SHA256: c80d0b751b7054ce035852bd9114c92089b1a72241b31b0f269f9f56367ccada
+
+================================================================================
+
+0. SOCIAL MEDIA AGENT POST INTEGRITY & AUTO-PROVISIONING FIX
+--------------------------------------------------------------------------------
+- Resolved SQL Integrity constraint violation (1048 Column 'agent_id' cannot be null):
+  * Cause: When creating/saving a social post without an explicitly selected agent/platform (or when a user has no pre-configured social agents or platforms), `agent_id` and `platform_id` evaluated to `null`, violating foreign key constraints on `ext_social_media_agent_posts`.
+  * Auto-Provisioning & Self-Healing:
+    - Backend automatically provisions a default `SocialMediaPlatform` (e.g. 'x') and `SocialMediaAgent` with linked platform IDs if none exist for the user.
+    - Fallback assignment on `save`, `duplicate`, and `publish` ensures posts always have valid foreign keys.
+    - Post `content` safely defaults to non-empty string and `status` to valid enum values.
+  * Flutter App UI Pre-Selection:
+    - Form editor in `native_workspace_screen.dart` pre-selects the first available platform and agent from lookups.
+    - Platform and Agent dropdowns enforce selection (`allowClear: false`) to prevent accidental null submissions.
+  * Mobile App Backend Connector Installer Updated:
+    - Rebuilt complete customer package and single-file browser installer: `/magicai-mobile-install.php` (443 KB).
+    - URL: https://ai.zoomnearby.com/magicai-mobile-install.php
+    - SHA256: `aa92362b391f3e361646e6f97ea6cdfb696f87a9aa2138df655111decc1d91ca`
+    - Bundles all latest API endpoints, self-healing social media agent constraints, Web API key parity, and workspace handlers for client MagicAI installations.
+
+0. GOOGLE PLAY CONSOLE RELEASE ARTIFACTS & SPECIFICATIONS
+--------------------------------------------------------------------------------
+- Google Play Production Release Status:
+  * Package ID: com.zoomnearby.ai.zoomnearby_mobile
+  * Version Name: 1.1.0
+  * Version Code: 90100522
+  * Track: production (Status: completed, 100% rollout)
+  * Release Name: MagicAI 1.1.0 (90100522)
+  * Service Account: play-publisher@sms-gateway-e94bc.iam.gserviceaccount.com
+  * Edit Session ID: 06780511822457979626 (Committed to Production Track)
+  * Release Notes: MagicAI creative workspace, AI chat, CRM, BlogPilot, and Social Media Agent. Full web parity for API key management and live provider verification.
+
+- Signed Android App Bundle (.aab):
+  * URL: https://ai.zoomnearby.com/downloads/magicai-release.aab
+  * Size: 60.4 MB
+  * Package ID (applicationId): com.zoomnearby.ai.zoomnearby_mobile
+  * Version Name: 1.1.0
+  * Version Code: 90100522
+  * Min SDK: 23 (Android 6.0 Marshmallow)
+  * Target SDK: 35 / 36 (Fully compliant with Google Play target API policy)
+  * Signature: Release Keystore (V2/V3 APK signature scheme enabled)
+
+- Standalone Release APK (.apk):
+  * URL: https://ai.zoomnearby.com/downloads/magicai-release.apk
+  * Size: 63.0 MB
+  * For direct sideloading or internal QA testing without Play Store.
+
+- Store Graphics & Metadata Assets:
+  * High-Res App Icon (512x512 PNG): https://ai.zoomnearby.com/downloads/app-icon-512x512.png
+  * Feature Graphic (1024x500 PNG): https://ai.zoomnearby.com/downloads/feature-graphic-1024x500.png
+  * Marketing Copy & Descriptions: https://ai.zoomnearby.com/downloads/magicai-social-marketing-copy.txt
+  * Marketing Banners Archive: https://ai.zoomnearby.com/downloads/magicai-flutter-app-marketing-banners.zip
+  * Privacy Policy URL: https://ai.zoomnearby.com/privacy-policy
+  * Terms of Service URL: https://ai.zoomnearby.com/terms
 
 1. API KEYS SETTINGS WEB-EXACT BINDING (WORK & PRODUCTIVITY)
 --------------------------------------------------------------------------------
