@@ -134,6 +134,57 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'tapping "Selected for training" button triggers training process for selected chatbot',
+    (tester) async {
+      Map? submitted;
+      final api = nativeApi((_, body) async {
+        if (body['operation'] == 'train') submitted = body;
+        return {
+          'kind': 'training',
+          'data': [
+            {'id': 7, 'title': 'Support bot', 'status': 'trained'},
+          ],
+          'sources': body['record_id'] == 7
+              ? [
+                  {
+                    'id': 10,
+                    'type': 'text',
+                    'type_value': 'Help guide',
+                    'status': 'waiting',
+                  },
+                ]
+              : [],
+        };
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.darkTheme,
+          home: Scaffold(
+            body: NativeChatToolsScreen(
+              module: const {'id': 'training'},
+              api: api,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Manage knowledge'));
+      await tester.pumpAndSettle();
+      expect(find.text('Selected for training'), findsOneWidget);
+
+      await tester.tap(find.text('Selected for training'));
+      await tester.pumpAndSettle();
+
+      expect(submitted?['record_id'], 7);
+      expect(submitted?['inputs'], {
+        'type': 'text',
+        'chatbot_data': [10],
+      });
+      expect(submitted?['request_id'], isA<String>());
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('training forms fit a small viewport with the keyboard visible', (
     tester,
   ) async {

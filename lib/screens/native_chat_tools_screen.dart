@@ -107,6 +107,92 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
     }
   }
 
+  Future<void> _startTraining(int botId) async {
+    if (_busy) return;
+    final sources =
+        (_data?['sources'] as List?)?.whereType<Map>().toList() ?? [];
+    if (sources.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              appTr('Please add a knowledge source below before training.'),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    final types = ['text', 'qa', 'url', 'pdf']
+        .where((type) => sources.any((s) => s['type'] == type))
+        .toList();
+
+    if (types.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              appTr('Please add a knowledge source below before training.'),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+
+    try {
+      Map<String, dynamic>? lastResult;
+      for (final type in types) {
+        final typeSources = sources
+            .where((s) => s['type'] == type)
+            .map((s) => s['id'])
+            .toList();
+        if (typeSources.isEmpty) continue;
+        lastResult = await _service.execute(
+          'train',
+          id: botId,
+          inputs: {
+            'type': type,
+            'chatbot_data': typeSources,
+          },
+          requestId: SocialPostService.requestId(),
+        );
+      }
+      if (mounted) {
+        if (lastResult != null) {
+          setState(() => _data = lastResult);
+        } else {
+          await _load();
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(appTr('Training Completed Successfully.')),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = '$e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
   Future<void> _form(
     String operation,
     List<(String, String, int)> fields, {
@@ -396,16 +482,40 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                         onPressed: _busy
                             ? null
                             : () {
-                                setState(() => _bot = record['id'] as int);
-                                _load();
+                                if (_bot != record['id']) {
+                                  setState(() => _bot = record['id'] as int);
+                                  _load();
+                                } else {
+                                  _startTraining(record['id'] as int);
+                                }
                               },
-                        child: Text(
-                          appTr(
-                            _bot == record['id']
-                                ? 'Selected for training'
-                                : 'Manage knowledge',
-                          ),
-                        ),
+                        child: _busy && _bot == record['id']
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _bot == record['id']
+                                        ? Icons.play_arrow_rounded
+                                        : Icons.tune,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    appTr(
+                                      _bot == record['id']
+                                          ? 'Selected for training'
+                                          : 'Manage knowledge',
+                                    ),
+                                  ),
+                                ],
+                              ),
                       ),
                   ],
                 ),
@@ -476,6 +586,15 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                               _confirmDelete(source['id'] as int, source: true),
                     icon: const Icon(Icons.delete_outline),
                   ),
+                ),
+              ),
+            if (sources.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: FilledButton.icon(
+                  onPressed: _busy ? null : () => _startTraining(_bot!),
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: Text(appTr('Train all sources')),
                 ),
               ),
             for (final type in ['text', 'qa', 'url', 'pdf'])
