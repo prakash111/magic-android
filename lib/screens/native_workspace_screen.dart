@@ -1033,6 +1033,627 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
     ),
   );
 
+  Widget _brandVoiceCard(Map record) {
+    final name = record['name'] ?? 'Unnamed Brand';
+    final tagline = record['tagline']?.toString().trim();
+    final tone = record['tone_of_voice']?.toString().trim() ?? 'Professional';
+    final industry = record['industry']?.toString().trim();
+    final website = record['website']?.toString().trim();
+    final targetAudience = record['target_audience']?.toString().trim();
+    final description = record['description']?.toString().trim();
+    final instructions = record['specific_instructions']?.toString().trim();
+    final colorHex = record['brand_color']?.toString().trim();
+    final products = (record['products'] as List? ?? []).whereType<Map>().toList();
+
+    Color? brandColor;
+    if (colorHex != null && colorHex.isNotEmpty) {
+      try {
+        final hex = colorHex.replaceAll('#', '');
+        if (hex.length == 6) {
+          brandColor = Color(int.parse('FF$hex', radix: 16));
+        }
+      } catch (_) {}
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  backgroundColor: brandColor ?? Theme.of(context).colorScheme.primaryContainer,
+                  child: Icon(
+                    Icons.record_voice_over_outlined,
+                    color: brandColor != null
+                        ? (brandColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white)
+                        : Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '$name',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              tone,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (tagline != null && tagline.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          tagline,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      _edit('brand_voice', record);
+                    } else if (value == 'add_product') {
+                      _edit('brand_product', {'company_id': record['id']});
+                    } else if (value == 'delete') {
+                      _delete('brand_voice', record);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.edit_outlined, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(appTr('Edit brand voice'))),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'add_product',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.add_circle_outline, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(appTr('Add product / service'))),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(appTr('Delete brand voice'), style: const TextStyle(color: Colors.red))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                Chip(
+                  avatar: const Icon(Icons.graphic_eq, size: 16),
+                  label: Text('${appTr("Tone")}: $tone'),
+                  visualDensity: VisualDensity.compact,
+                ),
+                if (industry != null && industry.isNotEmpty)
+                  Chip(
+                    avatar: const Icon(Icons.apartment, size: 16),
+                    label: Text(industry),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                if (website != null && website.isNotEmpty)
+                  ActionChip(
+                    avatar: const Icon(Icons.link, size: 16),
+                    label: Text(website),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => SecureStore.invokeMethod<void>('openUrl', {'url': website}),
+                  ),
+              ],
+            ),
+            if (description != null && description.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                description,
+                style: Theme.of(context).textTheme.bodyMedium,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if (targetAudience != null && targetAudience.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.groups_outlined, size: 16, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${appTr("Audience")}: $targetAudience',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (instructions != null && instructions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.lightbulb_outline, size: 16, color: Theme.of(context).colorScheme.secondary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${appTr("Guidelines")}: $instructions',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  appTr('Products & Services (:count)', {'count': '${products.length}'}),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => _edit('brand_product', {'company_id': record['id']}),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: Text(appTr('Add')),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                ),
+              ],
+            ),
+            if (products.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  appTr('No products or services linked yet. Add one to target AI generation.'),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
+                ),
+              )
+            else
+              Column(
+                children: [
+                  for (final prod in products)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              prod['type'] == 1 ? Icons.miscellaneous_services_outlined : Icons.inventory_2_outlined,
+                              size: 18,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          '${prod['name']}',
+                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          prod['type'] == 1 ? appTr('Service') : appTr('Product'),
+                                          style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.primary),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if ('${prod['key_features'] ?? ''}'.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${prod['key_features']}',
+                                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined, size: 16),
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => _edit('brand_product', prod),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 16),
+                              visualDensity: VisualDensity.compact,
+                              color: Colors.redAccent,
+                              onPressed: () => _delete('brand_product', prod),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _voiceChatbotCard(Map record) {
+    final title = record['title']?.toString().trim() ?? 'Voice Bot';
+    final active = record['active'] == true || record['active'] == 1;
+    final language = record['language']?.toString().trim() ?? 'en';
+    final voiceId = record['voice_id']?.toString().trim() ?? 'Default';
+    final welcome = record['welcome_message']?.toString().trim();
+    final instructions = record['instructions']?.toString().trim();
+    final frameUrl = record['frame_url']?.toString().trim();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  child: Icon(
+                    Icons.smart_toy_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              title,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: active
+                                  ? Colors.green.withValues(alpha: 0.15)
+                                  : Colors.orange.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.circle,
+                                  size: 7,
+                                  color: active ? Colors.green : Colors.orange,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  appTr(active ? 'Active' : 'Paused'),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: active ? Colors.green.shade800 : Colors.orange.shade800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${appTr("Lang")}: ${language.toUpperCase()}',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${appTr("Voice")}: $voiceId',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      _edit('voice_chatbot', record);
+                    } else if (value == 'toggle') {
+                      await _service.mutate(
+                        operation: 'toggle_active',
+                        kind: 'voice_chatbot',
+                        recordId: record['id'] as int?,
+                        requestId: SocialPostService.requestId(),
+                      );
+                      _load();
+                    } else if (value == 'delete') {
+                      _delete('voice_chatbot', record);
+                    } else if (value == 'test' && frameUrl != null && frameUrl.isNotEmpty) {
+                      SecureStore.invokeMethod<void>('openUrl', {'url': frameUrl});
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.edit_outlined, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(appTr('Edit voice bot'))),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'toggle',
+                      child: Row(
+                        children: [
+                          Icon(active ? Icons.pause_circle_outline : Icons.play_circle_outline, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(appTr(active ? 'Pause bot' : 'Activate bot'))),
+                        ],
+                      ),
+                    ),
+                    if (frameUrl != null && frameUrl.isNotEmpty)
+                      PopupMenuItem(
+                        value: 'test',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.open_in_browser, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text(appTr('Open voice frame'))),
+                          ],
+                        ),
+                      ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(appTr('Delete voice bot'), style: const TextStyle(color: Colors.red))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (welcome != null && welcome.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                '${appTr("Welcome")}: $welcome',
+                style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if (instructions != null && instructions.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${appTr("Instructions")}: $instructions',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _aiMusicCard(Map record) {
+    final title = record['title']?.toString().trim() ?? 'Untitled Track';
+    final prompt = record['prompt']?.toString().trim() ?? '';
+    final audioUrl = record['audio_url']?.toString().trim();
+    final provider = record['provider']?.toString().trim() ?? 'elevenlabs';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                  child: Icon(
+                    Icons.music_note,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        provider.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (audioUrl != null && audioUrl.isNotEmpty)
+                  FilledButton.tonalIcon(
+                    onPressed: () => SecureStore.invokeMethod<void>('openUrl', {'url': audioUrl}),
+                    icon: const Icon(Icons.play_arrow, size: 18),
+                    label: Text(appTr('Play')),
+                  ),
+                PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'delete') {
+                      _delete('ai_music', record);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(appTr('Delete track'), style: const TextStyle(color: Colors.red))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (prompt.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                prompt,
+                style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _company(Map record) => Card(
     child: Padding(
       padding: const EdgeInsets.all(18),
@@ -2463,6 +3084,9 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
       'viral_clips' => 'Extract high-engagement viral shorts and clips from long videos.',
       'ai_influencer' => 'Create AI influencer videos and export social content.',
       'ai_persona' => 'Build custom AI personas, virtual twins, and talking heads.',
+      'brand_voice' => 'Define company profiles, target audiences, and tone of voice for AI generation.',
+      'voice_chatbots' => 'Manage interactive AI voice bots, system prompts, and frame widgets.',
+      'ai_music' => 'Browse and play your generated AI music tracks and audio stems.',
       _ =>
         'Discover the tools in ${widget.module['category'] ?? 'your workspace'}.',
     };
@@ -2564,6 +3188,22 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                                 : 'New post',
                           ),
                         ),
+                      ),
+                    ],
+                    if (kind == 'brand_voice') ...[
+                      const SizedBox(width: 12),
+                      FilledButton.icon(
+                        onPressed: _loading ? null : () => _edit('brand_voice'),
+                        icon: const Icon(Icons.add),
+                        label: Text(appTr('New brand voice')),
+                      ),
+                    ],
+                    if (kind == 'voice_chatbots') ...[
+                      const SizedBox(width: 12),
+                      FilledButton.icon(
+                        onPressed: _loading ? null : () => _edit('voice_chatbot'),
+                        icon: const Icon(Icons.add),
+                        label: Text(appTr('New voice bot')),
                       ),
                     ],
                   ],
@@ -2967,6 +3607,9 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                   'viral_clips',
                   'ai_influencer',
                   'ai_persona',
+                  'brand_voice',
+                  'voice_chatbots',
+                  'ai_music',
                 ].contains(kind)) ...[
                   _metrics(_workspace!['metrics'] as List? ?? []),
                   const SizedBox(height: 16),
@@ -2981,6 +3624,9 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                     'viral_clips' => 'Viral short clips',
                     'ai_influencer' => 'Influencer video exports',
                     'ai_persona' => 'Custom AI personas',
+                    'brand_voice' => 'Brand Voices',
+                    'voice_chatbots' => 'Configured Voice Bots',
+                    'ai_music' => 'Generated Audio Tracks',
                     _ => 'Recent outputs',
                   }),
                 ],
@@ -3040,6 +3686,9 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                       'photoshoot',
                       'blog',
                       'social_agent',
+                      'brand_voice',
+                      'voice_chatbots',
+                      'ai_music',
                     ].contains(kind) &&
                     _records.isEmpty)
                   WorkspaceEmptyState(
@@ -3051,6 +3700,9 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                       'companies' => Icons.business_outlined,
                       'campaigns' => Icons.campaign_outlined,
                       'photoshoot' => Icons.camera_alt_outlined,
+                      'brand_voice' => Icons.record_voice_over_outlined,
+                      'voice_chatbots' => Icons.smart_toy_outlined,
+                      'ai_music' => Icons.music_note_outlined,
                       _ => Icons.event_note_outlined,
                     },
                     title: appTr(
@@ -3074,6 +3726,9 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                                   : (_workspace?['view_type'] == 'agents'
                                       ? 'No agents configured'
                                       : 'No posts found'),
+                              'brand_voice' => 'No brand voices yet',
+                              'voice_chatbots' => 'No voice bots configured',
+                              'ai_music' => 'No music generated yet',
                               _ => 'A clear calendar, a fresh start',
                             },
                     ),
@@ -3105,44 +3760,58 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                                   : (_workspace?['view_type'] == 'agents'
                                       ? 'Create your first Social Media Agent to automate cross-platform publishing.'
                                       : 'Your scheduled and published posts will appear here.'),
+                              'brand_voice' =>
+                                'Create a company profile with target audience and tone to guide AI content generation.',
+                              'voice_chatbots' =>
+                                'Create your first interactive AI voice bot to handle voice calls and audio sessions.',
+                              'ai_music' =>
+                                'Generate original AI music and sound tracks using text prompts.',
                               _ =>
                                 'Your planned articles will appear in the agenda. Select a day to explore your publishing schedule.',
                             },
                     ),
-                    actionLabel: kind == 'photoshoot'
-                        ? appTr('Create photoshoot')
-                        : (isAgentWorkspace && !isCalendar
-                            ? appTr(
-                                _workspace?['view_type'] == 'agents'
-                                    ? 'Create agent'
-                                    : 'Create post',
-                              )
-                            : null),
-                    onAction: kind == 'photoshoot' &&
-                            tools.any(
-                              (tool) =>
-                                  tool['route_type'] == 'extension_workflow' &&
-                                  tool['available'] == true,
-                            )
-                        ? () => openModule(
-                            context,
-                            Map<String, dynamic>.from(
-                              tools.firstWhere(
-                                (tool) =>
-                                    tool['route_type'] ==
-                                        'extension_workflow' &&
-                                    tool['available'] == true,
-                              ),
-                            ),
-                            api: widget.api,
-                          )
-                        : (isAgentWorkspace && !isCalendar
-                            ? () => _edit(
-                                _workspace?['view_type'] == 'agents'
-                                    ? (isSocialAgent ? 'social_agent' : 'blog_agent')
-                                    : (isSocialAgent ? 'social_post' : 'blog_post'),
-                              )
-                            : null),
+                    actionLabel: kind == 'brand_voice'
+                        ? appTr('Create brand voice')
+                        : (kind == 'voice_chatbots'
+                            ? appTr('New voice bot')
+                            : (kind == 'photoshoot'
+                                ? appTr('Create photoshoot')
+                                : (isAgentWorkspace && !isCalendar
+                                    ? appTr(
+                                        _workspace?['view_type'] == 'agents'
+                                            ? 'Create agent'
+                                            : 'Create post',
+                                      )
+                                    : null))),
+                    onAction: kind == 'brand_voice'
+                        ? () => _edit('brand_voice')
+                        : (kind == 'voice_chatbots'
+                            ? () => _edit('voice_chatbot')
+                            : (kind == 'photoshoot' &&
+                                    tools.any(
+                                      (tool) =>
+                                          tool['route_type'] == 'extension_workflow' &&
+                                          tool['available'] == true,
+                                    )
+                                ? () => openModule(
+                                    context,
+                                    Map<String, dynamic>.from(
+                                      tools.firstWhere(
+                                        (tool) =>
+                                            tool['route_type'] ==
+                                                'extension_workflow' &&
+                                            tool['available'] == true,
+                                      ),
+                                    ),
+                                    api: widget.api,
+                                  )
+                                : (isAgentWorkspace && !isCalendar
+                                    ? () => _edit(
+                                        _workspace?['view_type'] == 'agents'
+                                            ? (isSocialAgent ? 'social_agent' : 'blog_agent')
+                                            : (isSocialAgent ? 'social_post' : 'blog_post'),
+                                      )
+                                    : null))),
                   ),
                 for (final record in _records)
                   switch (kind) {
@@ -3152,6 +3821,9 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                     'estimates' => _estimate(record),
                     'companies' => _company(record),
                     'campaigns' => _campaign(record),
+                    'brand_voice' => _brandVoiceCard(record),
+                    'voice_chatbots' => _voiceChatbotCard(record),
+                    'ai_music' => _aiMusicCard(record),
                     'blog' || 'social_agent' => _workspace?['view_type'] == 'agents'
                         ? _agentCard(record)
                         : _agenda(record),
@@ -3465,6 +4137,47 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
       case 'affiliate_invite':
         _controllers['to_mail'] = TextEditingController(text: '');
         break;
+      case 'brand_voice':
+        _controllers['name'] =
+            TextEditingController(text: '${r?['name'] ?? ''}');
+        _controllers['description'] =
+            TextEditingController(text: '${r?['description'] ?? ''}');
+        _controllers['tagline'] =
+            TextEditingController(text: '${r?['tagline'] ?? ''}');
+        _controllers['target_audience'] =
+            TextEditingController(text: '${r?['target_audience'] ?? ''}');
+        _controllers['industry'] =
+            TextEditingController(text: '${r?['industry'] ?? ''}');
+        _controllers['website'] =
+            TextEditingController(text: '${r?['website'] ?? ''}');
+        _controllers['brand_color'] =
+            TextEditingController(text: '${r?['brand_color'] ?? '#6366F1'}');
+        _controllers['specific_instructions'] =
+            TextEditingController(text: '${r?['specific_instructions'] ?? ''}');
+        _selectedValues['tone_of_voice'] =
+            r?['tone_of_voice'] ?? (l?['voice_tones'] as List?)?.first ?? 'Professional';
+        break;
+      case 'brand_product':
+        _controllers['name'] =
+            TextEditingController(text: '${r?['name'] ?? ''}');
+        _controllers['key_features'] =
+            TextEditingController(text: '${r?['key_features'] ?? ''}');
+        _selectedValues['type'] = r?['type'] ?? 0;
+        _selectedValues['company_id'] =
+            int.tryParse('${r?['company_id'] ?? l?['company_id'] ?? ''}');
+        break;
+      case 'voice_chatbot':
+        _controllers['title'] =
+            TextEditingController(text: '${r?['title'] ?? ''}');
+        _controllers['voice_id'] =
+            TextEditingController(text: '${r?['voice_id'] ?? ''}');
+        _controllers['welcome_message'] =
+            TextEditingController(text: '${r?['welcome_message'] ?? ''}');
+        _controllers['instructions'] =
+            TextEditingController(text: '${r?['instructions'] ?? ''}');
+        _selectedValues['language'] = r?['language'] ?? 'en';
+        _selectedValues['active'] = r?['active'] ?? true;
+        break;
       default:
         _controllers['name'] =
             TextEditingController(text: '${r?['name'] ?? ''}');
@@ -3682,6 +4395,12 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
       'api_keys' => 'Configure API keys',
       'affiliate_withdrawal' => 'Request affiliate payout',
       'affiliate_invite' => 'Invite affiliate partner',
+      'brand_voice' =>
+        widget.record == null ? 'Create brand voice' : 'Edit brand voice',
+      'brand_product' =>
+        widget.record == null ? 'Add product / service' : 'Edit product / service',
+      'voice_chatbot' =>
+        widget.record == null ? 'Create voice bot' : 'Edit voice bot',
       _ => '${widget.record == null ? 'New' : 'Edit'} ${widget.kind}',
     };
     final buttonLabel = switch (widget.kind) {
@@ -3715,6 +4434,15 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
       'api_keys' => _saving ? 'Saving…' : 'Save keys',
       'affiliate_withdrawal' => _saving ? 'Submitting…' : 'Submit request',
       'affiliate_invite' => _saving ? 'Sending…' : 'Send invite',
+      'brand_voice' => _saving
+          ? 'Saving…'
+          : (widget.record == null ? 'Create brand voice' : 'Save brand voice'),
+      'brand_product' => _saving
+          ? 'Saving…'
+          : (widget.record == null ? 'Add product' : 'Save product'),
+      'voice_chatbot' => _saving
+          ? 'Saving…'
+          : (widget.record == null ? 'Create voice bot' : 'Save voice bot'),
       _ => _saving ? 'Saving…' : 'Save',
     };
 
@@ -4428,6 +5156,152 @@ class _WorkspaceRecordEditorState extends State<WorkspaceRecordEditor> {
                   'Partner email address',
                   keyboardType: TextInputType.emailAddress,
                   required: true,
+                ),
+              ],
+              if (widget.kind == 'brand_voice') ...[
+                _textInput(
+                  'name',
+                  'Company / Brand Name',
+                  hint: 'Acme Corp',
+                  required: true,
+                ),
+                _textInput(
+                  'description',
+                  'Description',
+                  hint: 'What does your company do?',
+                  minLines: 3,
+                  maxLines: 5,
+                  required: true,
+                ),
+                _textInput(
+                  'tagline',
+                  'Tagline',
+                  hint: 'Innovating tomorrow, today',
+                ),
+                _dropdownField<String>(
+                  label: 'Tone of voice',
+                  value: _selectedValues['tone_of_voice']?.toString(),
+                  items: [
+                    for (final tone in (widget.lookups?['voice_tones'] as List? ?? [
+                      'Professional',
+                      'Funny',
+                      'Casual',
+                      'Excited',
+                      'Witty',
+                      'Sarcastic',
+                      'Feminine',
+                      'Masculine',
+                      'Bold',
+                      'Dramatic',
+                      'Grumpy',
+                      'Secretive',
+                    ]))
+                      DropdownMenuItem(
+                        value: '$tone',
+                        child: Text(appTr('$tone')),
+                      ),
+                  ],
+                  onChanged: (v) => setState(() => _selectedValues['tone_of_voice'] = v),
+                ),
+                _textInput(
+                  'industry',
+                  'Industry',
+                  hint: 'Technology, Healthcare, Fashion...',
+                ),
+                _textInput(
+                  'website',
+                  'Website',
+                  hint: 'https://example.com',
+                  keyboardType: TextInputType.url,
+                ),
+                _textInput(
+                  'target_audience',
+                  'Target Audience',
+                  hint: 'e.g. Small business owners, tech-savvy millennials',
+                  minLines: 2,
+                  maxLines: 4,
+                ),
+                _textInput(
+                  'brand_color',
+                  'Brand Color Hex',
+                  hint: '#6366F1',
+                ),
+                _textInput(
+                  'specific_instructions',
+                  'Specific Guidelines / Instructions',
+                  hint: 'e.g. Never use words like cheap; focus on quality.',
+                  minLines: 2,
+                  maxLines: 4,
+                ),
+              ],
+              if (widget.kind == 'brand_product') ...[
+                _textInput(
+                  'name',
+                  'Product or Service Name',
+                  hint: 'e.g. CloudSync Pro',
+                  required: true,
+                ),
+                _dropdownField<int>(
+                  label: 'Type',
+                  value: _selectedValues['type'] as int? ?? 0,
+                  items: [
+                    DropdownMenuItem(value: 0, child: Text(appTr('Product'))),
+                    DropdownMenuItem(value: 1, child: Text(appTr('Service'))),
+                  ],
+                  onChanged: (v) => setState(() => _selectedValues['type'] = v ?? 0),
+                ),
+                _textInput(
+                  'key_features',
+                  'Key Features',
+                  hint: 'Describe top features, benefits, and specifications...',
+                  minLines: 3,
+                  maxLines: 5,
+                  required: true,
+                ),
+              ],
+              if (widget.kind == 'voice_chatbot') ...[
+                _textInput(
+                  'title',
+                  'Voice Bot Title',
+                  hint: 'Customer Support Bot',
+                  required: true,
+                ),
+                _dropdownField<String>(
+                  label: 'Language',
+                  value: _selectedValues['language']?.toString() ?? 'en',
+                  items: const [
+                    DropdownMenuItem(value: 'en', child: Text('English')),
+                    DropdownMenuItem(value: 'es', child: Text('Spanish')),
+                    DropdownMenuItem(value: 'fr', child: Text('French')),
+                    DropdownMenuItem(value: 'de', child: Text('German')),
+                    DropdownMenuItem(value: 'it', child: Text('Italian')),
+                    DropdownMenuItem(value: 'pt', child: Text('Portuguese')),
+                    DropdownMenuItem(value: 'hi', child: Text('Hindi')),
+                    DropdownMenuItem(value: 'tr', child: Text('Turkish')),
+                    DropdownMenuItem(value: 'ar', child: Text('Arabic')),
+                    DropdownMenuItem(value: 'zh', child: Text('Chinese')),
+                    DropdownMenuItem(value: 'ja', child: Text('Japanese')),
+                  ],
+                  onChanged: (v) => setState(() => _selectedValues['language'] = v),
+                ),
+                _textInput(
+                  'voice_id',
+                  'Voice ID / Model',
+                  hint: 'e.g. 21m00Tcm4TlvDq8ikWAM or alloy',
+                ),
+                _textInput(
+                  'welcome_message',
+                  'Welcome Greeting',
+                  hint: 'Hello! How can I assist you today?',
+                  minLines: 2,
+                  maxLines: 3,
+                ),
+                _textInput(
+                  'instructions',
+                  'System Prompt / Instructions',
+                  hint: 'You are a helpful customer concierge...',
+                  minLines: 4,
+                  maxLines: 8,
                 ),
               ],
               if (_error != null)
