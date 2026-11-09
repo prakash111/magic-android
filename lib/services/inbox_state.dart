@@ -230,6 +230,36 @@ class InboxState extends ChangeNotifier {
   void markRead(int id) =>
       optimisticPatch(id, {'unread': 0, 'needs_reply': false});
 
+  bool removeChat(int id) {
+    final chat = chatById(id);
+    if (chat == null) return false;
+    final key = chatKey(chat);
+    _known.remove(key);
+    _visible.remove(key);
+    final previous = counts;
+    if (previous != null) {
+      final unread = chat['muted'] == true ? 0 : chat['unread'] as int;
+      counts = InboxCounts(
+        telegram: (previous.telegram - (chat['network'] == 'tg' ? unread : 0))
+            .clamp(0, 9007199254740991),
+        whatsapp: (previous.whatsapp - (chat['network'] == 'wa' ? unread : 0))
+            .clamp(0, 9007199254740991),
+        messenger: (previous.messenger - (chat['network'] == 'ms' ? unread : 0))
+            .clamp(0, 9007199254740991),
+        instagram: (previous.instagram - (chat['network'] == 'ig' ? unread : 0))
+            .clamp(0, 9007199254740991),
+        web: (previous.web - (chat['network'] == 'wb' ? unread : 0))
+            .clamp(0, 9007199254740991),
+        needsReply: (previous.needsReply - (chat['needs_reply'] == true ? 1 : 0))
+            .clamp(0, 9007199254740991),
+        chatsTotal: (previous.chatsTotal - 1).clamp(0, 9007199254740991),
+      );
+    }
+    _revision++;
+    notifyListeners();
+    return true;
+  }
+
   bool incoming(int chatId, {required Object messageId}) {
     final old = chatById(chatId);
     final event = '$chatId:$messageId';

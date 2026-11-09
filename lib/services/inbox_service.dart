@@ -240,6 +240,33 @@ class InboxService {
     state.applyThread({'chat': result['data'], 'meta': result['meta']}, fetch);
   }
 
+  Future<void> deleteChat(int chat) async {
+    state.removeChat(chat);
+    try {
+      await api.store.delete('${await scope()}:thread:$chat');
+    } catch (_) {}
+    try {
+      final fetch = state.beginFetch();
+      final result = await call(
+        '/inbox/chats/$chat',
+        method: 'DELETE',
+      );
+      if (result['meta'] is Map) {
+        state.applyCounts(result['meta'] as Map, fetch);
+      }
+    } catch (_) {
+      try {
+        await api.request('/chat/conversations/$chat', method: 'DELETE');
+      } catch (_) {
+        try {
+          await api.request('/native/contacts/$chat', method: 'DELETE');
+        } catch (_) {
+          await api.request('/contacts/$chat', method: 'DELETE');
+        }
+      }
+    }
+  }
+
   Future<Map<String, dynamic>> prefs({Map<String, dynamic>? values}) async {
     final result = await call(
       '/me/prefs',

@@ -115,6 +115,96 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
     setState(() {});
   }
 
+  Future<bool> _confirmDelete(Map<String, dynamic> chat) async {
+    final title = '${chat['title'] ?? appTr('this chat')}';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return AlertDialog(
+          title: Text(appTr('Delete conversation?')),
+          content: Text(
+            appTr('":title" and all its messages will be deleted.', {
+              'title': title,
+            }),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(appTr('Cancel')),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(appTr('Delete')),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmed == true;
+  }
+
+  Future<void> _deleteChat(Map<String, dynamic> chat) async {
+    final id = chat['id'] as int;
+    widget.service.state.removeChat(id);
+    if (mounted) setState(() {});
+    try {
+      await widget.service.deleteChat(id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(appTr(e.toString()))),
+        );
+      }
+    }
+  }
+
+  void _showChatOptions(Map<String, dynamic> chat) {
+    final id = chat['id'] as int;
+    final pinned = chat['pinned'] == true;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        AppLocalizations.watch(context);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(
+                  pinned ? Icons.push_pin_outlined : Icons.push_pin,
+                ),
+                title: Text(appTr(pinned ? 'Unpin chat' : 'Pin chat')),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await widget.service.pin(id, pinned: !pinned);
+                  load(silent: true);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: Text(
+                  appTr('Delete conversation'),
+                  style: const TextStyle(color: Colors.red),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final confirmed = await _confirmDelete(chat);
+                  if (confirmed) {
+                    await _deleteChat(chat);
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -329,91 +419,97 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                             ? '${last?['sender_name'] ?? ''}: '
                             : '';
                         final typing = chat['typing_name'];
-                        return ListTile(
-                          minVerticalPadding: 12,
-                          leading: AvatarWithBadge(
-                            name: '${chat['title']}',
-                            network: '${chat['network']}',
-                            url: chat['photo_url'] as String?,
+                        return Dismissible(
+                          key: ValueKey('inbox-chat-${chat['id']}'),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: AlignmentDirectional.centerEnd,
+                            color: Theme.of(context).colorScheme.error,
+                            padding: const EdgeInsetsDirectional.only(end: 20),
+                            child: const Icon(Icons.delete, color: Colors.white),
                           ),
-                          title: Row(
-                            children: [
-                              if (chat['pinned'] == true)
-                                const Padding(
-                                  padding: EdgeInsetsDirectional.only(end: 4),
-                                  child: Icon(Icons.push_pin, size: 14),
-                                ),
-                              Expanded(
-                                child: Text(
-                                  '${chat['title']}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
+                          confirmDismiss: (direction) => _confirmDelete(chat),
+                          onDismissed: (direction) => _deleteChat(chat),
+                          child: ListTile(
+                            minVerticalPadding: 12,
+                            leading: AvatarWithBadge(
+                              name: '${chat['title']}',
+                              network: '${chat['network']}',
+                              url: chat['photo_url'] as String?,
+                            ),
+                            title: Row(
+                              children: [
+                                if (chat['pinned'] == true)
+                                  const Padding(
+                                    padding: EdgeInsetsDirectional.only(end: 4),
+                                    child: Icon(Icons.push_pin, size: 14),
+                                  ),
+                                Expanded(
+                                  child: Text(
+                                    '${chat['title']}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${appTr(isGroup ? 'Group' : 'Chat')} · ${chat['remote_id'] ?? chat['id']}${chat['members'] == null ? '' : ' · ${appTr(':count members', {'count': chat['members']})}'}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                              Text(
-                                typing != null
-                                    ? appTr(':name is typing…', {
-                                        'name': typing,
-                                      })
-                                    : '$sender${last?['body'] ?? ''}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: typing != null ? Colors.green : null,
+                              ],
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${appTr(isGroup ? 'Group' : 'Chat')} · ${chat['remote_id'] ?? chat['id']}${chat['members'] == null ? '' : ' · ${appTr(':count members', {'count': chat['members']})}'}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.labelSmall,
                                 ),
-                              ),
-                            ],
-                          ),
-                          trailing: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                inboxTime(chat['last_at']),
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                              if (unread > 0)
-                                Badge(
-                                  backgroundColor: chat['muted'] == true
-                                      ? colors.muted
-                                      : colors.primary,
-                                  label: Text('$unread'),
+                                Text(
+                                  typing != null
+                                      ? appTr(':name is typing…', {
+                                          'name': typing,
+                                        })
+                                      : '$sender${last?['body'] ?? ''}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: typing != null ? Colors.green : null,
+                                  ),
                                 ),
-                            ],
-                          ),
-                          onTap: () async {
-                            inbox.markRead(chat['id'] as int);
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute<void>(
-                                builder: (_) => ThreadScreen(
-                                  service: widget.service,
-                                  chat: chat,
+                              ],
+                            ),
+                            trailing: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  inboxTime(chat['last_at']),
+                                  style: Theme.of(context).textTheme.labelSmall,
                                 ),
-                              ),
-                            );
-                            if (mounted) load(silent: true);
-                          },
-                          onLongPress: () async {
-                            await widget.service.pin(
-                              chat['id'] as int,
-                              pinned: chat['pinned'] != true,
-                            );
-                            load(silent: true);
-                          },
+                                if (unread > 0)
+                                  Badge(
+                                    backgroundColor: chat['muted'] == true
+                                        ? colors.muted
+                                        : colors.primary,
+                                    label: Text('$unread'),
+                                  ),
+                              ],
+                            ),
+                            onTap: () async {
+                              inbox.markRead(chat['id'] as int);
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute<void>(
+                                  builder: (_) => ThreadScreen(
+                                    service: widget.service,
+                                    chat: chat,
+                                  ),
+                                ),
+                              );
+                              if (mounted) load(silent: true);
+                            },
+                            onLongPress: () => _showChatOptions(chat),
+                          ),
                         );
                       },
                     ),
