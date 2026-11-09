@@ -114,15 +114,23 @@ void main() {
         'Question & answer',
         'Website URL',
         'PDF / spreadsheet',
-        'Help guide',
       ]) {
         expect(find.text(text), findsOneWidget);
       }
+      await tester.scrollUntilVisible(
+        find.text('Help guide'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Help guide'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('Train text sources'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Train text sources'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Train text sources'));
       await tester.pumpAndSettle();
       expect(submitted?['record_id'], 7);
@@ -186,6 +194,7 @@ void main() {
       expect(find.text('Save'), findsOneWidget);
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
 
       expect(submitted?['record_id'], 7);
       expect(submitted?['inputs']['title'], 'Support bot');
