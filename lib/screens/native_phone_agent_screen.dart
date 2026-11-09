@@ -3076,6 +3076,19 @@ class _NewCampaignSheetState extends State<_NewCampaignSheet> {
       return;
     }
 
+    final recipientsList = rec
+        .split(RegExp(r'[\r\n,]+'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    if (recipientsList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(appTr('At least one recipient phone number is required.'))),
+      );
+      return;
+    }
+
     setState(() => _busy = true);
     try {
       await widget.service.mutate(
@@ -3085,15 +3098,19 @@ class _NewCampaignSheetState extends State<_NewCampaignSheet> {
         inputs: {
           'agent_id': _selectedAgentId,
           'name': name,
-          'recipients': rec,
+          'recipients': recipientsList,
+          'numbers': recipientsList,
         },
       );
       widget.onCreated();
     } catch (e) {
       if (mounted) {
+        final rawMsg = e is ApiFailure
+            ? e.message
+            : e.toString().replaceFirst('Exception: ', '').trim();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(appTr(e.toString())),
+            content: Text(appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to create campaign.')),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );

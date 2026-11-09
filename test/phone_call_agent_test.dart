@@ -798,4 +798,92 @@ void main() {
     // Verify the deleted call card is removed from view
     expect(find.text('+14155552671 → +16184237161'), findsNothing);
   });
+
+  testWidgets('Creating a new outbound campaign passes array of recipients and closes dialog', (tester) async {
+    final mutations = <Map<String, dynamic>>[];
+    final mockOutboundData = {
+      'schema_version': 1,
+      'kind': 'phone_agent',
+      'view_type': 'outbound',
+      'metrics': [],
+      'eligible_agents': [
+        {'id': 1, 'title': 'Sales Support AI', 'phone_number': '+16184237161'},
+      ],
+      'campaigns': [],
+      'data': [],
+      'modules': [],
+    };
+
+    final api = nativeApi((path, body) async {
+      if (path == '/native/records') {
+        mutations.add(Map<String, dynamic>.from(body));
+        return {
+          'status': true,
+          'message': 'Campaign created successfully.',
+          'campaign_id': 10,
+          'recipients_count': 2,
+        };
+      }
+      if (body['view_type'] == 'outbound') {
+        return mockOutboundData;
+      }
+      return mockPhoneAgentData;
+    });
+
+    final module = {
+      'id': 'web:ext_phone_call_agent_dashboard',
+      'title': 'Phone Call Agent',
+      'category': 'Phone Call Agent',
+      'route_type': 'phone_agent',
+      'route': 'dashboard.phone-call-agent.index',
+    };
+
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: NativePhoneAgentScreen(module: module, api: api),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Outbound Tab
+    await tester.tap(find.text('Outbound').first);
+    await tester.pumpAndSettle();
+
+    // Click "New Campaign" button
+    expect(find.text('New Campaign'), findsOneWidget);
+    await tester.tap(find.text('New Campaign'));
+    await tester.pumpAndSettle();
+
+    // Verify modal is open
+    expect(find.text('New Outbound Campaign'), findsOneWidget);
+
+    // Enter Campaign Name
+    await tester.enterText(find.widgetWithText(TextField, 'Campaign Name'), 'VIP Followup');
+
+    // Enter Recipients (multiple lines)
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Recipient Phone Numbers'),
+      '+14155552671\n+14155552672',
+    );
+
+    // Tap "Launch Campaign"
+    await tester.tap(find.text('Launch Campaign'));
+    await tester.pumpAndSettle();
+
+    // Verify mutation was called with array
+    expect(mutations.length, 1);
+    expect(mutations[0]['kind'], 'campaign');
+    expect(mutations[0]['operation'], 'save_campaign');
+    expect(mutations[0]['inputs']['name'], 'VIP Followup');
+    expect(mutations[0]['inputs']['recipients'], isA<List>());
+    expect(mutations[0]['inputs']['recipients'], ['+14155552671', '+14155552672']);
+    expect(mutations[0]['inputs']['numbers'], ['+14155552671', '+14155552672']);
+
+    // Modal is closed
+    expect(find.text('New Outbound Campaign'), findsNothing);
+  });
 }
