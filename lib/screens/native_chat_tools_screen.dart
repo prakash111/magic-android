@@ -278,6 +278,122 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
     }
   }
 
+  Future<void> _chatbotForm(Map? record, List<Map> models) async {
+    final titleController =
+        TextEditingController(text: '${record?['title'] ?? ''}');
+    String? selectedModel = record?['model'] as String?;
+    if (selectedModel == null || selectedModel.isEmpty) {
+      if (models.isNotEmpty) {
+        selectedModel = models.first['id'] as String?;
+      }
+    }
+    var availableModels = List<Map>.from(models);
+    final modelIds = availableModels.map((m) => '${m['id']}').toSet();
+    if (selectedModel != null &&
+        selectedModel.isNotEmpty &&
+        !modelIds.contains(selectedModel)) {
+      availableModels = [
+        {'id': selectedModel, 'title': selectedModel, 'provider': 'Current'},
+        ...availableModels,
+      ];
+    }
+    final key = GlobalKey<FormState>();
+
+    final values = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (context) {
+          AppLocalizations.watch(context);
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return Scaffold(
+                resizeToAvoidBottomInset: true,
+                appBar: AppBar(
+                  title: Text(
+                    appTr(record != null ? 'Edit chatbot' : 'Create chatbot'),
+                  ),
+                ),
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Form(
+                    key: key,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TextFormField(
+                          controller: titleController,
+                          decoration: InputDecoration(
+                            labelText: appTr('Chatbot name'),
+                            filled: true,
+                            border: const OutlineInputBorder(),
+                          ),
+                          validator: (v) => v == null || v.trim().isEmpty
+                              ? appTr('Enter chatbot name.')
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
+                        if (availableModels.isNotEmpty)
+                          DropdownButtonFormField<String>(
+                            value: selectedModel,
+                            decoration: InputDecoration(
+                              labelText: appTr('AI Model for training & chat'),
+                              filled: true,
+                              border: const OutlineInputBorder(),
+                            ),
+                            items: [
+                              for (final m in availableModels)
+                                DropdownMenuItem(
+                                  value: '${m['id']}',
+                                  child: Text(
+                                    '${m['title'] ?? m['id']}' +
+                                        (m['provider'] != null
+                                            ? ' (${m['provider']})'
+                                            : ''),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                            ],
+                            onChanged: (val) {
+                              setDialogState(() {
+                                selectedModel = val;
+                              });
+                            },
+                          ),
+                        const SizedBox(height: 24),
+                        FilledButton(
+                          onPressed: () {
+                            if (key.currentState!.validate()) {
+                              Navigator.pop(context, {
+                                'title': titleController.text.trim(),
+                                if (selectedModel != null)
+                                  'model': selectedModel,
+                              });
+                            }
+                          },
+                          child: Text(appTr('Save')),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    titleController.dispose();
+
+    if (values != null && mounted) {
+      await _action(
+        'save',
+        id: record?['id'] as int?,
+        inputs: values,
+      );
+    }
+  }
+
   Future<void> _upload() async {
     try {
       final result = await SecureStore.invokeMapMethod<String, dynamic>(
@@ -342,6 +458,8 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
     final kind = '${_data!['kind']}';
     final records = (_data!['data'] as List).whereType<Map>().toList();
     final sources = (_data!['sources'] as List).whereType<Map>().toList();
+    final models =
+        (_data!['models'] as List?)?.whereType<Map>().toList() ?? [];
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
@@ -373,20 +491,24 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
           FilledButton.icon(
             onPressed: _busy
                 ? null
-                : () => _form(
-                    'save',
-                    kind == 'categories'
-                        ? [('name', 'Name', 1)]
-                        : kind == 'training'
-                        ? [('title', 'Chatbot name', 1)]
-                        : [
-                            ('name', 'Template name', 1),
-                            ('role', 'Role', 1),
-                            ('description', 'Description', 2),
-                            ('instructions', 'Instructions', 5),
-                            ('first_message', 'First message', 2),
-                          ],
-                  ),
+                : () {
+                    if (kind == 'training') {
+                      _chatbotForm(null, models);
+                    } else {
+                      _form(
+                        'save',
+                        kind == 'categories'
+                            ? [('name', 'Name', 1)]
+                            : [
+                                ('name', 'Template name', 1),
+                                ('role', 'Role', 1),
+                                ('description', 'Description', 2),
+                                ('instructions', 'Instructions', 5),
+                                ('first_message', 'First message', 2),
+                              ],
+                      );
+                    }
+                  },
             icon: const Icon(Icons.add),
             label: Text(
               appTr("Create :value", {
@@ -434,7 +556,9 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                               overflow: TextOverflow.ellipsis,
                             )
                           : kind == 'training'
-                          ? Text(appTr('${record['status'] ?? 'Ready'}'))
+                          ? Text(
+                              '${appTr('${record['status'] ?? 'Ready'}')}${record['model'] != null ? ' · ${record['model']}' : ''}',
+                            )
                           : null,
                       trailing: IconButton(
                         tooltip: appTr('Delete'),
@@ -452,6 +576,13 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
                                 ('name', 'Name', 1),
                               ], record: record),
                         child: Text(appTr('Edit category')),
+                      ),
+                    if (kind == 'training')
+                      TextButton(
+                        onPressed: _busy
+                            ? null
+                            : () => _chatbotForm(record, models),
+                        child: Text(appTr('Edit chatbot / model')),
                       ),
                     if (kind == 'templates')
                       FilledButton.tonal(
@@ -523,9 +654,66 @@ class _NativeChatToolsScreenState extends State<NativeChatToolsScreen> {
             ),
           if (kind == 'training' && _bot != null) ...[
             const SizedBox(height: 24),
-            Text(
-              appTr('Knowledge sources'),
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  appTr('Knowledge sources'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () {
+                          final current = records.firstWhere(
+                            (r) => r['id'] == _bot,
+                            orElse: () => {},
+                          );
+                          if (current.isNotEmpty) {
+                            _chatbotForm(current, models);
+                          }
+                        },
+                  icon: const Icon(Icons.tune, size: 16),
+                  label: Text(appTr('Change model')),
+                ),
+              ],
+            ),
+            Card(
+              margin: const EdgeInsets.only(top: 8, bottom: 8),
+              child: ListTile(
+                dense: true,
+                leading: const Icon(Icons.smart_toy_outlined),
+                title: Text(
+                  '${records.firstWhere((r) => r['id'] == _bot, orElse: () => {})['title'] ?? 'Chatbot'}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  appTr('AI Model: :value', {
+                    'value': records.firstWhere(
+                          (r) => r['id'] == _bot,
+                          orElse: () => {},
+                        )['model'] ??
+                        'System default',
+                  }),
+                ),
+                trailing: TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () {
+                          final current = records.firstWhere(
+                            (r) => r['id'] == _bot,
+                            orElse: () => {},
+                          );
+                          if (current.isNotEmpty) {
+                            _chatbotForm(current, models);
+                          }
+                        },
+                  child: Text(appTr('Edit')),
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             Wrap(

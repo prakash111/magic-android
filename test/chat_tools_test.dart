@@ -135,6 +135,64 @@ void main() {
     },
   );
   testWidgets(
+    'editing a chatbot allows selecting an AI model and saves the updated model',
+    (tester) async {
+      Map? submitted;
+      final api = nativeApi((_, body) async {
+        if (body['operation'] == 'save' && body['record_id'] == 7) {
+          submitted = body;
+        }
+        return {
+          'kind': 'training',
+          'data': [
+            {
+              'id': 7,
+              'title': 'Support bot',
+              'status': 'trained',
+              'model': 'gpt-3.5-turbo',
+            },
+          ],
+          'models': [
+            {
+              'id': 'gpt-3.5-turbo',
+              'title': 'GPT-3.5 Turbo',
+              'provider': 'OpenAI',
+            },
+            {
+              'id': 'gpt-4',
+              'title': 'GPT-4',
+              'provider': 'OpenAI',
+            },
+          ],
+          'sources': [],
+        };
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.darkTheme,
+          home: Scaffold(
+            body: NativeChatToolsScreen(
+              module: const {'id': 'training'},
+              api: api,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Edit chatbot / model'), findsOneWidget);
+      await tester.tap(find.text('Edit chatbot / model'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Save'), findsOneWidget);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(submitted?['record_id'], 7);
+      expect(submitted?['inputs']['title'], 'Support bot');
+      expect(submitted?['inputs']['model'], 'gpt-3.5-turbo');
+    },
+  );
+  testWidgets(
     'tapping "Selected for training" button triggers training process for selected chatbot',
     (tester) async {
       Map? submitted;
