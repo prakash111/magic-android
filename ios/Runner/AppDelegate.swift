@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, UIDocumentPickerDelegate {
   static var authReturn: [String: String]?
   private var fileResult: FlutterResult?
+  private var audioPlayer: AVPlayer?
 
   static func receive(_ url: URL) {
     guard url.scheme == "magicai", url.host == "auth", url.path == "/complete",
@@ -78,6 +79,19 @@ import UniformTypeIdentifiers
         let player = AVPlayerViewController()
         player.player = AVPlayer(url: url)
         root.present(player, animated: true) { player.player?.play() }
+        result(nil)
+      case "playAudio":
+        guard let value = args["url"] as? String, let url = URL(string: value), url.scheme == "https" || url.scheme == "http" else {
+          result(FlutterError(code: "url", message: "Invalid audio URL", details: nil))
+          return
+        }
+        self.audioPlayer?.pause()
+        self.audioPlayer = AVPlayer(url: url)
+        self.audioPlayer?.play()
+        result(nil)
+      case "stopAudio":
+        self.audioPlayer?.pause()
+        self.audioPlayer = nil
         result(nil)
       case "contactAction":
         let scheme = args["scheme"] as? String ?? ""

@@ -187,6 +187,8 @@ class PlatformBridge {
           'bytes': await file.readAsBytes(),
         };
       }
+    } else if (method == 'playAudio' || method == 'stopAudio') {
+      return null;
     } else if (method != 'clearWebSession') {
       throw PlatformException(
         code: 'unsupported',

@@ -168,6 +168,8 @@ class PlatformBridge {
       }).toJS;
       input.click();
       result = await completer.future;
+    } else if (method == 'playAudio' || method == 'stopAudio') {
+      result = null;
     } else if (method != 'clearWebSession') {
       throw PlatformException(
         code: 'unsupported',

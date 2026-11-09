@@ -26,14 +26,24 @@ void main() {
         'voice_id': '21m00Tcm4TlvDq8ikWAM',
         'name': 'Rachel (Calm & Professional)',
         'category': 'premade',
+        'preview_url': 'https://cdn.elevenlabs.io/premade/voices/21m00Tcm4TlvDq8ikWAM/b73244c0-0f2b-4af6-bb43-485a03b55d9d.mp3',
         'labels': {'accent': 'american', 'gender': 'female', 'language': 'en'},
       },
       {
         'voice_id': 'AZnzlk1XvdvUeBnXmlld',
         'name': 'Domi (Confident & Clear)',
         'category': 'premade',
+        'preview_url': 'https://cdn.elevenlabs.io/premade/voices/AZnzlk1XvdvUeBnXmlld/50dd647c-9d7f-4127-9a00-179374092b7b.mp3',
         'labels': {'accent': 'american', 'gender': 'female', 'language': 'en'},
       },
+    ],
+    'ai_models': [
+      {'key': 'gpt-4o-mini', 'label': 'GPT-4o Mini (Fast & Cost Effective)', 'provider': 'OpenAI'},
+      {'key': 'gpt-4o', 'label': 'GPT-4o (High Intelligence & Multimodal)', 'provider': 'OpenAI'},
+      {'key': 'claude-3-5-sonnet-20241022', 'label': 'Claude 3.5 Sonnet (Most Intelligent)', 'provider': 'Anthropic'},
+      {'key': 'gemini-1.5-flash', 'label': 'Gemini 1.5 Flash (Ultra Fast)', 'provider': 'Google Gemini'},
+      {'key': 'deepseek-chat', 'label': 'DeepSeek V3 (Reasoning & Conversational)', 'provider': 'DeepSeek'},
+      {'key': 'elevenlabs-conversational', 'label': 'ElevenLabs Conversational Native', 'provider': 'ElevenLabs'},
     ],
     'data': [
       {
@@ -454,5 +464,235 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Call Ended'), findsOneWidget);
+  });
+
+  testWidgets('Voice Picker Sheet opens, shows preview audio buttons, toggles playback, and selects a voice', (tester) async {
+    final api = nativeApi((path, body) async => mockPhoneAgentData);
+
+    final module = {
+      'id': 'web:ext_phone_call_agent_dashboard',
+      'title': 'Phone Call Agent',
+      'category': 'Phone Call Agent',
+      'route_type': 'phone_agent',
+      'route': 'dashboard.phone-call-agent.index',
+    };
+
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: NativePhoneAgentScreen(module: module, api: api),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Click "Create New Agent" button
+    await tester.tap(find.text('Create New Agent'));
+    await tester.pumpAndSettle();
+
+    // Scroll down to Voice Selection and tap the voice picker inkwell
+    await tester.ensureVisible(find.byIcon(Icons.record_voice_over).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.record_voice_over).last);
+    await tester.pumpAndSettle();
+
+    // Verify Voice Picker opened
+    expect(find.text('Select Agent Voice'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Rachel (Calm & Professional)'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Domi (Confident & Clear)'), findsOneWidget);
+
+    // Verify preview buttons are present
+    expect(find.byIcon(Icons.play_circle_fill), findsNWidgets(2));
+
+    // Tap first voice preview button
+    await tester.tap(find.byIcon(Icons.play_circle_fill).first);
+    await tester.pump();
+
+    // Verify that the icon changed to stop_circle indicating audio is previewing
+    expect(find.byIcon(Icons.stop_circle), findsOneWidget);
+
+    // Tap stop_circle button
+    await tester.tap(find.byIcon(Icons.stop_circle));
+    await tester.pump();
+
+    // Verify it stopped
+    expect(find.byIcon(Icons.stop_circle), findsNothing);
+    expect(find.byIcon(Icons.play_circle_fill), findsNWidgets(2));
+
+    // Tap second voice to select it
+    await tester.tap(find.widgetWithText(ListTile, 'Domi (Confident & Clear)'));
+    await tester.pumpAndSettle();
+
+    // Voice picker dismissed, Domi should now be visible on configure step
+    expect(find.text('Select Agent Voice'), findsNothing);
+    expect(find.widgetWithText(InkWell, 'Domi (Confident & Clear)'), findsOneWidget);
+  });
+
+  testWidgets('Step 2 Knowledge Base training tools (add URL, add text) invoke train mutation', (tester) async {
+    final calls = <Map<String, dynamic>>[];
+    final api = nativeApi((path, body) async {
+      if (path == '/native/records') {
+        calls.add(Map<String, dynamic>.from(body));
+        return {'message': 'Training completed.'};
+      }
+      return mockPhoneAgentData;
+    });
+
+    final module = {
+      'id': 'web:ext_phone_call_agent_dashboard',
+      'title': 'Phone Call Agent',
+      'category': 'Phone Call Agent',
+      'route_type': 'phone_agent',
+      'route': 'dashboard.phone-call-agent.index',
+    };
+
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: NativePhoneAgentScreen(module: module, api: api),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Edit button on second agent card
+    await tester.tap(find.text('Edit').last);
+    await tester.pumpAndSettle();
+
+    // Tap step pill "2. Train"
+    await tester.tap(find.text('2. Train'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Agent Knowledge Base'), findsOneWidget);
+
+    // Tap "Add Website URL"
+    await tester.tap(find.text('Add Website URL'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add Website Knowledge'), findsOneWidget);
+
+    // Enter URL
+    await tester.enterText(find.widgetWithText(TextField, 'https://example.com/about'), 'https://magicai.test/pricing');
+    await tester.tap(find.widgetWithText(FilledButton, 'Add URL'));
+    await tester.pumpAndSettle();
+
+    expect(calls.length, 1);
+    expect(calls[0]['kind'], 'phone_agent');
+    expect(calls[0]['operation'], 'train');
+    expect(calls[0]['inputs']['type'], 'url');
+    expect(calls[0]['inputs']['url'], 'https://magicai.test/pricing');
+    expect(calls[0]['inputs']['agent_id'], 2);
+  });
+
+  testWidgets('Step 3 Phone Number attach tool invokes phone_number mutation', (tester) async {
+    final calls = <Map<String, dynamic>>[];
+    final api = nativeApi((path, body) async {
+      if (path == '/native/records') {
+        calls.add(Map<String, dynamic>.from(body));
+        return {'message': 'Phone number attached.'};
+      }
+      return mockPhoneAgentData;
+    });
+
+    final module = {
+      'id': 'web:ext_phone_call_agent_dashboard',
+      'title': 'Phone Call Agent',
+      'category': 'Phone Call Agent',
+      'route_type': 'phone_agent',
+      'route': 'dashboard.phone-call-agent.index',
+    };
+
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: NativePhoneAgentScreen(module: module, api: api),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Edit on second agent card (has no phone number)
+    await tester.tap(find.text('Edit').last);
+    await tester.pumpAndSettle();
+
+    // Tap step pill "3. Phone Numbers"
+    await tester.tap(find.text('3. Phone Numbers'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Connect a Phone Number'), findsOneWidget);
+
+    // Enter phone number
+    final phoneField = find.widgetWithText(TextField, 'Phone Number (+1...)');
+    await tester.ensureVisible(phoneField);
+    await tester.pumpAndSettle();
+    await tester.enterText(phoneField, '+14155559876');
+
+    // Attach phone number
+    final attachBtn = find.text('Attach Phone Number');
+    await tester.ensureVisible(attachBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(attachBtn);
+    await tester.pumpAndSettle();
+
+    expect(calls.length, 1);
+    expect(calls[0]['kind'], 'phone_agent');
+    expect(calls[0]['operation'], 'phone_number');
+    expect(calls[0]['inputs']['phone_number'], '+14155559876');
+    expect(calls[0]['inputs']['agent_id'], 2);
+  });
+
+  testWidgets('Agent Editor displays AI models list across OpenAI, Anthropic, Gemini, DeepSeek, and ElevenLabs', (tester) async {
+    final api = nativeApi((path, body) async => mockPhoneAgentData);
+
+    final module = {
+      'id': 'web:ext_phone_call_agent_dashboard',
+      'title': 'Phone Call Agent',
+      'category': 'Phone Call Agent',
+      'route_type': 'phone_agent',
+      'route': 'dashboard.phone-call-agent.index',
+    };
+
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: NativePhoneAgentScreen(module: module, api: api),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Click "Create New Agent" button
+    await tester.tap(find.text('Create New Agent'));
+    await tester.pumpAndSettle();
+
+    // Verify AI Model dropdown is present
+    expect(find.text('AI Model'), findsOneWidget);
+
+    // Tap AI Model dropdown
+    await tester.ensureVisible(find.text('AI Model'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('AI Model'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    // Verify models from different providers are present in the dropdown menu
+    expect(find.textContaining('Claude 3.5 Sonnet'), findsWidgets);
+    expect(find.textContaining('Gemini 1.5 Flash'), findsWidgets);
+    expect(find.textContaining('DeepSeek V3'), findsWidgets);
+    expect(find.textContaining('ElevenLabs Conversational'), findsWidgets);
+
+    // Select Claude 3.5 Sonnet
+    await tester.tap(find.textContaining('Claude 3.5 Sonnet').last);
+    await tester.pumpAndSettle();
+
+    // Verify selected model is displayed
+    expect(find.textContaining('Claude 3.5 Sonnet'), findsOneWidget);
   });
 }

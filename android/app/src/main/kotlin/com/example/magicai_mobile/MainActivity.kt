@@ -33,6 +33,7 @@ class MainActivity : FlutterActivity() {
     private val keyAlias = "magicai_secure_v1"
     private val secureExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var audioPlayer: android.media.MediaPlayer? = null
 
     private fun secretKey(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -201,6 +202,44 @@ class MainActivity : FlutterActivity() {
                         val url = Uri.parse(call.argument<String>("url") ?: "")
                         require(url.scheme == "https" && !url.host.isNullOrBlank())
                         startActivity(Intent(Intent.ACTION_VIEW, url))
+                        result.success(null)
+                    }
+                    "playAudio" -> {
+                        val urlStr = call.argument<String>("url") ?: ""
+                        val url = Uri.parse(urlStr)
+                        require((url.scheme == "https" || url.scheme == "http") && !url.host.isNullOrBlank())
+                        try {
+                            audioPlayer?.stop()
+                            audioPlayer?.release()
+                        } catch (_: Exception) {}
+                        audioPlayer = android.media.MediaPlayer().apply {
+                            setAudioAttributes(
+                                android.media.AudioAttributes.Builder()
+                                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                                    .build()
+                            )
+                            setDataSource(this@MainActivity, url)
+                            setOnPreparedListener { start() }
+                            setOnCompletionListener {
+                                release()
+                                audioPlayer = null
+                            }
+                            setOnErrorListener { _, _, _ ->
+                                release()
+                                audioPlayer = null
+                                true
+                            }
+                            prepareAsync()
+                        }
+                        result.success(null)
+                    }
+                    "stopAudio" -> {
+                        try {
+                            audioPlayer?.stop()
+                            audioPlayer?.release()
+                        } catch (_: Exception) {}
+                        audioPlayer = null
                         result.success(null)
                     }
                     else -> result.notImplemented()

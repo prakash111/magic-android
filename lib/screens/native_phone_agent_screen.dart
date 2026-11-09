@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import '../services/app_localizations.dart';
 import '../services/mobile_api.dart';
 import '../services/native_workspace_service.dart';
+import '../services/platform_bridge_io.dart'
+    if (dart.library.js_interop) '../services/platform_bridge_web.dart';
+import '../services/social_post_service.dart';
 import 'server_screen.dart';
 
 class NativePhoneAgentScreen extends StatefulWidget {
@@ -31,6 +34,7 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
   final _searchController = TextEditingController();
   List<Map<String, dynamic>> _records = [];
   List<Map<String, dynamic>> _voices = [];
+  List<Map<String, dynamic>> _aiModels = [];
   List<Map<String, dynamic>> _campaigns = [];
   List<Map<String, dynamic>> _eligibleAgents = [];
 
@@ -110,6 +114,10 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))
             .toList();
+        _aiModels = (res['ai_models'] as List? ?? [])
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
         _campaigns = (res['campaigns'] as List? ?? [])
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))
@@ -146,7 +154,7 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
       await _service.mutate(
         kind: 'phone_agent',
         operation: 'toggle_active',
-        requestId: 'toggle-${agent['id']}-${DateTime.now().millisecondsSinceEpoch}',
+        requestId: SocialPostService.requestId(),
         recordId: agent['id'] as int,
       );
       if (mounted) {
@@ -204,7 +212,7 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
       await _service.mutate(
         kind: 'phone_agent',
         operation: 'delete',
-        requestId: 'delete-agent-${agent['id']}',
+        requestId: SocialPostService.requestId(),
         recordId: agent['id'] as int,
       );
       if (mounted) {
@@ -236,6 +244,7 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
         service: _service,
         agent: agent,
         voices: _voices,
+        aiModels: _aiModels,
         initialStep: initialStep,
         onSaved: () {
           Navigator.pop(ctx);
@@ -1273,6 +1282,7 @@ class _PhoneAgentEditorSheet extends StatefulWidget {
   final NativeWorkspaceService service;
   final Map<String, dynamic>? agent;
   final List<Map<String, dynamic>> voices;
+  final List<Map<String, dynamic>> aiModels;
   final int initialStep;
   final VoidCallback onSaved;
 
@@ -1280,6 +1290,7 @@ class _PhoneAgentEditorSheet extends StatefulWidget {
     required this.service,
     this.agent,
     required this.voices,
+    this.aiModels = const [],
     this.initialStep = 1,
     required this.onSaved,
   });
@@ -1427,7 +1438,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       await widget.service.mutate(
         kind: 'phone_agent',
         operation: 'save',
-        requestId: 'save-agent-${DateTime.now().millisecondsSinceEpoch}',
+        requestId: SocialPostService.requestId(),
         recordId: widget.agent?['id'] as int?,
         inputs: inputs,
       );
@@ -1454,7 +1465,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       await widget.service.mutate(
         kind: 'phone_agent',
         operation: 'train',
-        requestId: 'train-${DateTime.now().millisecondsSinceEpoch}',
+        requestId: SocialPostService.requestId(),
         inputs: {
           'agent_id': widget.agent!['id'],
           'type': type,
@@ -1481,7 +1492,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       await widget.service.mutate(
         kind: 'phone_agent',
         operation: 'delete_train',
-        requestId: 'del-train-$id',
+        requestId: SocialPostService.requestId(),
         recordId: id,
         inputs: {'agent_id': widget.agent!['id']},
       );
@@ -1504,7 +1515,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       await widget.service.mutate(
         kind: 'phone_agent',
         operation: 'phone_number',
-        requestId: 'phone-${DateTime.now().millisecondsSinceEpoch}',
+        requestId: SocialPostService.requestId(),
         inputs: {
           'agent_id': widget.agent!['id'],
           'phone_number': num,
@@ -1536,7 +1547,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       await widget.service.mutate(
         kind: 'phone_agent',
         operation: 'release',
-        requestId: 'rel-phone-${DateTime.now().millisecondsSinceEpoch}',
+        requestId: SocialPostService.requestId(),
         inputs: {'agent_id': widget.agent!['id']},
       );
       setState(() => _phoneNumber = null);
@@ -1669,6 +1680,37 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        DropdownButtonFormField<String>(
+          value: _provider,
+          decoration: InputDecoration(
+            labelText: appTr('Provider'),
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.settings_input_component_outlined),
+          ),
+          items: [
+            DropdownMenuItem(
+              value: 'elevenlabs',
+              child: Text(appTr('ElevenLabs (Conversational AI)')),
+            ),
+            DropdownMenuItem(
+              value: 'twilio',
+              child: Text(appTr('Twilio (ConversationRelay)')),
+            ),
+          ],
+          onChanged: (val) {
+            if (val != null) {
+              setState(() {
+                _provider = val;
+                final filtered = _getFilteredVoices();
+                if (filtered.isNotEmpty && !filtered.any((v) => '${v['voice_id']}' == _voiceId)) {
+                  _voiceId = '${filtered[0]['voice_id']}';
+                }
+              });
+            }
+          },
+        ),
+        const SizedBox(height: 16),
+
         TextField(
           controller: _titleCtrl,
           decoration: InputDecoration(
@@ -1730,11 +1772,21 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
                   labelText: appTr('AI Model'),
                   border: const OutlineInputBorder(),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'gpt-4o-mini', child: Text('gpt-4o-mini')),
-                  DropdownMenuItem(value: 'gpt-4o', child: Text('gpt-4o')),
-                  DropdownMenuItem(value: 'claude-3-haiku', child: Text('claude-3-haiku')),
-                ],
+                isExpanded: true,
+                items: _getEffectiveAiModels().map((m) {
+                  final key = '${m['key'] ?? m['id']}';
+                  final label = '${m['label'] ?? key}';
+                  final group = '${m['provider'] ?? ''}';
+                  final text = group.isNotEmpty ? '$label ($group)' : label;
+                  return DropdownMenuItem<String>(
+                    value: key,
+                    child: Text(
+                      text,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  );
+                }).toList(),
                 onChanged: (val) => setState(() => _aiModel = val ?? 'gpt-4o-mini'),
               ),
             ),
@@ -1881,6 +1933,57 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
     );
   }
 
+  List<Map<String, dynamic>> _getEffectiveAiModels() {
+    final list = <Map<String, dynamic>>[];
+    if (widget.aiModels.isNotEmpty) {
+      list.addAll(widget.aiModels.map((m) => Map<String, dynamic>.from(m)));
+    } else {
+      list.addAll(const [
+        {'key': 'gpt-4o-mini', 'label': 'GPT-4o Mini (Fast & Cost Effective)', 'provider': 'OpenAI'},
+        {'key': 'gpt-4o', 'label': 'GPT-4o (High Intelligence & Multimodal)', 'provider': 'OpenAI'},
+        {'key': 'gpt-4-turbo', 'label': 'GPT-4 Turbo', 'provider': 'OpenAI'},
+        {'key': 'gpt-3.5-turbo', 'label': 'GPT-3.5 Turbo', 'provider': 'OpenAI'},
+        {'key': 'claude-3-5-sonnet-20241022', 'label': 'Claude 3.5 Sonnet (Most Intelligent)', 'provider': 'Anthropic'},
+        {'key': 'claude-3-5-haiku-20241022', 'label': 'Claude 3.5 Haiku (Lightning Fast)', 'provider': 'Anthropic'},
+        {'key': 'claude-3-opus-20240229', 'label': 'Claude 3 Opus', 'provider': 'Anthropic'},
+        {'key': 'claude-3-haiku', 'label': 'Claude 3 Haiku', 'provider': 'Anthropic'},
+        {'key': 'gemini-1.5-flash', 'label': 'Gemini 1.5 Flash (Ultra Fast)', 'provider': 'Google Gemini'},
+        {'key': 'gemini-1.5-pro', 'label': 'Gemini 1.5 Pro (Complex Reasoning)', 'provider': 'Google Gemini'},
+        {'key': 'gemini-2.0-flash-exp', 'label': 'Gemini 2.0 Flash (Next-Gen Realtime)', 'provider': 'Google Gemini'},
+        {'key': 'deepseek-chat', 'label': 'DeepSeek V3 (Reasoning & Conversational)', 'provider': 'DeepSeek'},
+        {'key': 'deepseek-reasoner', 'label': 'DeepSeek R1 (Deep Chain of Thought)', 'provider': 'DeepSeek'},
+        {'key': 'elevenlabs-conversational', 'label': 'ElevenLabs Conversational Native', 'provider': 'ElevenLabs'},
+      ]);
+    }
+
+    final keys = list.map((m) => '${m['key'] ?? m['id']}').toSet();
+    if (_aiModel.isNotEmpty && !keys.contains(_aiModel)) {
+      list.insert(0, {
+        'key': _aiModel,
+        'label': '$_aiModel (Existing)',
+        'provider': 'Selected',
+      });
+    }
+    return list;
+  }
+
+  List<Map<String, dynamic>> _getFilteredVoices() {
+    if (_provider == 'twilio') {
+      final twilioVoices = widget.voices
+          .where((v) => '${v['provider']}' == 'twilio' || '${v['category']}' == 'amazon_polly')
+          .toList();
+      return twilioVoices.isNotEmpty ? twilioVoices : widget.voices;
+    } else {
+      final elevenVoices = widget.voices
+          .where((v) =>
+              '${v['provider']}' == 'elevenlabs' ||
+              '${v['category']}' == 'premade' ||
+              '${v['category']}' == 'custom')
+          .toList();
+      return elevenVoices.isNotEmpty ? elevenVoices : widget.voices;
+    }
+  }
+
   String _getVoiceName(String id) {
     for (final v in widget.voices) {
       if (v['voice_id'] == id) return '${v['name'] ?? id}';
@@ -1894,7 +1997,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _VoicePickerSheet(
-        voices: widget.voices,
+        voices: _getFilteredVoices(),
         selectedVoiceId: _voiceId,
         onSelected: (id) {
           setState(() => _voiceId = id);
@@ -2231,14 +2334,35 @@ class _VoicePickerSheetState extends State<_VoicePickerSheet> {
   void dispose() {
     _previewTimer?.cancel();
     _searchCtrl.dispose();
+    PlatformBridge.invokeMethod('stopAudio');
     super.dispose();
   }
 
-  void _simulatePreview(String voiceId) {
+  void _playPreview(String voiceId, String? previewUrl) {
+    if (_previewingVoiceId == voiceId) {
+      PlatformBridge.invokeMethod('stopAudio');
+      _previewTimer?.cancel();
+      setState(() => _previewingVoiceId = '');
+      return;
+    }
+
+    if (previewUrl == null || previewUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(appTr('No audio sample available for this voice.')),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     setState(() => _previewingVoiceId = voiceId);
+    PlatformBridge.invokeMethod('playAudio', {'url': previewUrl});
     _previewTimer?.cancel();
-    _previewTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) setState(() => _previewingVoiceId = '');
+    _previewTimer = Timer(const Duration(seconds: 15), () {
+      if (mounted && _previewingVoiceId == voiceId) {
+        setState(() => _previewingVoiceId = '');
+      }
     });
   }
 
@@ -2275,7 +2399,10 @@ class _VoicePickerSheetState extends State<_VoicePickerSheet> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    PlatformBridge.invokeMethod('stopAudio');
+                    Navigator.pop(context);
+                  },
                 ),
               ],
             ),
@@ -2304,27 +2431,46 @@ class _VoicePickerSheetState extends State<_VoicePickerSheet> {
                 final name = '${v['name'] ?? voiceId}';
                 final isSelected = voiceId == widget.selectedVoiceId;
                 final isPreviewing = _previewingVoiceId == voiceId;
+                final previewUrl = v['preview_url'] as String?;
+                final hasPreview = previewUrl != null && previewUrl.isNotEmpty;
 
-                return ListTile(
-                  leading: IconButton(
-                    icon: Icon(
-                      isPreviewing ? Icons.volume_up : Icons.play_arrow,
-                      color: isPreviewing ? Colors.green : Theme.of(context).colorScheme.primary,
+                return Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    leading: IconButton(
+                      icon: Icon(
+                        isPreviewing
+                            ? Icons.stop_circle
+                            : (hasPreview ? Icons.play_circle_fill : Icons.volume_mute),
+                        color: isPreviewing
+                            ? Colors.orange
+                            : (hasPreview ? Theme.of(context).colorScheme.primary : Colors.grey),
+                        size: 28,
+                      ),
+                      onPressed: () => _playPreview(voiceId, previewUrl),
+                      tooltip: isPreviewing ? appTr('Stop audio') : appTr('Preview voice sample'),
                     ),
-                    onPressed: () => _simulatePreview(voiceId),
-                    tooltip: appTr('Preview voice sample'),
-                  ),
-                  title: Text(
-                    name,
-                    style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                    title: Text(
+                      name,
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                      ),
                     ),
+                    subtitle: v['category'] != null
+                        ? Text(
+                            '${v['category']} · ${v['provider'] ?? 'voice'}',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11),
+                          )
+                        : null,
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle, color: Colors.green)
+                        : null,
+                    onTap: () {
+                      PlatformBridge.invokeMethod('stopAudio');
+                      widget.onSelected(voiceId);
+                    },
                   ),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_circle, color: Colors.green)
-                      : null,
-                  onTap: () => widget.onSelected(voiceId),
                 );
               },
             ),
@@ -2368,7 +2514,7 @@ class _PhoneSimulatorSheetState extends State<_PhoneSimulatorSheet> {
       await widget.service.mutate(
         kind: 'phone_agent',
         operation: 'simulate',
-        requestId: 'sim-${DateTime.now().millisecondsSinceEpoch}',
+        requestId: SocialPostService.requestId(),
         recordId: widget.agent['id'] as int,
       );
     } catch (_) {}
@@ -2511,7 +2657,7 @@ class _CallDetailSheet extends StatelessWidget {
       await service.mutate(
         kind: 'call',
         operation: 'pin',
-        requestId: 'pin-${call['id']}-${DateTime.now().millisecondsSinceEpoch}',
+        requestId: SocialPostService.requestId(),
         recordId: call['id'] as int,
       );
       if (!context.mounted) return;
@@ -2547,7 +2693,7 @@ class _CallDetailSheet extends StatelessWidget {
       await service.mutate(
         kind: 'call',
         operation: 'delete',
-        requestId: 'del-call-${call['id']}',
+        requestId: SocialPostService.requestId(),
         recordId: call['id'] as int,
       );
       if (!context.mounted) return;
@@ -2739,7 +2885,7 @@ class _PlaceOutboundCallSheetState extends State<_PlaceOutboundCallSheet> {
       await widget.service.mutate(
         kind: 'call',
         operation: 'place_call',
-        requestId: 'outbound-${DateTime.now().millisecondsSinceEpoch}',
+        requestId: SocialPostService.requestId(),
         inputs: {
           'agent_id': _selectedAgentId,
           'to_number': to,
@@ -2886,7 +3032,7 @@ class _NewCampaignSheetState extends State<_NewCampaignSheet> {
       await widget.service.mutate(
         kind: 'campaign',
         operation: 'save_campaign',
-        requestId: 'camp-${DateTime.now().millisecondsSinceEpoch}',
+        requestId: SocialPostService.requestId(),
         inputs: {
           'agent_id': _selectedAgentId,
           'name': name,
