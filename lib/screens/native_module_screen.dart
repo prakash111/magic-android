@@ -26,9 +26,57 @@ import 'native_workspace_screen.dart';
 import 'native_parity_screen.dart';
 import 'native_phone_agent_screen.dart';
 import 'schema_components.dart';
+import 'video_tool_screen.dart';
 
 class NativeModuleRegistry {
+  static bool isVideoTool(Map<String, dynamic> module) {
+    final routeType = '${module['route_type']}'.toLowerCase();
+    final moduleId = '${module['id']}'.toLowerCase();
+    final routeSlug = '${module['route_slug'] ?? ''}'.toLowerCase();
+    return [
+      'video_tool',
+      'video_generator',
+      'video_studio',
+      'auto_edit',
+      'video_agent',
+      'ai_avatar',
+      'viral_clips',
+      'video_pro',
+      'video_to_video',
+    ].contains(routeType) ||
+    [
+      'web:ai_video',
+      'web:auto_edit_videos',
+      'web:video_agent',
+      'web:video_studio',
+      'web:ai_avatar',
+      'web:viral_clips',
+      'web:ai_video_pro',
+      'web:ai_video_to_video',
+      'web:ai_influencer',
+      'ai_video',
+      'auto_edit_videos',
+      'video_agent',
+      'video_studio',
+      'ai_avatar',
+      'viral_clips',
+      'ai_video_pro',
+      'ai_video_to_video',
+    ].contains(moduleId) ||
+    [
+      'ai_video',
+      'auto_edit_videos',
+      'video_agent',
+      'video_studio',
+      'ai_avatar',
+      'viral_clips',
+      'ai_video_pro',
+      'ai_video_to_video',
+    ].contains(routeSlug);
+  }
+
   static bool isGeneratorTool(Map<String, dynamic> module) {
+    if (isVideoTool(module)) return false;
     final moduleId = '${module['id']}'.toLowerCase();
     final routeSlug = '${module['route_slug'] ?? ''}'.toLowerCase();
     return module['route_type'] == 'writer_tool' ||
@@ -44,6 +92,7 @@ class NativeModuleRegistry {
   }
 
   static bool ownsHeader(Map<String, dynamic> module) {
+    if (isVideoTool(module)) return true;
     if (isGeneratorTool(module)) return true;
     return [
           'chatbot_channels',
@@ -59,6 +108,9 @@ class NativeModuleRegistry {
 
   static Widget build(Map<String, dynamic> module, {MobileApi? api}) {
     final client = api ?? MobileApi.instance;
+    if (isVideoTool(module)) {
+      return VideoToolScreen(module: module, api: client);
+    }
     if (module['route_type'] == 'chatbot_agent' ||
         module['id'] == 'web:ext_chat_bot_agent' ||
         '${module['route']}'.contains('chatbot-agent')) {

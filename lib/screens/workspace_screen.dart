@@ -23,6 +23,43 @@ import 'native_settings_screen.dart';
 IconData workspaceIcon(String value) {
   final key = value.toLowerCase();
   if (key.contains('inbox')) return Icons.inbox_outlined;
+  if (key.contains('studio')) return Icons.tv_rounded;
+  if (key.contains('avatar') || key.contains('presenter')) {
+    return Icons.person_pin_rounded;
+  }
+  if (key.contains('viral') || key.contains('shorts')) {
+    return Icons.whatshot_rounded;
+  }
+  if (key.contains('auto_edit') || key.contains('editor')) {
+    return Icons.movie_filter_rounded;
+  }
+  if (key.contains('video') || key.contains('clip')) {
+    return Icons.movie_creation_outlined;
+  }
+  if (key.contains('invoice') || key.contains('billing')) {
+    return Icons.receipt_long_rounded;
+  }
+  if (key.contains('estimate') || key.contains('quote')) {
+    return Icons.calculate_outlined;
+  }
+  if (key.contains('proposal')) return Icons.assignment_outlined;
+  if (key.contains('payment')) return Icons.payments_outlined;
+  if (key.contains('contact')) return Icons.contacts_outlined;
+  if (key.contains('company') || key.contains('companies')) {
+    return Icons.business_outlined;
+  }
+  if (key.contains('deal') || key.contains('pipeline')) {
+    return Icons.monetization_on_outlined;
+  }
+  if (key.contains('task')) return Icons.task_alt_rounded;
+  if (key.contains('project')) return Icons.folder_special_outlined;
+  if (key.contains('code')) return Icons.code_rounded;
+  if (key.contains('youtube')) return Icons.play_circle_outline_rounded;
+  if (key.contains('rss')) return Icons.rss_feed_rounded;
+  if (key.contains('speech') || key.contains('voiceover')) {
+    return Icons.mic_none_rounded;
+  }
+  if (key.contains('isolator')) return Icons.graphic_eq_rounded;
   if (key.contains('automation') || key.contains('marketing')) {
     return Icons.bolt_rounded;
   }
@@ -36,9 +73,6 @@ IconData workspaceIcon(String value) {
       key.contains('photo') ||
       key.contains('creative')) {
     return Icons.auto_awesome_rounded;
-  }
-  if (key.contains('video') || key.contains('clip')) {
-    return Icons.movie_creation_outlined;
   }
   if (key.contains('voice') || key.contains('audio') || key.contains('music')) {
     return Icons.graphic_eq_rounded;

@@ -12,7 +12,7 @@ String toolDisplayName(Map module, {bool duplicate = false}) {
   if (title == null || title.isEmpty) {
     return module['label']?.toString().trim() ?? 'Workspace';
   }
-  if (title.toLowerCase() != 'dashboard' && !duplicate) return title;
+  if (title.toLowerCase() != 'dashboard') return title;
   final category = workspaceCategory(module);
   final prefix = switch (category) {
     'Work & productivity' => 'Productivity',
@@ -37,6 +37,13 @@ bool isSupportedWorkspace(Map module) {
   if (category == 'crm' && (title == 'crm' || displayTitle == 'crm')) {
     return false;
   }
+  if (id.contains('favorites') ||
+      id.contains('bookmark') ||
+      id.contains('workbook') ||
+      title == 'favorites' ||
+      title == 'bookmark') {
+    return false;
+  }
   if (module['configured'] == false) {
     return false;
   }
@@ -48,20 +55,12 @@ bool isSupportedWorkspace(Map module) {
 
 List<Map<String, dynamic>> namedWorkspaces(List<Map<String, dynamic>> modules) {
   final validModules = modules.where(isSupportedWorkspace).toList();
-  final counts = <String, int>{};
-  for (final module in validModules) {
-    final title = toolDisplayName(module).toLowerCase();
-    counts[title] = (counts[title] ?? 0) + 1;
-  }
   return validModules
       .map(
         (module) => <String, dynamic>{
           ...module,
           'category': workspaceCategory(module),
-          'display_title': toolDisplayName(
-            module,
-            duplicate: (counts[toolDisplayName(module).toLowerCase()] ?? 0) > 1,
-          ),
+          'display_title': toolDisplayName(module),
         },
       )
       .toList();

@@ -343,7 +343,13 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                       }, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(height: 14),
                       Text(
-                        appTr((metric['label'] ?? metric['title'] ?? '').toString()),
+                        appTr((metric['label'] ?? metric['title'] ?? metric['name'] ?? switch ('${metric['icon']}') {
+                          'invoice' => 'Total Invoiced',
+                          'balance' => 'Outstanding Balance',
+                          'paid' => 'Total Paid',
+                          'overdue' => 'Overdue Balance',
+                          _ => 'Metric',
+                        }).toString()),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: 8),
@@ -3770,48 +3776,55 @@ class _NativeWorkspaceScreenState extends State<NativeWorkspaceScreen> {
                                 'Your planned articles will appear in the agenda. Select a day to explore your publishing schedule.',
                             },
                     ),
-                    actionLabel: kind == 'brand_voice'
-                        ? appTr('Create brand voice')
-                        : (kind == 'voice_chatbots'
-                            ? appTr('New voice bot')
-                            : (kind == 'photoshoot'
-                                ? appTr('Create photoshoot')
-                                : (isAgentWorkspace && !isCalendar
-                                    ? appTr(
-                                        _workspace?['view_type'] == 'agents'
-                                            ? 'Create agent'
-                                            : 'Create post',
-                                      )
-                                    : null))),
-                    onAction: kind == 'brand_voice'
-                        ? () => _edit('brand_voice')
-                        : (kind == 'voice_chatbots'
-                            ? () => _edit('voice_chatbot')
-                            : (kind == 'photoshoot' &&
-                                    tools.any(
-                                      (tool) =>
-                                          tool['route_type'] == 'extension_workflow' &&
-                                          tool['available'] == true,
-                                    )
-                                ? () => openModule(
-                                    context,
-                                    Map<String, dynamic>.from(
-                                      tools.firstWhere(
-                                        (tool) =>
-                                            tool['route_type'] ==
-                                                'extension_workflow' &&
-                                            tool['available'] == true,
-                                      ),
-                                    ),
-                                    api: widget.api,
-                                  )
-                                : (isAgentWorkspace && !isCalendar
-                                    ? () => _edit(
-                                        _workspace?['view_type'] == 'agents'
-                                            ? (isSocialAgent ? 'social_agent' : 'blog_agent')
-                                            : (isSocialAgent ? 'social_post' : 'blog_post'),
-                                      )
-                                    : null))),
+                    actionLabel: switch (kind) {
+                      'invoices' => appTr('New invoice'),
+                      'estimates' => appTr('New estimate'),
+                      'proposals' => appTr('New proposal'),
+                      'payments' => appTr('Record payment'),
+                      'brand_voice' => appTr('Create brand voice'),
+                      'voice_chatbots' => appTr('New voice bot'),
+                      'photoshoot' => appTr('Create photoshoot'),
+                      _ => (isAgentWorkspace && !isCalendar
+                          ? appTr(
+                              _workspace?['view_type'] == 'agents'
+                                  ? 'Create agent'
+                                  : 'Create post',
+                            )
+                          : null),
+                    },
+                    onAction: switch (kind) {
+                      'invoices' => () => _edit('invoice'),
+                      'estimates' => () => _edit('estimate'),
+                      'proposals' => () => _edit('proposal'),
+                      'payments' => () => _edit('payment'),
+                      'brand_voice' => () => _edit('brand_voice'),
+                      'voice_chatbots' => () => _edit('voice_chatbot'),
+                      'photoshoot' => tools.any(
+                                (tool) =>
+                                    tool['route_type'] == 'extension_workflow' &&
+                                    tool['available'] == true,
+                              )
+                          ? () => openModule(
+                              context,
+                              Map<String, dynamic>.from(
+                                tools.firstWhere(
+                                  (tool) =>
+                                      tool['route_type'] ==
+                                          'extension_workflow' &&
+                                      tool['available'] == true,
+                                ),
+                              ),
+                              api: widget.api,
+                            )
+                          : null,
+                      _ => (isAgentWorkspace && !isCalendar
+                          ? () => _edit(
+                              _workspace?['view_type'] == 'agents'
+                                  ? (isSocialAgent ? 'social_agent' : 'blog_agent')
+                                  : (isSocialAgent ? 'social_post' : 'blog_post'),
+                            )
+                          : null),
+                    },
                   ),
                 for (final record in _records)
                   switch (kind) {
