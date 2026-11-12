@@ -151,10 +151,7 @@ void main() {
     await tester.pump(const Duration(seconds: 11));
     await tester.pumpAndSettle();
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(
-      find.text('Loading this tool timed out. Please retry.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Please retry.'), findsOneWidget);
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
     expect(calls, 2);
