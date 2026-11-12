@@ -1,6 +1,14 @@
 name: MagicAI workspace feature audit
 on:
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Verification scope
+        type: choice
+        default: full
+        options:
+          - full
+          - image-route
 permissions:
   contents: read
 jobs:
@@ -16,13 +24,20 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter analyze
-      - run: flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test
+      - name: Run image route regression tests
+        if: inputs.suite == 'image-route'
+        run: flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test test/image_tool_route_test.dart
+      - name: Run full Flutter test suite
+        if: inputs.suite != 'image-route'
+        run: flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test
       - name: Exercise error handling for every installed workspace
+        if: inputs.suite != 'image-route'
         env:
           MAGICAI_QA_CATALOG_FILE: test/fixtures/workspace_audit_catalog.json
           MAGICAI_QA_OUTPUT: ${{ runner.temp }}/workspace-audit
         run: flutter test --dart-define=MAGICAI_SERVER_URL=https://magicai.example.test test/qa_fault_workspace_audit_test.dart
       - name: Verify recorded audit results
+        if: inputs.suite != 'image-route'
         run: |
           python3 - <<'PY'
           import json, os

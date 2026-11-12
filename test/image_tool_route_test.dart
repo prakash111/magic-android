@@ -49,6 +49,12 @@ void main() {
         final tool = {...imageTool};
         if (oldCatalog) tool.remove('route_slug');
         final api = nativeApi((path, body) async {
+          if (path.startsWith('/documents?')) {
+            return {
+              'data': [],
+              'meta': {'total': 0, 'last_page': 1},
+            };
+          }
           paths.add(path);
           if (path == '/config') {
             return {
@@ -73,8 +79,10 @@ void main() {
           find.byType(TextFormField).last,
           'A blue test square',
         );
-        await tester.ensureVisible(find.text('Generate'));
-        await tester.tap(find.text('Generate'));
+        await tester.ensureVisible(
+          find.widgetWithText(FilledButton, 'Generate'),
+        );
+        await tester.tap(find.widgetWithText(FilledButton, 'Generate'));
         await tester.pumpAndSettle();
         expect(submitted, {
           'inputs': {'description': 'A blue test square'},
@@ -91,6 +99,12 @@ void main() {
     (tester) async {
       final paths = <String>[];
       final api = nativeApi((path, _) async {
+        if (path.startsWith('/documents?')) {
+          return {
+            'data': [],
+            'meta': {'total': 0, 'last_page': 1},
+          };
+        }
         paths.add(path);
         expect(path, '/image-models');
         return imageModels;
@@ -119,6 +133,12 @@ void main() {
         if (++calls == 1) return Completer<Map<String, dynamic>>().future;
         return {
           'tools': [imageTool],
+        };
+      }
+      if (path.startsWith('/documents?')) {
+        return {
+          'data': [],
+          'meta': {'total': 0, 'last_page': 1},
         };
       }
       expect(path, '/image-models');
