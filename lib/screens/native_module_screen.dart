@@ -236,20 +236,32 @@ class _DynamicToolLoaderScreenState extends State<DynamicToolLoaderScreen> {
   }
 
   Future<void> _load() async {
-    final slug = (widget.module['route_slug'] ??
-            widget.module['id']?.toString().replaceAll('web:', ''))
-        ?.toString()
-        .toLowerCase();
+    final slug =
+        (widget.module['route_slug'] ??
+                widget.module['id']?.toString().replaceAll('web:', ''))
+            ?.toString()
+            .toLowerCase();
     try {
-      final res = await widget.api.request('/dashboard');
+      final res = await widget.api
+          .request('/config')
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw const ApiFailure(
+              'Loading this tool timed out. Please retry.',
+            ),
+          );
       final tools = (res is Map ? res['tools'] : null) as List? ?? [];
       final match = tools.whereType<Map>().firstWhere(
-            (t) =>
-                '${t['id']}'.toLowerCase() == slug ||
-                'web:${t['id']}'.toLowerCase() ==
-                    widget.module['id']?.toString().toLowerCase(),
-            orElse: () => {},
-          );
+        (t) =>
+            [
+              t['id'],
+              t['route_slug'],
+              t['history_template_id'],
+            ].whereType<String>().any((id) => id.toLowerCase() == slug) ||
+            'web:${t['id']}'.toLowerCase() ==
+                widget.module['id']?.toString().toLowerCase(),
+        orElse: () => {},
+      );
       if (match.isNotEmpty && mounted) {
         setState(() {
           _tool = Map<String, dynamic>.from(match);
