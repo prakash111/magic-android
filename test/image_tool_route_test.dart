@@ -50,10 +50,11 @@ void main() {
         if (oldCatalog) tool.remove('route_slug');
         final api = nativeApi((path, body) async {
           paths.add(path);
-          if (path == '/config')
+          if (path == '/config') {
             return {
               'tools': [tool],
             };
+          }
           if (path == '/image-models') return imageModels;
           if (path == '/tools/mobile-image/run') {
             submitted = body;
