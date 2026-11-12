@@ -128,9 +128,10 @@ void main() {
     tester,
   ) async {
     var calls = 0;
+    final pending = Completer<Map<String, dynamic>>();
     final api = nativeApi((path, _) async {
       if (path == '/config') {
-        if (++calls == 1) return Completer<Map<String, dynamic>>().future;
+        if (++calls == 1) return pending.future;
         return {
           'tools': [imageTool],
         };
@@ -152,6 +153,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.textContaining('Please retry.'), findsOneWidget);
+    pending.complete({
+      'tools': [imageTool],
+    });
+    await tester.pump();
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
     expect(calls, 2);
