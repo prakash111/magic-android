@@ -1,3 +1,4 @@
+import 'bound_tool_workspace_screen.dart';
 import 'native_connections_screen.dart';
 import 'inbox/inbox_screen.dart';
 import '../services/app_localizations.dart';
@@ -25,6 +26,7 @@ import 'native_visual_editor.dart';
 import 'native_workspace_screen.dart';
 import 'native_parity_screen.dart';
 import 'native_phone_agent_screen.dart';
+import 'crm_presentations_screen.dart';
 import 'schema_components.dart';
 import 'video_tool_screen.dart';
 
@@ -109,6 +111,14 @@ class NativeModuleRegistry {
 
   static Widget build(Map<String, dynamic> module, {MobileApi? api}) {
     final client = api ?? MobileApi.instance;
+    if (BoundToolWorkspaceScreen.supports(module)) {
+      return BoundToolWorkspaceScreen(module: module, api: client);
+    }
+    if (module['route_type'] == 'crm_presentations' ||
+        module['id'] == 'web:crm_presentations' ||
+        '${module['route']}'.startsWith('dashboard.user.crm.presentations.')) {
+      return CrmPresentationsScreen(module: module, api: client);
+    }
     if (isVideoTool(module)) {
       return VideoToolScreen(module: module, api: client);
     }

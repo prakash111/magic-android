@@ -666,7 +666,8 @@ class _VideoToolScreenState extends State<VideoToolScreen>
                       onTap: _pickImage,
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        height: 120,
+                        width: double.infinity,
+                        constraints: const BoxConstraints(minHeight: 120),
                         decoration: BoxDecoration(
                           border: Border.all(
                             color: Theme.of(context).colorScheme.outlineVariant,
@@ -679,29 +680,40 @@ class _VideoToolScreenState extends State<VideoToolScreen>
                               .withValues(alpha: .3),
                         ),
                         child: _uploadingImage
-                            ? const Center(child: CircularProgressIndicator())
+                            ? const SizedBox(
+                                height: 120,
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              )
                             : _selectedImageBytes != null
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
                                 child: Image.memory(
                                   _selectedImageBytes!,
                                   fit: BoxFit.cover,
+                                  height: 120,
                                   width: double.infinity,
                                 ),
                               )
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.cloud_upload_outlined,
-                                    size: 36,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    _selectedImageName ??
-                                        appTr('Tap to pick source image'),
-                                  ),
-                                ],
+                            : Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.cloud_upload_outlined,
+                                      size: 36,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _selectedImageName ??
+                                          appTr('Tap to pick source image'),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
                               ),
                       ),
                     ),
@@ -800,25 +812,45 @@ class _VideoToolScreenState extends State<VideoToolScreen>
                   ),
                   const SizedBox(height: 24),
 
-                  FilledButton.icon(
-                    onPressed: _generating ? null : _generate,
-                    icon: _generating
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.auto_awesome_rounded),
-                    label: Text(
-                      appTr(
-                        _generating ? 'Generating Video...' : 'Generate Video',
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _generating ? null : _generate,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
+                        minimumSize: const Size(48, 52),
+                        tapTargetSize: MaterialTapTargetSize.padded,
                       ),
-                    ),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _generating
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.auto_awesome_rounded),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              appTr(
+                                _generating
+                                    ? 'Generating Video...'
+                                    : 'Generate Video',
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

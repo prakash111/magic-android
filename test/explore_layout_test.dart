@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magicai_mobile/screens/home_screen.dart';
 import 'package:magicai_mobile/screens/workspace_screen.dart';
+import 'package:magicai_mobile/services/inbox_service.dart';
 import 'package:magicai_mobile/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -53,7 +54,7 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets(
-    'grid is default; list persists and keeps search and categories',
+    'list is default; grid and list toggles persist and keep search and categories',
     (tester) async {
       tester.view.physicalSize = const Size(430, 1000);
       tester.view.devicePixelRatio = 1;
@@ -61,7 +62,9 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(explore());
       await tester.pumpAndSettle();
-      expect(find.byType(SliverGrid), findsOneWidget);
+      expect(find.byType(SliverGrid), findsNothing);
+      expect(find.byTooltip('Show favorites'), findsOneWidget);
+      expect(find.text('Star tools to pin them here.'), findsNothing);
       expect(find.text('P'), findsOneWidget);
       expect(find.text('2 tools'), findsOneWidget);
       expect(find.text('1 tool'), findsOneWidget);
@@ -71,9 +74,28 @@ void main() {
       final second = tester.getRect(
         find.byKey(const ValueKey('explore-tool-avatar')),
       );
-      expect(first.top, second.top);
-      expect(first.right, lessThan(second.left));
-      expect(first.width / first.height, closeTo(1.1, .15));
+      expect(first.bottom, lessThanOrEqualTo(second.top));
+      expect(first.left, second.left);
+      await tester.tap(find.byTooltip('Grid view'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SliverGrid), findsOneWidget);
+      final gridFirst = tester.getRect(
+        find.byKey(const ValueKey('explore-tool-creative')),
+      );
+      final gridSecond = tester.getRect(
+        find.byKey(const ValueKey('explore-tool-avatar')),
+      );
+      expect(gridFirst.top, gridSecond.top);
+      expect(gridFirst.right, lessThan(gridSecond.left));
+      final gridPrefs = await SharedPreferences.getInstance();
+      expect(
+        gridPrefs.getString('explore_layout:magicai.example.test:7'),
+        'grid',
+      );
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(explore());
+      await tester.pumpAndSettle();
+      expect(find.byType(SliverGrid), findsOneWidget);
       await tester.tap(find.byTooltip('List view'));
       await tester.pumpAndSettle();
       expect(find.byType(SliverGrid), findsNothing);
@@ -112,7 +134,104 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(explore(userId: 8));
       await tester.pumpAndSettle();
-      expect(find.byType(SliverGrid), findsOneWidget);
+      expect(find.byType(SliverGrid), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'favorites start collapsed, expand on tap and remember the choice',
+    (tester) async {
+      await tester.pumpWidget(explore());
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Show favorites'), findsOneWidget);
+      expect(find.text('Star tools to pin them here.'), findsNothing);
+      await tester.tap(find.byTooltip('Show favorites'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Hide favorites'), findsOneWidget);
+      expect(find.text('Star tools to pin them here.'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      SharedPreferences.resetStatic();
+      await tester.pumpWidget(explore());
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Hide favorites'), findsOneWidget);
+      await tester.tap(find.byTooltip('Hide favorites'));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(explore());
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Show favorites'), findsOneWidget);
+      expect(find.text('Star tools to pin them here.'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('missing server preferences retain the collapsed default', (
+    tester,
+  ) async {
+    final api = nativeApi(
+      (path, _) async => path == '/me/favorites'
+          ? {
+              'tool_ids': ['creative'],
+            }
+          : {'data': {}},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: WorkspaceScreen(
+            modules: tools,
+            user: const {'id': 7},
+            api: api,
+            refresh: () async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Show favorites'), findsOneWidget);
+    expect(find.byKey(const ValueKey('favorite-card-creative')), findsNothing);
+    await tester.tap(find.byTooltip('Show favorites'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('favorite-card-creative')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'missing remote visibility preserves the cached expanded choice',
+    (tester) async {
+      final api = nativeApi(
+        (path, _) async => path == '/me/favorites'
+            ? {
+                'tool_ids': ['creative'],
+              }
+            : {'data': {}},
+      );
+      await InboxService.forApi(api)
+          .cache('prefs', {'favorites_collapsed': false});
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.darkTheme,
+          home: Scaffold(
+            body: WorkspaceScreen(
+              modules: tools,
+              user: const {'id': 7},
+              api: api,
+              refresh: () async {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Hide favorites'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('favorite-card-creative')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
     },
   );
 

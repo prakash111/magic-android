@@ -216,11 +216,11 @@ class WorkspaceScreen extends StatefulWidget {
 
 class _WorkspaceScreenState extends State<WorkspaceScreen> {
   String _query = '', _category = 'All';
-  bool _grid = true, _layoutChanged = false;
+  bool _grid = false, _layoutChanged = false;
   List<String> _favorites = [];
   int _preferencesRevision = 0;
   String? _openSection;
-  bool _favoritesCollapsed = false;
+  bool _favoritesCollapsed = true;
   bool get _compactFavorites =>
       _favoritesCollapsed ||
       _query.trim().isNotEmpty ||
@@ -257,7 +257,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
             _category = prefs.getString('$_preferenceKey:section') ?? 'All';
             _openSection = prefs.getString('$_preferenceKey:open');
             _favoritesCollapsed =
-                prefs.getBool('$_preferenceKey:collapsed') ?? false;
+                prefs.getBool('$_preferenceKey:collapsed') ?? true;
           });
           if (!listEquals(
             _favorites,
@@ -281,7 +281,9 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           if (prefs is Map) {
             _category = '${prefs['last_explore_section'] ?? 'All'}';
             _openSection = prefs['open_explore_section'] as String?;
-            _favoritesCollapsed = prefs['favorites_collapsed'] == true;
+            if (prefs['favorites_collapsed'] is bool) {
+              _favoritesCollapsed = prefs['favorites_collapsed'] as bool;
+            }
           }
         });
       }
@@ -299,7 +301,9 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           final data = results[1] as Map;
           _category = '${data['last_explore_section'] ?? 'All'}';
           _openSection = data['open_explore_section'] as String?;
-          _favoritesCollapsed = data['favorites_collapsed'] == true;
+          if (data['favorites_collapsed'] is bool) {
+            _favoritesCollapsed = data['favorites_collapsed'] as bool;
+          }
         });
         if (!listEquals(_favorites, List<String>.from(results[0]))) {
           _saveExplore();
@@ -598,7 +602,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         const Duration(seconds: 2),
       );
       if (mounted && !_layoutChanged) {
-        setState(() => _grid = prefs.getString(_preferenceKey) != 'list');
+        setState(() => _grid = prefs.getString(_preferenceKey) == 'grid');
       }
     } catch (_) {
       // An unavailable preference store must never block Explore.
@@ -769,7 +773,10 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     final colors = AppColors.of(context);
     final categories = [
       'All',
-      ...widget.modules.where(isSupportedWorkspace).map(workspaceCategory).toSet(),
+      ...widget.modules
+          .where(isSupportedWorkspace)
+          .map(workspaceCategory)
+          .toSet(),
     ];
     final selectedCategory = categories.contains(_category) ? _category : 'All';
     final sections = groupedWorkspaces(

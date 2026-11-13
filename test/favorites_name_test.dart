@@ -86,6 +86,7 @@ void main() {
   setUp(
     () => SharedPreferences.setMockInitialValues({
       favoritesKey: ['agent-dashboard', 'social-dashboard'],
+      favoritesKey.replaceFirst(':favorites', ':collapsed'): false,
     }),
   );
 
@@ -132,7 +133,9 @@ void main() {
   testWidgets(
     'pinning both dashboard tools displays full names, captions and accessible labels',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
+      SharedPreferences.setMockInitialValues({
+        favoritesKey.replaceFirst(':favorites', ':collapsed'): false,
+      });
       tester.view.physicalSize = const Size(360, 1000);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -218,6 +221,7 @@ void main() {
     (tester) async {
       SharedPreferences.setMockInitialValues({
         favoritesKey: ['Social media agents Dashboard', 'AI Agent Dashboard'],
+        favoritesKey.replaceFirst(':favorites', ':collapsed'): false,
       });
       await mountFavorites(tester);
       final prefs = await SharedPreferences.getInstance();

@@ -208,6 +208,9 @@ def main():
     startup.adb('logcat', '-c')
     try:
         launch()
+        wait_for('UI_PROBE_PASSED: theme=dark layout=list')
+        verify_snapshot('explore-neon-dark-list-default', 'dark')
+        tap('Grid view')
         wait_for('UI_PROBE_PASSED: theme=dark layout=grid')
         verify_snapshot('explore-neon-dark-grid', 'dark')
         tap('List view')

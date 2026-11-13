@@ -14,6 +14,17 @@ class UiTargetTest(unittest.TestCase):
     def node(self, label='Chatbot&#10;Tab 3 of 5', package=None, bounds='[100,700][200,800]', clickable='true'):
         return '<node package="' + (package or probe.startup.package) + '" content-desc="' + label + '" bounds="' + bounds + '" clickable="' + clickable + '"/>'
 
+    def test_explore_starts_in_list_then_checks_grid_and_saved_layout(self):
+        with patch.object(Path, 'mkdir'), patch.object(probe.startup, 'adb'), patch.object(probe.startup, 'collect_logcat'), patch.object(probe, 'launch'), patch.object(probe, 'wait_for') as wait, patch.object(probe, 'verify_snapshot'), patch.object(probe, 'tap'):
+            probe.main()
+        self.assertEqual([call.args[0] for call in wait.call_args_list], [
+            'UI_PROBE_PASSED: theme=dark layout=list',
+            'UI_PROBE_PASSED: theme=dark layout=grid',
+            'UI_PROBE_PASSED: theme=light layout=list',
+            'UI_PROBE_PASSED: theme=light layout=grid',
+            'UI_PROBE_CHATBOT_SELECTED',
+        ])
+
     def test_multiline_navigation_labels(self):
         self.assertEqual(probe.find_target('<hierarchy>' + self.node() + '</hierarchy>', 'Chatbot'), [100, 700, 200, 800])
 

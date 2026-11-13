@@ -182,10 +182,8 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byType(NavigationDestination).at(1));
         await tester.pumpAndSettle();
-        if (list) {
-          await tester.tap(find.byTooltip('List view'));
-          await tester.pumpAndSettle();
-        }
+        await tester.tap(find.byTooltip(list ? 'List view' : 'Grid view'));
+        await tester.pumpAndSettle();
         expectExploreColors(tester, AppColors.dark);
         await capture(tester, boundary, 'dark-${list ? 'list' : 'grid'}');
         for (final colors in [AppColors.light, AppColors.dark]) {

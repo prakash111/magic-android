@@ -48,13 +48,37 @@ class NativeExtensionService {
             : '${entry.value}';
       }
       for (final entry in files.entries) {
-        final bytes = base64Decode('${entry.value['bytes']}');
-        final mime = ImageAttachmentPicker.imageMimeType(bytes);
+        final raw = entry.value['bytes'];
+        final bytes = raw is List ? raw.cast<int>() : base64Decode('$raw');
+        final imageMime = ImageAttachmentPicker.imageMimeType(bytes);
+        final audio = operation == 'bound_save' && entry.key == 'audio';
+        final extension = '${entry.value['name']}'
+            .toLowerCase()
+            .split('.')
+            .last;
+        final csv = operation.startsWith('bound_csv_') && entry.key == 'file';
+        final mime = csv
+            ? 'text/csv'
+            : imageMime ??
+                  (audio
+                      ? {
+                          'mp3': 'audio/mpeg',
+                          'wav': 'audio/wav',
+                          'ogg': 'audio/ogg',
+                        }[extension]
+                      : null);
+        final limit = csv
+            ? 2 * 1024 * 1024
+            : operation == 'bound_save' && entry.key.startsWith('images_')
+            ? 25 * 1024 * 1024
+            : 10 * 1024 * 1024;
         if (mime == null || bytes.isEmpty) {
-          throw const ApiFailure('Choose a valid JPEG, PNG or WebP image.');
+          throw const ApiFailure('Choose a valid image or audio file.');
         }
-        if (bytes.length > 10 * 1024 * 1024) {
-          throw const ApiFailure('Choose an image no larger than 10 MB.');
+        if (bytes.length > limit) {
+          throw const ApiFailure(
+            'The selected file exceeds the upload size limit.',
+          );
         }
         request.files.add(
           http.MultipartFile.fromBytes(

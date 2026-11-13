@@ -1,3 +1,4 @@
+import 'package:magicai_mobile/screens/bound_tool_workspace_screen.dart';
 import 'package:magicai_mobile/screens/inbox/inbox_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -100,7 +101,9 @@ void main() {
     ]) {
       expect(
         NativeModuleRegistry.build(module(kind), api: api),
-        kind == 'marketing_inbox'
+        kind == 'marketing_campaigns'
+            ? isA<BoundToolWorkspaceScreen>()
+            : kind == 'marketing_inbox'
             ? isA<InboxScreen>()
             : isA<NativeExtensionScreen>(),
       );

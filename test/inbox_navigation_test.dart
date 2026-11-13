@@ -247,6 +247,8 @@ void main() {
         navigationApi(requests: requests),
         modules: const [inboxModule],
       );
+      await tester.tap(find.byTooltip('Show favorites'));
+      await tester.pumpAndSettle();
       final favorite = find
           .descendant(
             of: find.byType(SliverPersistentHeader),

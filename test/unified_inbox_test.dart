@@ -538,6 +538,9 @@ void main() {
         ),
       ),
     );
+    expect(find.byTooltip('Show favorites'), findsOneWidget);
+    await tester.tap(find.byTooltip('Show favorites'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Add to favorites').first);
     await tester.pumpAndSettle();
     expect(find.text('Inbox'), findsNWidgets(2));
