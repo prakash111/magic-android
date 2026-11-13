@@ -104,36 +104,39 @@ class _AndroidUiProbeState extends State<AndroidUiProbe> {
     theme: AppTheme.lightTheme,
     darkTheme: AppTheme.darkTheme,
     themeMode: _mode,
-    home: RepaintBoundary(
-      key: _frame,
-      child: Scaffold(
-        appBar: _selected == 4 ? AppBar(title: const Text('Account')) : null,
-        body: _selected == 4
-            ? AccountHub(
-                user: const {'id': 0, 'name': 'Preview Tester'},
-                credits: const {},
-                logout: () {},
-                toggleTheme: () {
-                  setState(
-                    () => _mode = _mode == ThemeMode.dark
-                        ? ThemeMode.light
-                        : ThemeMode.dark,
-                  );
-                  StorageService.setThemeMode(_mode.name);
-                },
-              )
-            : _selected == 1
-            ? WorkspaceScreen(
-                modules: probeModules,
-                user: const {'id': 0, 'name': 'Preview Tester'},
-                openAccount: () => _select(4),
-                refresh: () async {},
-              )
-            : const Center(child: Icon(Icons.smart_toy_outlined)),
-        bottomNavigationBar: MagicBottomNavigation(
-          items: probeNavigation,
-          selectedIndex: _selected,
-          onSelected: _select,
+    home: Listener(
+      onPointerUp: (_) => _scheduleCheck(),
+      child: RepaintBoundary(
+        key: _frame,
+        child: Scaffold(
+          appBar: _selected == 4 ? AppBar(title: const Text('Account')) : null,
+          body: _selected == 4
+              ? AccountHub(
+                  user: const {'id': 0, 'name': 'Preview Tester'},
+                  credits: const {},
+                  logout: () {},
+                  toggleTheme: () {
+                    setState(
+                      () => _mode = _mode == ThemeMode.dark
+                          ? ThemeMode.light
+                          : ThemeMode.dark,
+                    );
+                    StorageService.setThemeMode(_mode.name);
+                  },
+                )
+              : _selected == 1
+              ? WorkspaceScreen(
+                  modules: probeModules,
+                  user: const {'id': 0, 'name': 'Preview Tester'},
+                  openAccount: () => _select(4),
+                  refresh: () async {},
+                )
+              : const Center(child: Icon(Icons.smart_toy_outlined)),
+          bottomNavigationBar: MagicBottomNavigation(
+            items: probeNavigation,
+            selectedIndex: _selected,
+            onSelected: _select,
+          ),
         ),
       ),
     ),
