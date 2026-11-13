@@ -34,45 +34,45 @@ class NativeModuleRegistry {
     final moduleId = '${module['id']}'.toLowerCase();
     final routeSlug = '${module['route_slug'] ?? ''}'.toLowerCase();
     return [
-      'video_tool',
-      'video_generator',
-      'video_studio',
-      'auto_edit',
-      'video_agent',
-      'ai_avatar',
-      'viral_clips',
-      'video_pro',
-      'video_to_video',
-    ].contains(routeType) ||
-    [
-      'web:ai_video',
-      'web:auto_edit_videos',
-      'web:video_agent',
-      'web:video_studio',
-      'web:ai_avatar',
-      'web:viral_clips',
-      'web:ai_video_pro',
-      'web:ai_video_to_video',
-      'web:ai_influencer',
-      'ai_video',
-      'auto_edit_videos',
-      'video_agent',
-      'video_studio',
-      'ai_avatar',
-      'viral_clips',
-      'ai_video_pro',
-      'ai_video_to_video',
-    ].contains(moduleId) ||
-    [
-      'ai_video',
-      'auto_edit_videos',
-      'video_agent',
-      'video_studio',
-      'ai_avatar',
-      'viral_clips',
-      'ai_video_pro',
-      'ai_video_to_video',
-    ].contains(routeSlug);
+          'video_tool',
+          'video_generator',
+          'video_studio',
+          'auto_edit',
+          'video_agent',
+          'ai_avatar',
+          'viral_clips',
+          'video_pro',
+          'video_to_video',
+        ].contains(routeType) ||
+        [
+          'web:ai_video',
+          'web:auto_edit_videos',
+          'web:video_agent',
+          'web:video_studio',
+          'web:ai_avatar',
+          'web:viral_clips',
+          'web:ai_video_pro',
+          'web:ai_video_to_video',
+          'web:ai_influencer',
+          'ai_video',
+          'auto_edit_videos',
+          'video_agent',
+          'video_studio',
+          'ai_avatar',
+          'viral_clips',
+          'ai_video_pro',
+          'ai_video_to_video',
+        ].contains(moduleId) ||
+        [
+          'ai_video',
+          'auto_edit_videos',
+          'video_agent',
+          'video_studio',
+          'ai_avatar',
+          'viral_clips',
+          'ai_video_pro',
+          'ai_video_to_video',
+        ].contains(routeSlug);
   }
 
   static bool isGeneratorTool(Map<String, dynamic> module) {
@@ -95,6 +95,7 @@ class NativeModuleRegistry {
     if (isVideoTool(module)) return true;
     if (isGeneratorTool(module)) return true;
     return [
+          'phone_agent',
           'chatbot_channels',
           'chatbot_agent',
           'agent_connections',
@@ -130,6 +131,9 @@ class NativeModuleRegistry {
         );
       }
       return DynamicToolLoaderScreen(module: module, api: client);
+    }
+    if (module['route_type'] == 'phone_agent') {
+      return NativePhoneAgentScreen(module: module, api: client);
     }
     if (ownsHeader(module)) return InboxScreen(api: client);
     return switch (module['route_type']) {
@@ -284,9 +288,7 @@ class _DynamicToolLoaderScreenState extends State<DynamicToolLoaderScreen> {
   Widget build(BuildContext context) {
     AppLocalizations.watch(context);
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_tool != null) {
       return DynamicToolScreen(tool: _tool!, api: widget.api);
@@ -673,64 +675,70 @@ class _NativeSchemaScreenState extends State<NativeSchemaScreen> {
         message: appTr((item['message'] ?? '').toString()),
       ),
     ),
-    'table' => (item['rows'] is List && (item['rows'] as List).isNotEmpty)
-        ? Column(
-            children: [
-              for (final row in (item['rows'] as List).whereType<List>())
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final cell in row.whereType<Map>())
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    appTr((cell['label'] ?? '').toString()),
-                                    style: const TextStyle(
-                                      color: AppTheme.textMuted,
-                                      fontSize: 13,
+    'table' =>
+      (item['rows'] is List && (item['rows'] as List).isNotEmpty)
+          ? Column(
+              children: [
+                for (final row in (item['rows'] as List).whereType<List>())
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final cell in row.whereType<Map>())
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      appTr((cell['label'] ?? '').toString()),
+                                      style: const TextStyle(
+                                        color: AppTheme.textMuted,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Expanded(
-                                  flex: 3,
-                                  child: Text(
-                                    '${cell['value'] ?? ''}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
+                                  Expanded(
+                                    flex: 3,
+                                    child: Text(
+                                      '${cell['value'] ?? ''}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
+              ],
+            )
+          : Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: WorkspaceEmptyState(
+                icon: Icons.table_chart_outlined,
+                title: appTr((item['title'] ?? 'No records found').toString()),
+                message: appTr(
+                  (item['empty_message'] ??
+                          item['message'] ??
+                          'There are no entries to display.')
+                      .toString(),
                 ),
-            ],
-          )
-        : Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: WorkspaceEmptyState(
-              icon: Icons.table_chart_outlined,
-              title: appTr((item['title'] ?? 'No records found').toString()),
-              message: appTr(
-                (item['empty_message'] ?? item['message'] ?? 'There are no entries to display.').toString(),
               ),
             ),
-          ),
     'stat' => Card(
       child: ListTile(
         title: Text('${item['value'] ?? ''}'),
-        subtitle: Text(appTr((item['label'] ?? item['title'] ?? '').toString())),
+        subtitle: Text(
+          appTr((item['label'] ?? item['title'] ?? '').toString()),
+        ),
       ),
     ),
     'image' => Image.network(

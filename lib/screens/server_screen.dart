@@ -58,9 +58,8 @@ class RetryPanel extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 appTr('Upgrade Required'),
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -68,8 +67,8 @@ class RetryPanel extends StatelessWidget {
                 appTr(message),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).textTheme.bodySmall?.color,
-                    ),
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
               ),
               const SizedBox(height: 24),
               FilledButton.icon(
@@ -88,10 +87,7 @@ class RetryPanel extends StatelessWidget {
                 label: Text(appTr('View Plans & Upgrade')),
               ),
               const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: retry,
-                child: Text(appTr('Retry')),
-              ),
+              OutlinedButton(onPressed: retry, child: Text(appTr('Retry'))),
             ],
           ),
         ),
@@ -871,6 +867,8 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
     context: widget.web ? 'web' : (widget.crm ? 'crm' : null),
   );
   final _prompt = TextEditingController(), _website = TextEditingController();
+  final _promptFocus = FocusNode();
+  List<Map> _examplePrompts = [];
   List<Map> _personas = [], _models = [], _chats = [], _messages = [];
   String? _persona, _model, _chat, _error;
   bool _loading = true, _busy = false;
@@ -885,6 +883,7 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
   @override
   void dispose() {
     _prompt.dispose();
+    _promptFocus.dispose();
     _website.dispose();
     super.dispose();
   }
@@ -921,6 +920,7 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
       setState(() {
         _personas = options['personas']!;
         _models = options['models']!;
+        _examplePrompts = options['example_prompts']!;
         if (!_personas.any((item) => '${item['id']}' == _persona)) {
           _persona = _personas.firstOrNull?['id'].toString();
         }
@@ -1663,33 +1663,43 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
                 ),
               ),
             ),
-            if (widget.crm && _messages.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final prompt in [
-                      'Pipeline summary',
-                      'Overdue tasks',
-                      'Recent contacts',
-                    ])
-                      ActionChip(
-                        label: Text(prompt),
-                        onPressed: _busy
-                            ? null
-                            : () {
-                                _prompt.text = prompt;
-                                _send();
-                              },
-                      ),
-                  ],
-                ),
-              ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  if (_messages.isEmpty && widget.crm)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (
+                          var index = 0;
+                          index < _examplePrompts.length;
+                          index++
+                        )
+                          ActionChip(
+                            key: ValueKey('crm-example-prompt-$index'),
+                            label: Text(
+                              appTr(_examplePrompts[index]['name'].toString()),
+                            ),
+                            onPressed: _busy
+                                ? null
+                                : () {
+                                    final text = appTr(
+                                      _examplePrompts[index]['prompt']
+                                          .toString(),
+                                    );
+                                    _prompt.value = TextEditingValue(
+                                      text: text,
+                                      selection: TextSelection.collapsed(
+                                        offset: text.length,
+                                      ),
+                                    );
+                                    _promptFocus.requestFocus();
+                                  },
+                          ),
+                      ],
+                    ),
                   if (_messages.isEmpty && !widget.crm)
                     ChatEmptyState(
                       onPick: _busy || _model == null || _persona == null
@@ -1812,6 +1822,7 @@ class _ServerChatScreenState extends State<ServerChatScreen> {
                             Expanded(
                               child: TextField(
                                 controller: _prompt,
+                                focusNode: _promptFocus,
                                 enabled: !_busy,
                                 minLines: 1,
                                 maxLines: 4,

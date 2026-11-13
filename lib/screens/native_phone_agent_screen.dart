@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../services/app_localizations.dart';
@@ -8,8 +9,9 @@ import '../services/platform_bridge_io.dart'
     if (dart.library.js_interop) '../services/platform_bridge_web.dart';
 import '../services/social_post_service.dart';
 import 'server_screen.dart';
+import '../widgets/phone_agent_components.dart';
 
-class NativePhoneAgentScreen extends StatefulWidget {
+class NativePhoneAgentScreen extends StatelessWidget {
   final Map<String, dynamic> module;
   final MobileApi api;
   const NativePhoneAgentScreen({
@@ -19,10 +21,22 @@ class NativePhoneAgentScreen extends StatefulWidget {
   });
 
   @override
-  State<NativePhoneAgentScreen> createState() => _NativePhoneAgentScreenState();
+  Widget build(BuildContext context) => Theme(
+    data: phoneAgentTheme(Theme.of(context)),
+    child: _PhoneAgentWorkspace(module: module, api: api),
+  );
 }
 
-class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
+class _PhoneAgentWorkspace extends StatefulWidget {
+  final Map<String, dynamic> module;
+  final MobileApi api;
+  const _PhoneAgentWorkspace({required this.module, required this.api});
+
+  @override
+  State<_PhoneAgentWorkspace> createState() => _NativePhoneAgentScreenState();
+}
+
+class _NativePhoneAgentScreenState extends State<_PhoneAgentWorkspace>
     with SingleTickerProviderStateMixin {
   late final _service = NativeWorkspaceService(
     widget.api,
@@ -144,7 +158,10 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
 
   void _onSearchChanged(String val) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () => _load(silent: true));
+    _debounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _load(silent: true),
+    );
   }
 
   Future<void> _toggleAgent(Map<String, dynamic> agent) async {
@@ -161,9 +178,11 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              appTr(agent['active'] == true
-                  ? 'Agent activated successfully.'
-                  : 'Agent paused.'),
+              appTr(
+                agent['active'] == true
+                    ? 'Agent activated successfully.'
+                    : 'Agent paused.',
+              ),
             ),
             duration: const Duration(seconds: 2),
           ),
@@ -188,7 +207,9 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
       builder: (ctx) => AlertDialog(
         title: Text(appTr('Delete Phone Call Agent?')),
         content: Text(
-          appTr('Are you sure you want to delete "${agent['title']}"? This action cannot be undone.'),
+          appTr(
+            'Are you sure you want to delete "${agent['title']}"? This action cannot be undone.',
+          ),
         ),
         actions: [
           TextButton(
@@ -228,7 +249,8 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
       _load(silent: true);
     } catch (e) {
       if (mounted) {
-        final isNotFound = (e is ApiFailure && e.status == 404) ||
+        final isNotFound =
+            (e is ApiFailure && e.status == 404) ||
             e.toString().contains('404') ||
             e.toString().toLowerCase().contains('not found') ||
             e.toString().contains('No query results');
@@ -239,7 +261,9 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
               : e.toString().replaceFirst('Exception: ', '').trim();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to delete agent.')),
+              content: Text(
+                appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to delete agent.'),
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
@@ -263,10 +287,11 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
         initialStep: initialStep,
         onSaved: () {
           Navigator.pop(ctx);
-          _load();
         },
       ),
-    );
+    ).whenComplete(() {
+      if (mounted) _load(silent: true);
+    });
   }
 
   void _openSimulator(Map<String, dynamic> agent) {
@@ -274,10 +299,7 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _PhoneSimulatorSheet(
-        service: _service,
-        agent: agent,
-      ),
+      builder: (ctx) => _PhoneSimulatorSheet(service: _service, agent: agent),
     );
   }
 
@@ -308,7 +330,9 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
         service: _service,
         eligibleAgents: _eligibleAgents.isNotEmpty
             ? _eligibleAgents
-            : _records.where((a) => (a['phone_number'] ?? '').toString().isNotEmpty).toList(),
+            : _records
+                  .where((a) => (a['phone_number'] ?? '').toString().isNotEmpty)
+                  .toList(),
         onPlaced: () {
           Navigator.pop(ctx);
           _load();
@@ -326,7 +350,9 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
         service: _service,
         eligibleAgents: _eligibleAgents.isNotEmpty
             ? _eligibleAgents
-            : _records.where((a) => (a['phone_number'] ?? '').toString().isNotEmpty).toList(),
+            : _records
+                  .where((a) => (a['phone_number'] ?? '').toString().isNotEmpty)
+                  .toList(),
         onCreated: () {
           Navigator.pop(ctx);
           _load();
@@ -339,247 +365,221 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
   Widget build(BuildContext context) {
     AppLocalizations.watch(context);
 
-    if (_loading && _workspace == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error != null && _workspace == null) {
-      return Center(
-        child: RetryPanel(
-          message: appTr(_error!),
-          retry: () => _load(),
-        ),
-      );
-    }
-
     final metrics = (_workspace?['metrics'] as List? ?? [])
         .whereType<Map>()
         .map((m) => Map<String, dynamic>.from(m))
         .toList();
-
-    return Column(
-      children: [
-        if (_loading || _busy) const LinearProgressIndicator(minHeight: 2),
-
-        // Navigation Tabs matching web
-        Container(
-          color: Theme.of(context).cardColor,
-          child: TabBar(
-            controller: _tabController,
-            labelColor: Theme.of(context).colorScheme.primary,
-            unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
-            indicatorColor: Theme.of(context).colorScheme.primary,
-            tabs: [
-              Tab(
-                icon: const Icon(Icons.support_agent_outlined, size: 20),
-                text: appTr('Agents'),
-              ),
-              Tab(
-                icon: const Icon(Icons.history_outlined, size: 20),
-                text: appTr('Call History'),
-              ),
-              Tab(
-                icon: const Icon(Icons.phone_forwarded_outlined, size: 20),
-                text: appTr('Outbound'),
-              ),
-            ],
-          ),
-        ),
-
-        Expanded(
-          child: RefreshIndicator(
+    final content = _loading && _workspace == null
+        ? const Center(child: CircularProgressIndicator())
+        : _error != null && _workspace == null
+        ? Center(
+            child: RetryPanel(message: appTr(_error!), retry: () => _load()),
+          )
+        : RefreshIndicator(
             onRefresh: () => _load(silent: true),
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
               children: [
-                // Metrics / Stat Summary row
+                if (_error != null)
+                  RetryPanel(message: appTr(_error!), retry: () => _load()),
                 if (metrics.isNotEmpty) _buildMetricsRow(metrics),
                 const SizedBox(height: 16),
-
-                // Tab Content
-                switch (_activeTab) {
-                  'history' => _buildHistoryView(),
-                  'outbound' => _buildOutboundView(),
-                  _ => _buildAgentsView(),
-                },
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMetricsRow(List<Map<String, dynamic>> metrics) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: metrics.map((m) {
-          final label = appTr('${m['label'] ?? ''}');
-          final val = '${m['value'] ?? 0}';
-          final icon = switch ('${m['icon'] ?? ''}') {
-            'paid' => Icons.check_circle_outline,
-            'calendar' => Icons.today_outlined,
-            'balance' => Icons.phone_forwarded_outlined,
-            _ => Icons.headset_mic_outlined,
-          };
-          return Container(
-            width: 140,
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.35),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.4),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
-                    Text(
-                      val,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                AnimatedSwitcher(
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 250),
+                  child: KeyedSubtree(
+                    key: ValueKey(_activeTab),
+                    child: switch (_activeTab) {
+                      'history' => _buildHistoryView(),
+                      'outbound' => _buildOutboundView(),
+                      _ => _buildAgentsView(),
+                    },
+                  ),
                 ),
               ],
             ),
           );
-        }).toList(),
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: Navigator.canPop(context),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              appTr('Phone Call Agents'),
+              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+            ),
+            Text(
+              appTr('AI agents that answer real calls'),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        toolbarHeight: 64,
+      ),
+      body: Column(
+        children: [
+          if (_loading || _busy) const LinearProgressIndicator(minHeight: 2),
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              dividerColor: Colors.transparent,
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelColor: Colors.white,
+              unselectedLabelColor: Theme.of(context)
+                  .colorScheme
+                  .onSurfaceVariant,
+              labelStyle: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+              indicator: BoxDecoration(
+                gradient: phoneAgentGradient,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              tabs: [
+                Tab(text: appTr('Agents')),
+                Tab(text: appTr('Call history')),
+                Tab(text: appTr('Outbound')),
+              ],
+            ),
+          ),
+          Expanded(child: content),
+        ],
       ),
     );
   }
 
-  // -------------------------------------------------------------
-  // VIEW 1: AGENTS TAB
-  // -------------------------------------------------------------
+  Widget _buildMetricsRow(List<Map<String, dynamic>> metrics) {
+    final labels = ['Agents', 'Active', 'Calls today'];
+    final icons = [
+      Icons.support_agent_outlined,
+      Icons.check_circle_outline,
+      Icons.phone_in_talk_outlined,
+    ];
+    final colors = [
+      const Color(0xFF818CF8),
+      const Color(0xFF10B981),
+      const Color(0xFF22D3EE),
+    ];
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < metrics.take(3).length; i++) ...[
+          if (i > 0) const SizedBox(width: 10),
+          Expanded(
+            child: PhoneAgentCard(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: colors[i].withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(icons[i], color: colors[i], size: 18),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '${metrics[i]['value'] ?? 0}',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    appTr(labels[i]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildAgentsView() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Hero Banner matching web
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Theme.of(context).colorScheme.primaryContainer.withOpacity(0.6),
-                Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.4),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                appTr('Create AI agents that answer real phone calls and talk just like a human.'),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      height: 1.35,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  FilledButton.icon(
-                    onPressed: () => _openAgentEditor(),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: Text(appTr('Create New Agent')),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      _tabController.animateTo(1);
-                    },
-                    icon: const Icon(Icons.history, size: 18),
-                    label: Text(appTr('Call History')),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      _tabController.animateTo(2);
-                    },
-                    icon: const Icon(Icons.phone_forwarded, size: 18),
-                    label: Text(appTr('Outbound Calls')),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Search Bar
-        TextField(
-          controller: _searchController,
-          onChanged: _onSearchChanged,
-          decoration: InputDecoration(
-            hintText: appTr('Search agents by title, number or prompt...'),
-            prefixIcon: const Icon(Icons.search),
-            filled: true,
-            fillColor: Theme.of(context).cardColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: appTr('Search agents'),
+                  prefixIcon: const Icon(Icons.search),
+                ),
               ),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          ),
+            const SizedBox(width: 10),
+            PhoneAgentButton(
+              label: appTr('New'),
+              icon: Icons.add,
+              onPressed: () => _openAgentEditor(),
+            ),
+          ],
         ),
         const SizedBox(height: 20),
-
-        // Section Title
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              appTr('My Phone Call Agents'),
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+            Expanded(
+              child: Text(
+                appTr('Your agents'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             Text(
-              '${_records.length} ${appTr('agents')}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+              '${_records.length} ${appTr(_records.length == 1 ? 'agent' : 'agents')}',
+              style: TextStyle(
+                fontSize: 12.5,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-
-        // Agents List / Empty State
         if (_records.isEmpty)
           _buildEmptyState(
-            icon: Icons.phone_disabled_outlined,
+            icon: Icons.support_agent,
             title: appTr('No agents yet'),
-            subtitle: appTr('Create your first phone call agent to start answering real phone calls.'),
+            subtitle: appTr(
+              'Create your first phone call agent to start answering real phone calls.',
+            ),
             actionLabel: appTr('Create Agent'),
             onAction: () => _openAgentEditor(),
           )
         else
-          ..._records.map((agent) => _buildAgentCard(agent)),
+          ..._records.map(_buildAgentCard),
       ],
     );
   }
@@ -589,7 +589,8 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
     final isActive = agent['active'] == true;
     final phone = '${agent['phone_number'] ?? ''}';
     final provider = '${agent['provider'] ?? 'elevenlabs'}';
-    final voiceName = '${agent['voice_name'] ?? agent['voice_id'] ?? 'Default Voice'}';
+    final voiceName =
+        '${agent['voice_name'] ?? agent['voice_id'] ?? 'Default Voice'}';
     final todayCalls = (agent['today_calls_count'] as num?)?.toInt() ?? 0;
 
     return Container(
@@ -599,12 +600,13 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isActive
-              ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-              : Theme.of(context).colorScheme.outlineVariant.withOpacity(0.4),
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
+              : Theme.of(context).colorScheme.outlineVariant
+                    .withValues(alpha: 0.4),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -620,13 +622,23 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
               children: [
                 Stack(
                   children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                      child: Icon(
-                        Icons.support_agent,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 24,
+                    Container(
+                      width: 46,
+                      height: 46,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: phoneAgentGradient,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        title.isEmpty
+                            ? '?'
+                            : title.characters.first.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 22,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     Positioned(
@@ -651,25 +663,38 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
                     children: [
                       Text(
                         title,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                        style: Theme.of(context).textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 2),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              provider.toUpperCase(),
+                              provider == 'elevenlabs'
+                                  ? 'ElevenLabs'
+                                  : provider == 'twilio'
+                                  ? 'Twilio'
+                                  : provider,
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -678,8 +703,11 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
                             todayCalls > 0
                                 ? '$todayCalls ${appTr('Calls Today')}'
                                 : appTr('No Calls Today'),
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                   fontSize: 11,
                                 ),
                           ),
@@ -756,12 +784,17 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline,
-                              size: 18, color: Theme.of(ctx).colorScheme.error),
+                          Icon(
+                            Icons.delete_outline,
+                            size: 18,
+                            color: Theme.of(ctx).colorScheme.error,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             appTr('Delete'),
-                            style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+                            style: TextStyle(
+                              color: Theme.of(ctx).colorScheme.error,
+                            ),
                           ),
                         ],
                       ),
@@ -772,85 +805,120 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
             ),
             const SizedBox(height: 14),
 
-            // Metadata Row: Phone & Voice
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    phone.isNotEmpty ? Icons.phone : Icons.phone_missed,
-                    size: 14,
-                    color: phone.isNotEmpty ? Colors.green : Colors.grey,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _agentDetail(
+                    Icons.phone_outlined,
+                    appTr('Phone number'),
+                    phone.isEmpty ? appTr('Not attached') : phone,
+                    warning: phone.isEmpty,
                   ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      phone.isNotEmpty ? phone : appTr('No phone number attached'),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                  Icon(Icons.record_voice_over, size: 14, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 6),
-                  Text(
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _agentDetail(
+                    Icons.graphic_eq,
+                    appTr('Voice'),
                     voiceName,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
-
-            // Bottom Actions: Active Toggle, Test Call Button, Configure
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Switch.adaptive(
+                      activeTrackColor: const Color(0xFF10B981),
                       value: isActive,
-                      onChanged: (val) => _toggleAgent(agent),
+                      onChanged: _busy ? null : (_) => _toggleAgent(agent),
                     ),
                     Text(
-                      appTr(isActive ? 'Active' : 'Inactive'),
+                      appTr(isActive ? 'Active' : 'Paused'),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: isActive ? Colors.green : Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: isActive
+                            ? const Color(0xFF10B981)
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () => _openSimulator(agent),
-                      icon: const Icon(Icons.call, size: 14),
-                      label: Text(appTr('Test Call')),
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      ),
-                    ),
-                    FilledButton.tonalIcon(
-                      onPressed: () => _openAgentEditor(agent, 1),
-                      icon: const Icon(Icons.edit_outlined, size: 14),
-                      label: Text(appTr('Edit')),
-                      style: FilledButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      ),
-                    ),
-                  ],
+                OutlinedButton.icon(
+                  onPressed: () => _openSimulator(agent),
+                  icon: const Icon(Icons.call_outlined, size: 16),
+                  label: Text(appTr('Test call')),
+                ),
+                PhoneAgentButton(
+                  label: appTr('Edit'),
+                  onPressed: () => _openAgentEditor(agent, 1),
                 ),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _agentDetail(
+    IconData icon,
+    String label,
+    String value, {
+    bool warning = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: warning
+            ? const Color(0xFFF59E0B).withValues(alpha: .08)
+            : Theme.of(context).colorScheme.surfaceContainerHighest
+                  .withValues(alpha: .45),
+        border: warning
+            ? Border.all(color: const Color(0xFFF59E0B).withValues(alpha: .5))
+            : null,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                warning ? Icons.warning_amber_rounded : icon,
+                size: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: warning ? const Color(0xFFF59E0B) : null,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -869,7 +937,10 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
             children: [
               Text(
                 '${appTr('Status')}: ',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               ...['all', 'completed', 'busy', 'no-answer', 'failed'].map((st) {
                 final isSelected = _historyStatus == st;
@@ -889,7 +960,10 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
               const SizedBox(width: 8),
               Text(
                 '${appTr('Direction')}: ',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               ...['all', 'inbound', 'outbound'].map((dir) {
                 final isSelected = _historyDirection == dir;
@@ -923,10 +997,14 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+                color: Theme.of(context).colorScheme.outlineVariant
+                    .withValues(alpha: 0.5),
               ),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -935,7 +1013,9 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
           _buildEmptyState(
             icon: Icons.history_toggle_off,
             title: appTr('No call records'),
-            subtitle: appTr('Calls answered or made by your agents will appear here with full transcripts.'),
+            subtitle: appTr(
+              'Calls answered or made by your agents will appear here with full transcripts.',
+            ),
           )
         else
           ..._records.map((call) => _buildCallCard(call)),
@@ -950,7 +1030,8 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
     final direction = '${call['direction'] ?? 'inbound'}';
     final status = '${call['status'] ?? 'completed'}';
     final durationSec = (call['duration'] as num?)?.toInt() ?? 0;
-    final durationStr = '${(durationSec ~/ 60).toString().padLeft(2, '0')}:${(durationSec % 60).toString().padLeft(2, '0')}';
+    final durationStr =
+        '${(durationSec ~/ 60).toString().padLeft(2, '0')}:${(durationSec % 60).toString().padLeft(2, '0')}';
     final startedAt = '${call['started_at'] ?? call['created_at'] ?? ''}';
     final isPinned = ((call['pinned'] as num?)?.toInt() ?? 0) > 0;
 
@@ -976,10 +1057,12 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
               CircleAvatar(
                 radius: 20,
                 backgroundColor: direction == 'outbound'
-                    ? Colors.blue.withOpacity(0.15)
-                    : Colors.green.withOpacity(0.15),
+                    ? Colors.blue.withValues(alpha: 0.15)
+                    : Colors.green.withValues(alpha: 0.15),
                 child: Icon(
-                  direction == 'outbound' ? Icons.call_made : Icons.call_received,
+                  direction == 'outbound'
+                      ? Icons.call_made
+                      : Icons.call_received,
                   color: direction == 'outbound' ? Colors.blue : Colors.green,
                   size: 20,
                 ),
@@ -994,14 +1077,21 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
                         Expanded(
                           child: Text(
                             '$caller ${called.isNotEmpty ? '→ $called' : ''}',
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (isPinned)
                           const Padding(
                             padding: EdgeInsets.only(left: 4),
-                            child: Icon(Icons.push_pin, size: 14, color: Colors.amber),
+                            child: Icon(
+                              Icons.push_pin,
+                              size: 14,
+                              color: Colors.amber,
+                            ),
                           ),
                       ],
                     ),
@@ -1016,10 +1106,13 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
                     if (startedAt.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
-                        startedAt.length > 16 ? startedAt.substring(0, 16).replaceAll('T', ' ') : startedAt,
+                        startedAt.length > 16
+                            ? startedAt.substring(0, 16).replaceAll('T', ' ')
+                            : startedAt,
                         style: TextStyle(
                           fontSize: 11,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -1031,9 +1124,12 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -1099,9 +1195,14 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
             children: [
               Text(
                 '${appTr('Status')}: ',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              ...['all', 'queued', 'in-progress', 'completed', 'failed'].map((st) {
+              ...['all', 'queued', 'in-progress', 'completed', 'failed'].map((
+                st,
+              ) {
                 final isSelected = _outboundStatus == st;
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
@@ -1125,9 +1226,8 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
         if (_campaigns.isNotEmpty) ...[
           Text(
             appTr('Outbound Campaigns'),
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           ..._campaigns.map((camp) => _buildCampaignCard(camp)),
@@ -1140,15 +1240,14 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
           children: [
             Text(
               appTr('Outbound Calls'),
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(context).textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
             Text(
               '${_records.length} ${appTr('calls')}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -1158,7 +1257,9 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
           _buildEmptyState(
             icon: Icons.phone_forwarded,
             title: appTr('No outbound calls yet'),
-            subtitle: appTr('Place your first outbound call from one of your agents with an attached phone number.'),
+            subtitle: appTr(
+              'Place your first outbound call from one of your agents with an attached phone number.',
+            ),
             actionLabel: appTr('Place a Call'),
             onAction: () => _openPlaceCallDialog(),
           )
@@ -1182,7 +1283,8 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+          color: Theme.of(context).colorScheme.outlineVariant
+              .withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -1194,7 +1296,10 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
               Expanded(
                 child: Text(
                   name,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1260,32 +1365,35 @@ class _NativePhoneAgentScreenState extends State<NativePhoneAgentScreen>
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3),
+          color: Theme.of(context).colorScheme.outlineVariant
+              .withValues(alpha: 0.3),
         ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 48, color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+          Icon(
+            icon,
+            size: 48,
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+          ),
           const SizedBox(height: 16),
           Text(
             title,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
             subtitle,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 18),
-            FilledButton.tonal(
-              onPressed: onAction,
-              child: Text(actionLabel),
-            ),
+            FilledButton.tonal(onPressed: onAction, child: Text(actionLabel)),
           ],
         ],
       ),
@@ -1318,6 +1426,8 @@ class _PhoneAgentEditorSheet extends StatefulWidget {
 }
 
 class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
+  Map<String, dynamic>? _agent;
+
   late int _step;
   bool _saving = false;
 
@@ -1343,6 +1453,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
   // Step 2: Training Data
   List<Map<String, dynamic>> _trainItems = [];
   bool _loadingTrain = false;
+  String? _trainError;
   final _trainUrlCtrl = TextEditingController();
   final _trainTextCtrl = TextEditingController();
 
@@ -1355,8 +1466,9 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
   @override
   void initState() {
     super.initState();
+    _agent = widget.agent;
     _step = widget.initialStep;
-    final a = widget.agent ?? {};
+    final a = _agent ?? {};
 
     _titleCtrl = TextEditingController(text: a['title'] ?? 'Support Agent');
     _welcomeCtrl = TextEditingController(
@@ -1371,14 +1483,22 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
     );
     _language = a['language'] ?? 'en';
     _provider = a['provider'] ?? 'elevenlabs';
-    _voiceId = a['voice_id'] ?? (widget.voices.isNotEmpty ? '${widget.voices[0]['voice_id']}' : '21m00Tcm4TlvDq8ikWAM');
+    _voiceId =
+        a['voice_id'] ??
+        (widget.voices.isNotEmpty
+            ? '${widget.voices[0]['voice_id']}'
+            : '21m00Tcm4TlvDq8ikWAM');
     _aiModel = a['ai_model'] ?? 'gpt-4o-mini';
     _active = a['active'] ?? true;
 
     _bookingEnabled = a['booking_enabled'] == true;
     _bookingProvider = a['booking_provider'] ?? 'cal_com';
-    _bookingEventTypeCtrl = TextEditingController(text: a['booking_event_type_id'] ?? '');
-    _bookingApiKeyCtrl = TextEditingController(text: a['booking_api_key'] ?? '');
+    _bookingEventTypeCtrl = TextEditingController(
+      text: a['booking_event_type_id'] ?? '',
+    );
+    _bookingApiKeyCtrl = TextEditingController(
+      text: a['booking_api_key'] ?? '',
+    );
     _bookingTimezone = a['booking_timezone'] ?? 'UTC';
 
     _phoneNumber = a['phone_number'];
@@ -1403,12 +1523,15 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
   }
 
   Future<void> _loadTrainData() async {
-    if (widget.agent == null) return;
-    setState(() => _loadingTrain = true);
+    if (_agent == null) return;
+    setState(() {
+      _loadingTrain = true;
+      _trainError = null;
+    });
     try {
       final res = await widget.service.load(
         viewType: 'train',
-        agentId: widget.agent!['id'] as int,
+        agentId: _agent!['id'] as int,
       );
       if (mounted) {
         setState(() {
@@ -1419,12 +1542,18 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
           _loadingTrain = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _loadingTrain = false);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _loadingTrain = false;
+          _trainError = error.toString();
+        });
+      }
     }
   }
 
-  Future<void> _saveAgent() async {
+  Future<void> _saveAgent({bool close = true, int? nextStep}) async {
+    if (_saving) return;
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1453,15 +1582,39 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
         'booking_timezone': _bookingTimezone,
       };
 
-      await widget.service.mutate(
+      final result = await widget.service.mutate(
         kind: 'phone_agent',
         operation: 'save',
         requestId: SocialPostService.requestId(),
-        recordId: widget.agent?['id'] as int?,
+        recordId: _agent?['id'] as int?,
         inputs: inputs,
       );
 
-      widget.onSaved();
+      if (!mounted) return;
+      if (close) {
+        widget.onSaved();
+      } else {
+        final data = result['agent'] ?? result['data'];
+        final id =
+            result['record_id'] ??
+            (data is Map ? data['id'] : null) ??
+            _agent?['id'];
+        if (id == null) {
+          throw StateError(
+            appTr('The server did not return the saved agent. Please retry.'),
+          );
+        }
+        setState(() {
+          _agent = {
+            ...?_agent,
+            ...inputs,
+            if (data is Map) ...Map<String, dynamic>.from(data),
+            'id': id,
+          };
+          _step = nextStep ?? 2;
+        });
+        await _loadTrainData();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1477,7 +1630,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
   }
 
   Future<void> _addTrainItem(String type, String content) async {
-    if (widget.agent == null) return;
+    if (_agent == null) return;
     setState(() => _saving = true);
     try {
       await widget.service.mutate(
@@ -1485,7 +1638,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
         operation: 'train',
         requestId: SocialPostService.requestId(),
         inputs: {
-          'agent_id': widget.agent!['id'],
+          'agent_id': _agent!['id'],
           'type': type,
           'url': type == 'url' ? content : null,
           'text': type == 'text' ? content : null,
@@ -1495,9 +1648,8 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       _loadTrainData();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(appTr(e.toString()))),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(appTr(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -1505,7 +1657,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
   }
 
   Future<void> _deleteTrainItem(int id) async {
-    if (widget.agent == null) return;
+    if (_agent == null) return;
     setState(() {
       _trainItems.removeWhere((item) => item['id'] == id);
     });
@@ -1515,11 +1667,12 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
         operation: 'delete_train',
         requestId: SocialPostService.requestId(),
         recordId: id,
-        inputs: {'agent_id': widget.agent!['id']},
+        inputs: {'agent_id': _agent!['id']},
       );
     } catch (e) {
       if (mounted) {
-        final isNotFound = (e is ApiFailure && e.status == 404) ||
+        final isNotFound =
+            (e is ApiFailure && e.status == 404) ||
             e.toString().contains('404') ||
             e.toString().toLowerCase().contains('not found') ||
             e.toString().contains('No query results');
@@ -1530,7 +1683,13 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
               : e.toString().replaceFirst('Exception: ', '').trim();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to delete training item.')),
+              content: Text(
+                appTr(
+                  rawMsg.isNotEmpty
+                      ? rawMsg
+                      : 'Failed to delete training item.',
+                ),
+              ),
             ),
           );
         }
@@ -1539,7 +1698,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
   }
 
   Future<void> _attachPhoneNumber() async {
-    if (widget.agent == null) return;
+    if (_agent == null) return;
     final num = _importPhoneCtrl.text.trim();
     if (num.isEmpty) return;
     setState(() => _saving = true);
@@ -1549,7 +1708,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
         operation: 'phone_number',
         requestId: SocialPostService.requestId(),
         inputs: {
-          'agent_id': widget.agent!['id'],
+          'agent_id': _agent!['id'],
           'phone_number': num,
           'twilio_account_sid': _twilioSidCtrl.text.trim(),
           'twilio_auth_token': _twilioTokenCtrl.text.trim(),
@@ -1563,9 +1722,8 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(appTr(e.toString()))),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(appTr(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -1573,14 +1731,14 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
   }
 
   Future<void> _releasePhoneNumber() async {
-    if (widget.agent == null) return;
+    if (_agent == null) return;
     setState(() => _saving = true);
     try {
       await widget.service.mutate(
         kind: 'phone_agent',
         operation: 'release',
         requestId: SocialPostService.requestId(),
-        inputs: {'agent_id': widget.agent!['id']},
+        inputs: {'agent_id': _agent!['id']},
       );
       setState(() => _phoneNumber = null);
       if (mounted) {
@@ -1590,9 +1748,8 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(appTr(e.toString()))),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(appTr(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -1602,12 +1759,15 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
   @override
   Widget build(BuildContext context) {
     AppLocalizations.watch(context);
-    final isNew = widget.agent == null;
+    final isNew = _agent == null;
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.9,
+      height:
+          MediaQuery.of(context).size.height -
+          MediaQuery.of(context).padding.top,
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
@@ -1620,25 +1780,47 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.close),
+                  tooltip: appTr('Close'),
                   onPressed: () => Navigator.pop(context),
                 ),
-                Text(
-                  isNew ? appTr('Create Phone Call Agent') : appTr('Edit Agent'),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                Expanded(
+                  child: Text(
+                    isNew ? appTr('Create agent') : appTr('Edit agent'),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
                 ),
                 FilledButton(
-                  onPressed: _saving ? null : _saveAgent,
+                  onPressed: _saving ? null : () => _saveAgent(),
                   child: _saving
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : Text(appTr('Save')),
                 ),
               ],
+            ),
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(
+                start: 24,
+                end: 16,
+                bottom: 12,
+              ),
+              child: Text(
+                appTr('Step :step of :total', {'step': _step, 'total': 3}),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
           ),
           const Divider(height: 1),
@@ -1646,14 +1828,15 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
           // 3 Step Navigation Pills (matching web wizard)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.3),
             child: Row(
               children: [
-                _buildStepPill(1, appTr('1. Configure')),
+                _buildStepPill(1, appTr('Configure')),
                 const SizedBox(width: 8),
-                _buildStepPill(2, appTr('2. Train')),
+                _buildStepPill(2, appTr('Train')),
                 const SizedBox(width: 8),
-                _buildStepPill(3, appTr('3. Phone Numbers')),
+                _buildStepPill(3, appTr('Phone')),
               ],
             ),
           ),
@@ -1670,36 +1853,102 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
               ],
             ),
           ),
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  if (_step > 1) ...[
+                    OutlinedButton(
+                      onPressed: _saving ? null : () => _goToStep(_step - 1),
+                      child: Text(appTr('Back')),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: PhoneAgentButton(
+                      label: appTr(
+                        _step == 1
+                            ? 'Next: Train'
+                            : _step == 2
+                            ? 'Next: Phone'
+                            : 'Finish',
+                      ),
+                      onPressed: _saving
+                          ? null
+                          : () => _step == 3
+                                ? _saveAgent()
+                                : _goToStep(_step + 1),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildStepPill(int stepNumber, String title) {
-    final isCurrent = _step == stepNumber;
+    final selected = _step == stepNumber;
+    final complete = _step > stepNumber;
     return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _step = stepNumber),
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isCurrent
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: isCurrent
-                  ? Colors.white
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
+      child: Semantics(
+        selected: selected,
+        child: InkWell(
+          onTap: _saving ? null : () => _goToStep(stepNumber),
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: selected ? phoneAgentGradient : null,
+                    color: selected
+                        ? null
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  ),
+                  child: complete
+                      ? const Icon(
+                          Icons.check,
+                          size: 18,
+                          color: Color(0xFF10B981),
+                        )
+                      : Text(
+                          '$stepNumber',
+                          style: TextStyle(
+                            color: selected ? Colors.white : null,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: selected
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -1707,259 +1956,344 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
     );
   }
 
+  Future<void> _goToStep(int step) async {
+    if (step > 1 && _agent == null) {
+      await _saveAgent(close: false, nextStep: step);
+    } else {
+      setState(() => _step = step);
+    }
+  }
+
   // STEP 1: CONFIGURE
   Widget _buildConfigureStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DropdownButtonFormField<String>(
-          value: _provider,
-          decoration: InputDecoration(
-            labelText: appTr('Provider'),
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.settings_input_component_outlined),
-          ),
-          items: [
-            DropdownMenuItem(
-              value: 'elevenlabs',
-              child: Text(appTr('ElevenLabs (Conversational AI)')),
-            ),
-            DropdownMenuItem(
-              value: 'twilio',
-              child: Text(appTr('Twilio (ConversationRelay)')),
-            ),
-          ],
-          onChanged: (val) {
-            if (val != null) {
-              setState(() {
-                _provider = val;
-                final filtered = _getFilteredVoices();
-                if (filtered.isNotEmpty && !filtered.any((v) => '${v['voice_id']}' == _voiceId)) {
-                  _voiceId = '${filtered[0]['voice_id']}';
-                }
-              });
-            }
-          },
+    final fields = <Widget>[
+      _sectionHeading(
+        'Basics',
+        'Give your agent a name and a warm first message.',
+      ),
+      TextField(
+        controller: _titleCtrl,
+        decoration: InputDecoration(
+          labelText: appTr('Agent Title *'),
+          hintText: appTr('e.g. Sales Assistant'),
         ),
-        const SizedBox(height: 16),
+      ),
+      const SizedBox(height: 16),
 
-        TextField(
-          controller: _titleCtrl,
-          decoration: InputDecoration(
-            labelText: appTr('Agent Title *'),
-            hintText: appTr('e.g. Sales Assistant'),
-            border: const OutlineInputBorder(),
+      TextField(
+        controller: _welcomeCtrl,
+        decoration: InputDecoration(
+          labelText: appTr('Welcome Message'),
+          hintText: appTr('e.g. Hello, how can I help you today?'),
+        ),
+      ),
+      const SizedBox(height: 16),
+
+      _sectionHeading(
+        'What should it do?',
+        'Describe its role, tone and the help it should provide.',
+      ),
+      TextField(
+        controller: _instructionsCtrl,
+        maxLines: 4,
+        decoration: InputDecoration(
+          labelText: appTr('Agent Instructions (System Prompt)'),
+          hintText: appTr(
+            'Describe agent role, tone, and what questions it can answer.',
           ),
         ),
-        const SizedBox(height: 16),
+      ),
+      const SizedBox(height: 16),
 
-        TextField(
-          controller: _welcomeCtrl,
-          decoration: InputDecoration(
-            labelText: appTr('Welcome Message'),
-            hintText: appTr('e.g. Hello, how can I help you today?'),
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        TextField(
-          controller: _instructionsCtrl,
-          maxLines: 4,
-          decoration: InputDecoration(
-            labelText: appTr('Agent Instructions (System Prompt)'),
-            hintText: appTr('Describe agent role, tone, and what questions it can answer.'),
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Language & AI Model Row
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _language,
-                decoration: InputDecoration(
-                  labelText: appTr('Language'),
-                  border: const OutlineInputBorder(),
-                ),
-                items: [
-                  DropdownMenuItem(value: 'en', child: Text(appTr('English (Auto)'))),
-                  DropdownMenuItem(value: 'es', child: Text(appTr('Spanish'))),
-                  DropdownMenuItem(value: 'fr', child: Text(appTr('French'))),
-                  DropdownMenuItem(value: 'de', child: Text(appTr('German'))),
-                  DropdownMenuItem(value: 'it', child: Text(appTr('Italian'))),
-                  DropdownMenuItem(value: 'pt', child: Text(appTr('Portuguese'))),
-                  DropdownMenuItem(value: 'hi', child: Text(appTr('Hindi'))),
-                ],
-                onChanged: (val) => setState(() => _language = val ?? 'en'),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final template in {
+            'Support': 'Help callers with customer support. Answer clearly and ask clarifying questions when needed.',
+            'Sales': 'Help callers understand our products and pricing. Ask about their needs and suggest the best next step.',
+            'Appointments': 'Help callers book appointments. Confirm their preferred date, time and contact details.',
+          }.entries)
+            ActionChip(
+              label: Text(appTr(template.key)),
+              onPressed: () => setState(
+                () => _instructionsCtrl.text = appTr(template.value),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _aiModel,
-                decoration: InputDecoration(
-                  labelText: appTr('AI Model'),
-                  border: const OutlineInputBorder(),
-                ),
-                isExpanded: true,
-                items: _getEffectiveAiModels().map((m) {
-                  final key = '${m['key'] ?? m['id']}';
-                  final label = '${m['label'] ?? key}';
-                  final group = '${m['provider'] ?? ''}';
-                  final text = group.isNotEmpty ? '$label ($group)' : label;
-                  return DropdownMenuItem<String>(
-                    value: key,
-                    child: Text(
-                      text,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _aiModel = val ?? 'gpt-4o-mini'),
-              ),
-            ),
-          ],
+        ],
+      ),
+      const SizedBox(height: 20),
+      _sectionHeading(
+        'Voice and brain',
+        'Choose how your agent sounds and responds.',
+      ),
+      DropdownButtonFormField<String>(
+        isExpanded: true,
+        value: _provider,
+        decoration: InputDecoration(
+          labelText: appTr('Provider'),
+          prefixIcon: const Icon(Icons.settings_input_component_outlined),
         ),
-        const SizedBox(height: 16),
+        items: [
+          DropdownMenuItem(
+            value: 'elevenlabs',
+            child: Text(appTr('ElevenLabs (Conversational AI)')),
+          ),
+          DropdownMenuItem(
+            value: 'twilio',
+            child: Text(appTr('Twilio (ConversationRelay)')),
+          ),
+        ],
+        onChanged: (val) {
+          if (val != null) {
+            setState(() {
+              _provider = val;
+              final filtered = _getFilteredVoices();
+              if (filtered.isNotEmpty &&
+                  !filtered.any((v) => '${v['voice_id']}' == _voiceId)) {
+                _voiceId = '${filtered[0]['voice_id']}';
+              }
+            });
+          }
+        },
+      ),
+      const SizedBox(height: 16),
 
-        // Voice Picker Field with Audio Preview
-        Text(
-          appTr('Voice Selection'),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 6),
-        InkWell(
-          onTap: () => _openVoicePickerDialog(),
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.withOpacity(0.4)),
-              borderRadius: BorderRadius.circular(10),
+      // Language & AI Model Row
+      Column(
+        children: [
+          SizedBox(
+            child: DropdownButtonFormField<String>(
+              value: _language,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: appTr('Language')),
+              items: [
+                DropdownMenuItem(
+                  value: 'en',
+                  child: Text(appTr('English (Auto)')),
+                ),
+                DropdownMenuItem(value: 'es', child: Text(appTr('Spanish'))),
+                DropdownMenuItem(value: 'fr', child: Text(appTr('French'))),
+                DropdownMenuItem(value: 'de', child: Text(appTr('German'))),
+                DropdownMenuItem(value: 'it', child: Text(appTr('Italian'))),
+                DropdownMenuItem(value: 'pt', child: Text(appTr('Portuguese'))),
+                DropdownMenuItem(value: 'hi', child: Text(appTr('Hindi'))),
+              ],
+              onChanged: (val) => setState(() => _language = val ?? 'en'),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.record_voice_over, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            child: DropdownButtonFormField<String>(
+              value: _aiModel,
+              decoration: InputDecoration(labelText: appTr('AI Model')),
+              isExpanded: true,
+              items: _getEffectiveAiModels().map((m) {
+                final key = '${m['key'] ?? m['id']}';
+                final label = '${m['label'] ?? key}';
+                final group = '${m['provider'] ?? ''}';
+                final text = group.isNotEmpty ? '$label ($group)' : label;
+                return DropdownMenuItem<String>(
+                  value: key,
                   child: Text(
-                    _getVoiceName(_voiceId),
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    text,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12),
                   ),
-                ),
-                const Icon(Icons.arrow_drop_down),
-              ],
+                );
+              }).toList(),
+              onChanged: (val) =>
+                  setState(() => _aiModel = val ?? 'gpt-4o-mini'),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
+        ],
+      ),
+      const SizedBox(height: 16),
 
-        // Call Duration & Silence Timeout
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _maxDurationCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: appTr('Max Duration (sec)'),
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _silenceTimeoutCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: appTr('Silence Timeout (sec)'),
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-
-        // Booking Integration Card
-        Container(
-          padding: const EdgeInsets.all(16),
+      // Voice Picker Field with Audio Preview
+      Text(
+        appTr('Voice Selection'),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 6),
+      InkWell(
+        onTap: () => _openVoicePickerDialog(),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.4)),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.4)),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_month_outlined, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        appTr('Booking Assistant'),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                  Switch.adaptive(
-                    value: _bookingEnabled,
-                    onChanged: (val) => setState(() => _bookingEnabled = val),
-                  ),
-                ],
+              const Icon(Icons.record_voice_over, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _getVoiceName(_voiceId),
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
               ),
-              if (_bookingEnabled) ...[
-                const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
-                  value: _bookingProvider,
-                  decoration: InputDecoration(
-                    labelText: appTr('Booking Provider'),
-                    border: const OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'cal_com', child: Text('Cal.com')),
-                    DropdownMenuItem(value: 'calendly', child: Text('Calendly')),
-                  ],
-                  onChanged: (val) => setState(() => _bookingProvider = val ?? 'cal_com'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _bookingEventTypeCtrl,
-                  decoration: InputDecoration(
-                    labelText: appTr('Event Type ID / URI'),
-                    hintText: appTr('e.g. 12345 or URI'),
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _bookingApiKeyCtrl,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: appTr('Booking Provider API Key'),
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-              ],
+              const Icon(Icons.arrow_drop_down),
             ],
           ),
         ),
-        const SizedBox(height: 24),
+      ),
+      const SizedBox(height: 16),
 
-        FilledButton(
-          onPressed: () => setState(() => _step = 2),
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(double.infinity, 48),
+      _sectionHeading(
+        'Call limits',
+        'Keep conversations focused and comfortable.',
+      ),
+      _limitSlider('Longest call', _maxDurationCtrl, 60, 1800, 58),
+      const SizedBox(height: 16),
+      _limitSlider('Hang up after silence', _silenceTimeoutCtrl, 5, 60, 11),
+      const SizedBox(height: 20),
+
+      // Booking Integration Card
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant
+                .withValues(alpha: 0.4),
           ),
-          child: Text(appTr('Next: Train Agent')),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_month_outlined, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          appTr('Booking Assistant'),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch.adaptive(
+                  value: _bookingEnabled,
+                  onChanged: (val) => setState(() => _bookingEnabled = val),
+                ),
+              ],
+            ),
+            if (_bookingEnabled) ...[
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                value: _bookingProvider,
+                decoration: InputDecoration(
+                  labelText: appTr('Booking Provider'),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'cal_com', child: Text('Cal.com')),
+                  DropdownMenuItem(value: 'calendly', child: Text('Calendly')),
+                ],
+                onChanged: (val) =>
+                    setState(() => _bookingProvider = val ?? 'cal_com'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _bookingEventTypeCtrl,
+                decoration: InputDecoration(
+                  labelText: appTr('Event Type ID / URI'),
+                  hintText: appTr('e.g. 12345 or URI'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _bookingApiKeyCtrl,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: appTr('Booking Provider API Key'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ];
+    final sections = <Widget>[];
+    var group = <Widget>[];
+    for (final field in fields) {
+      if (field is _PhoneSectionHeading && group.isNotEmpty) {
+        sections.add(
+          PhoneAgentCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: group,
+            ),
+          ),
+        );
+        sections.add(const SizedBox(height: 14));
+        group = [];
+      }
+      group.add(field);
+    }
+    if (group.isNotEmpty) {
+      sections.add(
+        PhoneAgentCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: group,
+          ),
+        ),
+      );
+    }
+    return Column(children: sections);
+  }
+
+  Widget _sectionHeading(String title, String description) =>
+      _PhoneSectionHeading(
+        title: appTr(title),
+        description: appTr(description),
+      );
+
+  Widget _limitSlider(
+    String label,
+    TextEditingController controller,
+    double min,
+    double max,
+    int divisions,
+  ) {
+    final value = double.tryParse(controller.text) ?? min;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(appTr(label), style: const TextStyle(fontSize: 13)),
+            ),
+            Text(
+              '${value.round()} ${appTr('sec')}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+        Slider(
+          value: value.clamp(min, max),
+          min: min,
+          max: max,
+          divisions: divisions,
+          label: '${value.round()} ${appTr('sec')}',
+          semanticFormatterCallback: (value) =>
+              '${value.round()} ${appTr('seconds')}',
+          onChanged: (value) =>
+              setState(() => controller.text = '${value.round()}'),
         ),
       ],
     );
@@ -1971,20 +2305,72 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       list.addAll(widget.aiModels.map((m) => Map<String, dynamic>.from(m)));
     } else {
       list.addAll(const [
-        {'key': 'gpt-4o-mini', 'label': 'GPT-4o Mini (Fast & Cost Effective)', 'provider': 'OpenAI'},
-        {'key': 'gpt-4o', 'label': 'GPT-4o (High Intelligence & Multimodal)', 'provider': 'OpenAI'},
+        {
+          'key': 'gpt-4o-mini',
+          'label': 'GPT-4o Mini (Fast & Cost Effective)',
+          'provider': 'OpenAI',
+        },
+        {
+          'key': 'gpt-4o',
+          'label': 'GPT-4o (High Intelligence & Multimodal)',
+          'provider': 'OpenAI',
+        },
         {'key': 'gpt-4-turbo', 'label': 'GPT-4 Turbo', 'provider': 'OpenAI'},
-        {'key': 'gpt-3.5-turbo', 'label': 'GPT-3.5 Turbo', 'provider': 'OpenAI'},
-        {'key': 'claude-3-5-sonnet-20241022', 'label': 'Claude 3.5 Sonnet (Most Intelligent)', 'provider': 'Anthropic'},
-        {'key': 'claude-3-5-haiku-20241022', 'label': 'Claude 3.5 Haiku (Lightning Fast)', 'provider': 'Anthropic'},
-        {'key': 'claude-3-opus-20240229', 'label': 'Claude 3 Opus', 'provider': 'Anthropic'},
-        {'key': 'claude-3-haiku', 'label': 'Claude 3 Haiku', 'provider': 'Anthropic'},
-        {'key': 'gemini-1.5-flash', 'label': 'Gemini 1.5 Flash (Ultra Fast)', 'provider': 'Google Gemini'},
-        {'key': 'gemini-1.5-pro', 'label': 'Gemini 1.5 Pro (Complex Reasoning)', 'provider': 'Google Gemini'},
-        {'key': 'gemini-2.0-flash-exp', 'label': 'Gemini 2.0 Flash (Next-Gen Realtime)', 'provider': 'Google Gemini'},
-        {'key': 'deepseek-chat', 'label': 'DeepSeek V3 (Reasoning & Conversational)', 'provider': 'DeepSeek'},
-        {'key': 'deepseek-reasoner', 'label': 'DeepSeek R1 (Deep Chain of Thought)', 'provider': 'DeepSeek'},
-        {'key': 'elevenlabs-conversational', 'label': 'ElevenLabs Conversational Native', 'provider': 'ElevenLabs'},
+        {
+          'key': 'gpt-3.5-turbo',
+          'label': 'GPT-3.5 Turbo',
+          'provider': 'OpenAI',
+        },
+        {
+          'key': 'claude-3-5-sonnet-20241022',
+          'label': 'Claude 3.5 Sonnet (Most Intelligent)',
+          'provider': 'Anthropic',
+        },
+        {
+          'key': 'claude-3-5-haiku-20241022',
+          'label': 'Claude 3.5 Haiku (Lightning Fast)',
+          'provider': 'Anthropic',
+        },
+        {
+          'key': 'claude-3-opus-20240229',
+          'label': 'Claude 3 Opus',
+          'provider': 'Anthropic',
+        },
+        {
+          'key': 'claude-3-haiku',
+          'label': 'Claude 3 Haiku',
+          'provider': 'Anthropic',
+        },
+        {
+          'key': 'gemini-1.5-flash',
+          'label': 'Gemini 1.5 Flash (Ultra Fast)',
+          'provider': 'Google Gemini',
+        },
+        {
+          'key': 'gemini-1.5-pro',
+          'label': 'Gemini 1.5 Pro (Complex Reasoning)',
+          'provider': 'Google Gemini',
+        },
+        {
+          'key': 'gemini-2.0-flash-exp',
+          'label': 'Gemini 2.0 Flash (Next-Gen Realtime)',
+          'provider': 'Google Gemini',
+        },
+        {
+          'key': 'deepseek-chat',
+          'label': 'DeepSeek V3 (Reasoning & Conversational)',
+          'provider': 'DeepSeek',
+        },
+        {
+          'key': 'deepseek-reasoner',
+          'label': 'DeepSeek R1 (Deep Chain of Thought)',
+          'provider': 'DeepSeek',
+        },
+        {
+          'key': 'elevenlabs-conversational',
+          'label': 'ElevenLabs Conversational Native',
+          'provider': 'ElevenLabs',
+        },
       ]);
     }
 
@@ -2002,15 +2388,21 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
   List<Map<String, dynamic>> _getFilteredVoices() {
     if (_provider == 'twilio') {
       final twilioVoices = widget.voices
-          .where((v) => '${v['provider']}' == 'twilio' || '${v['category']}' == 'amazon_polly')
+          .where(
+            (v) =>
+                '${v['provider']}' == 'twilio' ||
+                '${v['category']}' == 'amazon_polly',
+          )
           .toList();
       return twilioVoices.isNotEmpty ? twilioVoices : widget.voices;
     } else {
       final elevenVoices = widget.voices
-          .where((v) =>
-              '${v['provider']}' == 'elevenlabs' ||
-              '${v['category']}' == 'premade' ||
-              '${v['category']}' == 'custom')
+          .where(
+            (v) =>
+                '${v['provider']}' == 'elevenlabs' ||
+                '${v['category']}' == 'premade' ||
+                '${v['category']}' == 'custom',
+          )
           .toList();
       return elevenVoices.isNotEmpty ? elevenVoices : widget.voices;
     }
@@ -2046,14 +2438,16 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       children: [
         Text(
           appTr('Agent Knowledge Base'),
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 4),
         Text(
-          appTr('Add websites or text content to give your agent specific company knowledge.'),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+          appTr(
+            'Add websites or text content to give your agent specific company knowledge.',
+          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 16),
 
@@ -2081,6 +2475,8 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
 
         if (_loadingTrain)
           const Center(child: CircularProgressIndicator())
+        else if (_trainError != null)
+          RetryPanel(message: appTr(_trainError!), retry: _loadTrainData)
         else if (_trainItems.isEmpty)
           Container(
             padding: const EdgeInsets.all(24),
@@ -2088,10 +2484,12 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
             ),
             child: Text(
-              appTr('No training items yet. Add a website URL or text knowledge above.'),
+              appTr(
+                'No training items yet. Add a website URL or text knowledge above.',
+              ),
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
@@ -2106,8 +2504,11 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.3),
               child: ListTile(
                 dense: true,
                 leading: Icon(
@@ -2117,7 +2518,9 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
                 ),
                 title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(
-                  isTrained ? appTr('Trained & Embedded') : appTr('Pending training'),
+                  isTrained
+                      ? appTr('Trained & Embedded')
+                      : appTr('Pending training'),
                   style: TextStyle(
                     fontSize: 11,
                     color: isTrained ? Colors.green : Colors.amber,
@@ -2131,27 +2534,6 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
               ),
             );
           }),
-        const SizedBox(height: 24),
-
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => setState(() => _step = 1),
-                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
-                child: Text(appTr('Back')),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed: () => setState(() => _step = 3),
-                style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-                child: Text(appTr('Next: Phone Numbers')),
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }
@@ -2230,7 +2612,8 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
       children: [
         Text(
           appTr('Assigned Phone Number'),
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
 
@@ -2238,9 +2621,9 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
+              color: Colors.green.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.green.withOpacity(0.3)),
+              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -2252,11 +2635,19 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
                     children: [
                       Text(
                         _phoneNumber!,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
                       ),
                       Text(
-                        appTr('Inbound calls to this number are handled by this agent.'),
-                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        appTr(
+                          'Inbound calls to this number are handled by this agent.',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
@@ -2278,7 +2669,7 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2289,7 +2680,9 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  appTr('Enter your Twilio or SIP phone number (in E.164 format, e.g. +14155552671).'),
+                  appTr(
+                    'Enter your Twilio or SIP phone number (in E.164 format, e.g. +14155552671).',
+                  ),
                   style: const TextStyle(fontSize: 11, color: Colors.grey),
                 ),
                 const SizedBox(height: 12),
@@ -2298,7 +2691,6 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
                     labelText: appTr('Phone Number (+1...)'),
-                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -2306,7 +2698,6 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
                   controller: _twilioSidCtrl,
                   decoration: InputDecoration(
                     labelText: appTr('Twilio Account SID (optional)'),
-                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -2315,7 +2706,6 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
                   obscureText: true,
                   decoration: InputDecoration(
                     labelText: appTr('Twilio Auth Token (optional)'),
-                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -2327,13 +2717,6 @@ class _PhoneAgentEditorSheetState extends State<_PhoneAgentEditorSheet> {
               ],
             ),
           ),
-        const SizedBox(height: 24),
-
-        OutlinedButton(
-          onPressed: () => setState(() => _step = 2),
-          style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
-          child: Text(appTr('Back to Training')),
-        ),
       ],
     );
   }
@@ -2424,9 +2807,8 @@ class _VoicePickerSheetState extends State<_VoicePickerSheet> {
                 Expanded(
                   child: Text(
                     appTr('Select Agent Voice'),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
                 IconButton(
@@ -2447,8 +2829,13 @@ class _VoicePickerSheetState extends State<_VoicePickerSheet> {
               decoration: InputDecoration(
                 hintText: appTr('Search voices by name or accent...'),
                 prefixIcon: const Icon(Icons.search),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -2473,26 +2860,37 @@ class _VoicePickerSheetState extends State<_VoicePickerSheet> {
                       icon: Icon(
                         isPreviewing
                             ? Icons.stop_circle
-                            : (hasPreview ? Icons.play_circle_fill : Icons.volume_mute),
+                            : (hasPreview
+                                  ? Icons.play_circle_fill
+                                  : Icons.volume_mute),
                         color: isPreviewing
                             ? Colors.orange
-                            : (hasPreview ? Theme.of(context).colorScheme.primary : Colors.grey),
+                            : (hasPreview
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Colors.grey),
                         size: 28,
                       ),
                       onPressed: () => _playPreview(voiceId, previewUrl),
-                      tooltip: isPreviewing ? appTr('Stop audio') : appTr('Preview voice sample'),
+                      tooltip: isPreviewing
+                          ? appTr('Stop audio')
+                          : appTr('Preview voice sample'),
                     ),
                     title: Text(
                       name,
                       style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
                       ),
                     ),
                     subtitle: v['category'] != null
                         ? Text(
                             '${v['category']} · ${v['provider'] ?? 'voice'}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(fontSize: 11),
                           )
                         : null,
                     trailing: isSelected
@@ -2520,10 +2918,7 @@ class _PhoneSimulatorSheet extends StatefulWidget {
   final NativeWorkspaceService service;
   final Map<String, dynamic> agent;
 
-  const _PhoneSimulatorSheet({
-    required this.service,
-    required this.agent,
-  });
+  const _PhoneSimulatorSheet({required this.service, required this.agent});
 
   @override
   State<_PhoneSimulatorSheet> createState() => _PhoneSimulatorSheetState();
@@ -2574,7 +2969,8 @@ class _PhoneSimulatorSheetState extends State<_PhoneSimulatorSheet> {
   Widget build(BuildContext context) {
     AppLocalizations.watch(context);
     final title = '${widget.agent['title'] ?? 'Agent'}';
-    final timerStr = '${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}';
+    final timerStr =
+        '${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}';
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.7,
@@ -2591,7 +2987,10 @@ class _PhoneSimulatorSheetState extends State<_PhoneSimulatorSheet> {
               children: [
                 Text(
                   appTr('Call Simulator'),
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.white),
@@ -2609,7 +3008,9 @@ class _PhoneSimulatorSheetState extends State<_PhoneSimulatorSheet> {
                 radius: 44,
                 backgroundColor: Colors.white12,
                 child: Icon(
-                  _status == 'talking' ? Icons.phone_in_talk : Icons.support_agent,
+                  _status == 'talking'
+                      ? Icons.phone_in_talk
+                      : Icons.support_agent,
                   color: Colors.white,
                   size: 42,
                 ),
@@ -2632,7 +3033,9 @@ class _PhoneSimulatorSheetState extends State<_PhoneSimulatorSheet> {
                   _ => appTr('Test Voice Simulation'),
                 },
                 style: TextStyle(
-                  color: _status == 'talking' ? Colors.greenAccent : Colors.white70,
+                  color: _status == 'talking'
+                      ? Colors.greenAccent
+                      : Colors.white70,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -2647,21 +3050,27 @@ class _PhoneSimulatorSheetState extends State<_PhoneSimulatorSheet> {
             padding: const EdgeInsets.only(bottom: 40),
             child: switch (_status) {
               'talking' => FloatingActionButton.large(
-                  backgroundColor: Colors.red,
-                  onPressed: _endCall,
-                  child: const Icon(Icons.call_end, color: Colors.white, size: 36),
+                backgroundColor: Colors.red,
+                onPressed: _endCall,
+                child: const Icon(
+                  Icons.call_end,
+                  color: Colors.white,
+                  size: 36,
                 ),
-              'connecting' => const CircularProgressIndicator(color: Colors.white),
+              ),
+              'connecting' => const CircularProgressIndicator(
+                color: Colors.white,
+              ),
               'ended' => FilledButton.icon(
-                  onPressed: _startSimulation,
-                  icon: const Icon(Icons.replay),
-                  label: Text(appTr('Call Again')),
-                ),
+                onPressed: _startSimulation,
+                icon: const Icon(Icons.replay),
+                label: Text(appTr('Call Again')),
+              ),
               _ => FloatingActionButton.large(
-                  backgroundColor: Colors.green,
-                  onPressed: _startSimulation,
-                  child: const Icon(Icons.call, color: Colors.white, size: 36),
-                ),
+                backgroundColor: Colors.green,
+                onPressed: _startSimulation,
+                child: const Icon(Icons.call, color: Colors.white, size: 36),
+              ),
             },
           ),
         ],
@@ -2699,7 +3108,8 @@ class _CallDetailSheet extends StatelessWidget {
       onChanged();
     } catch (e) {
       if (!context.mounted) return;
-      final isNotFound = (e is ApiFailure && e.status == 404) ||
+      final isNotFound =
+          (e is ApiFailure && e.status == 404) ||
           e.toString().contains('404') ||
           e.toString().toLowerCase().contains('not found') ||
           e.toString().contains('No query results');
@@ -2708,14 +3118,20 @@ class _CallDetailSheet extends StatelessWidget {
         Navigator.pop(context);
         onChanged();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(appTr('Call record not found or has been removed.'))),
+          SnackBar(
+            content: Text(appTr('Call record not found or has been removed.')),
+          ),
         );
       } else {
         final rawMsg = e is ApiFailure
             ? e.message
             : e.toString().replaceFirst('Exception: ', '').trim();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to update pin state.'))),
+          SnackBar(
+            content: Text(
+              appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to update pin state.'),
+            ),
+          ),
         );
       }
     }
@@ -2726,11 +3142,20 @@ class _CallDetailSheet extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(appTr('Delete Call Record?')),
-        content: Text(appTr('This call record and its transcripts will be permanently removed.')),
+        content: Text(
+          appTr(
+            'This call record and its transcripts will be permanently removed.',
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(appTr('Cancel'))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(appTr('Cancel')),
+          ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(appTr('Delete')),
           ),
@@ -2761,7 +3186,8 @@ class _CallDetailSheet extends StatelessWidget {
       );
     } catch (e) {
       if (!context.mounted) return;
-      final isNotFound = (e is ApiFailure && e.status == 404) ||
+      final isNotFound =
+          (e is ApiFailure && e.status == 404) ||
           e.toString().contains('404') ||
           e.toString().toLowerCase().contains('not found') ||
           e.toString().contains('No query results');
@@ -2772,14 +3198,22 @@ class _CallDetailSheet extends StatelessWidget {
 
       if (isNotFound) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(appTr('Call record not found or has been removed.'))),
+          SnackBar(
+            content: Text(appTr('Call record not found or has been removed.')),
+          ),
         );
       } else {
         final rawMsg = e is ApiFailure
             ? e.message
             : e.toString().replaceFirst('Exception: ', '').trim();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to delete call record.'))),
+          SnackBar(
+            content: Text(
+              appTr(
+                rawMsg.isNotEmpty ? rawMsg : 'Failed to delete call record.',
+              ),
+            ),
+          ),
         );
       }
     }
@@ -2792,8 +3226,11 @@ class _CallDetailSheet extends StatelessWidget {
     final called = '${call['called_number'] ?? ''}';
     final agentTitle = '${call['agent_title'] ?? 'Agent'}';
     final durationSec = (call['duration'] as num?)?.toInt() ?? 0;
-    final durationStr = '${(durationSec ~/ 60).toString().padLeft(2, '0')}:${(durationSec % 60).toString().padLeft(2, '0')}';
-    final transcripts = (call['transcripts'] as List? ?? []).whereType<Map>().toList();
+    final durationStr =
+        '${(durationSec ~/ 60).toString().padLeft(2, '0')}:${(durationSec % 60).toString().padLeft(2, '0')}';
+    final transcripts = (call['transcripts'] as List? ?? [])
+        .whereType<Map>()
+        .toList();
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
@@ -2813,11 +3250,17 @@ class _CallDetailSheet extends StatelessWidget {
                     children: [
                       Text(
                         '$caller ${called.isNotEmpty ? '→ $called' : ''}',
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
                       ),
                       Text(
                         '$agentTitle • $durationStr',
-                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -2857,20 +3300,29 @@ class _CallDetailSheet extends StatelessWidget {
                     itemBuilder: (ctx, i) {
                       final t = transcripts[i];
                       final role = '${t['role'] ?? 'user'}';
-                      final isAgent = role.toLowerCase() == 'assistant' || role.toLowerCase() == 'agent';
+                      final isAgent =
+                          role.toLowerCase() == 'assistant' ||
+                          role.toLowerCase() == 'agent';
                       final msg = '${t['message'] ?? ''}';
 
                       return Align(
-                        alignment: isAgent ? Alignment.centerLeft : Alignment.centerRight,
+                        alignment: isAgent
+                            ? Alignment.centerLeft
+                            : Alignment.centerRight,
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
                           constraints: BoxConstraints(
                             maxWidth: MediaQuery.of(context).size.width * 0.75,
                           ),
                           decoration: BoxDecoration(
                             color: isAgent
-                                ? Theme.of(context).colorScheme.surfaceVariant
+                                ? Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest
                                 : Theme.of(context).colorScheme.primary,
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -2882,14 +3334,18 @@ class _CallDetailSheet extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: isAgent ? Theme.of(context).colorScheme.primary : Colors.white70,
+                                  color: isAgent
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Colors.white70,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 msg,
                                 style: TextStyle(
-                                  color: isAgent ? Theme.of(context).colorScheme.onSurface : Colors.white,
+                                  color: isAgent
+                                      ? Theme.of(context).colorScheme.onSurface
+                                      : Colors.white,
                                   fontSize: 13,
                                 ),
                               ),
@@ -2921,7 +3377,8 @@ class _PlaceOutboundCallSheet extends StatefulWidget {
   });
 
   @override
-  State<_PlaceOutboundCallSheet> createState() => _PlaceOutboundCallSheetState();
+  State<_PlaceOutboundCallSheet> createState() =>
+      _PlaceOutboundCallSheetState();
 }
 
 class _PlaceOutboundCallSheetState extends State<_PlaceOutboundCallSheet> {
@@ -2953,7 +3410,11 @@ class _PlaceOutboundCallSheetState extends State<_PlaceOutboundCallSheet> {
     }
     if (_selectedAgentId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(appTr('Please select an agent with an attached number.'))),
+        SnackBar(
+          content: Text(
+            appTr('Please select an agent with an attached number.'),
+          ),
+        ),
       );
       return;
     }
@@ -2964,10 +3425,7 @@ class _PlaceOutboundCallSheetState extends State<_PlaceOutboundCallSheet> {
         kind: 'call',
         operation: 'place_call',
         requestId: SocialPostService.requestId(),
-        inputs: {
-          'agent_id': _selectedAgentId,
-          'to_number': to,
-        },
+        inputs: {'agent_id': _selectedAgentId, 'to_number': to},
       );
       widget.onPlaced();
     } catch (e) {
@@ -3008,11 +3466,13 @@ class _PlaceOutboundCallSheetState extends State<_PlaceOutboundCallSheet> {
             children: [
               Text(
                 appTr('Place Outbound Call'),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
-              IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -3100,7 +3560,9 @@ class _NewCampaignSheetState extends State<_NewCampaignSheet> {
     final rec = _recipientsCtrl.text.trim();
     if (name.isEmpty || rec.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(appTr('Campaign name and recipients are required.'))),
+        SnackBar(
+          content: Text(appTr('Campaign name and recipients are required.')),
+        ),
       );
       return;
     }
@@ -3113,7 +3575,11 @@ class _NewCampaignSheetState extends State<_NewCampaignSheet> {
 
     if (recipientsList.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(appTr('At least one recipient phone number is required.'))),
+        SnackBar(
+          content: Text(
+            appTr('At least one recipient phone number is required.'),
+          ),
+        ),
       );
       return;
     }
@@ -3139,7 +3605,9 @@ class _NewCampaignSheetState extends State<_NewCampaignSheet> {
             : e.toString().replaceFirst('Exception: ', '').trim();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to create campaign.')),
+            content: Text(
+              appTr(rawMsg.isNotEmpty ? rawMsg : 'Failed to create campaign.'),
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -3173,9 +3641,13 @@ class _NewCampaignSheetState extends State<_NewCampaignSheet> {
             children: [
               Text(
                 appTr('New Outbound Campaign'),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
-              IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -3218,10 +3690,39 @@ class _NewCampaignSheetState extends State<_NewCampaignSheet> {
             onPressed: _busy ? null : _createCampaign,
             icon: const Icon(Icons.campaign),
             label: Text(appTr('Launch Campaign')),
-            style: FilledButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+class _PhoneSectionHeading extends StatelessWidget {
+  const _PhoneSectionHeading({required this.title, required this.description});
+  final String title;
+  final String description;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          description,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    ),
+  );
 }

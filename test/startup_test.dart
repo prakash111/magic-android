@@ -74,6 +74,26 @@ void main() {
     MobileApi.failure.value = null;
   });
 
+  testWidgets(
+    'app installs scoped tool recovery and restores the host handler',
+    (tester) async {
+      final previous = ErrorWidget.builder;
+      await tester.pumpWidget(
+        MagicAIMobileApp(
+          initialTheme: 'dark',
+          api: startupApi(),
+          loadTheme: () async => 'dark',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(identical(ErrorWidget.builder, previous), isFalse);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      expect(ErrorWidget.builder, same(previous));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('a clean installation reaches login with the same API client', (
     tester,
   ) async {
@@ -281,7 +301,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('No Internet Connection'), findsOneWidget);
       expect(
-        find.text('Unable to connect to the server. Please check your internet connection and try again.'),
+        find.text(
+          'Unable to connect to the server. Please check your internet connection and try again.',
+        ),
         findsOneWidget,
       );
       expect(find.text('License Invalid / Expired'), findsNothing);

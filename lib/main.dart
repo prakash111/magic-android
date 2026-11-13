@@ -20,6 +20,7 @@ import 'theme/app_theme.dart';
 import 'theme/brand_config.dart';
 import 'theme/theme_settings.dart';
 import 'widgets/magic_motion.dart';
+import 'widgets/tool_render_boundary.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,11 +55,16 @@ class _MagicAIMobileAppState extends State<MagicAIMobileApp>
   late final AppLocalizations _previousLocalizations;
   late ThemeMode _themeMode;
   bool _themeChanged = false;
+  late final ErrorWidgetBuilder _previousErrorBuilder;
+  late final ErrorWidgetBuilder _toolErrorBuilder;
   final navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
+    _previousErrorBuilder = ErrorWidget.builder;
+    _toolErrorBuilder = ToolRenderBoundary.errorBuilder(_previousErrorBuilder);
+    ErrorWidget.builder = _toolErrorBuilder;
     _previousLocalizations = AppLocalizations.current;
     _localizations = widget.localizations ?? AppLocalizations(api: widget.api);
     AppLocalizations.current = _localizations;
@@ -105,6 +111,9 @@ class _MagicAIMobileAppState extends State<MagicAIMobileApp>
 
   @override
   void dispose() {
+    if (identical(ErrorWidget.builder, _toolErrorBuilder)) {
+      ErrorWidget.builder = _previousErrorBuilder;
+    }
     WidgetsBinding.instance.removeObserver(this);
     if (identical(AppLocalizations.current, _localizations)) {
       AppLocalizations.current = _previousLocalizations;

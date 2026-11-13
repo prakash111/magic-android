@@ -34,6 +34,15 @@ class ChatService {
     return {
       'personas': records(data['personas']),
       'models': records(data['models']),
+      'example_prompts': records(data['example_prompts'] ?? [])
+          .where(
+            (item) =>
+                item['name'] is String &&
+                (item['name'] as String).trim().isNotEmpty &&
+                item['prompt'] is String &&
+                (item['prompt'] as String).trim().isNotEmpty,
+          )
+          .toList(),
     };
   }
 
