@@ -257,7 +257,7 @@ void main() {
   );
 
   testWidgets(
-    'CRM assistant displays live model selection and native suggestion chips',
+    'CRM assistant displays live model selection and server-provided suggestion chips',
     (tester) async {
       final api = nativeApi(
         (path, body) async => switch (path) {
@@ -267,6 +267,21 @@ void main() {
             ],
             'models': [
               {'id': 'test-model', 'title': 'Enabled model'},
+            ],
+            'example_prompts': [
+              {
+                'name': 'Pipeline summary',
+                'prompt': 'Summarize my sales pipeline by stage.',
+              },
+              {
+                'name': 'Overdue tasks',
+                'prompt': 'List my overdue tasks by priority.',
+              },
+              {
+                'name': 'Project health',
+                'prompt':
+                    'Which projects are at risk of missing their due date?',
+              },
             ],
           },
           _ => [],
@@ -281,8 +296,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Pipeline summary'), findsOneWidget);
       expect(find.text('Overdue tasks'), findsOneWidget);
+      expect(find.text('Project health'), findsOneWidget);
       expect(find.text('Enabled model'), findsOneWidget);
       expect(find.byTooltip('Voice input'), findsOneWidget);
+      await tester.tap(find.text('Project health'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField).last).controller!.text,
+        'Which projects are at risk of missing their due date?',
+      );
       expect(tester.takeException(), isNull);
     },
   );
