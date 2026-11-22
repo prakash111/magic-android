@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/mobile_api.dart';
+import '../services/content_manager_service.dart';
+import '../widgets/content_manager_picker_sheet.dart';
 import '../services/image_attachment_picker.dart';
 import '../services/social_post_service.dart';
 import 'server_screen.dart' show RetryPanel;
@@ -385,6 +387,46 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
       .where((account) => _draft || account['isConnected'] == true)
       .toList();
 
+  ContentManagerAsset? _libraryAsset;
+
+  Future<void> _previewLibraryAsset() async {
+    final asset = _libraryAsset;
+    if (asset == null) return;
+    try {
+      if (asset.type == 'video') {
+        try {
+          await SecureStore.invokeMethod<void>('previewMedia', {
+            'url': asset.url,
+          });
+          return;
+        } catch (_) {}
+      }
+      await SecureStore.invokeMethod<void>('openUrl', {'url': asset.url});
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error = 'The media preview could not open. Please try again.',
+        );
+      }
+    }
+  }
+
+  Future<void> _openContentManager() async {
+    final asset = await ContentManagerPickerSheet.show(
+      context,
+      api: widget.api,
+      initialType: _mediaType,
+      allowedTypes: const {'image', 'video'},
+    );
+    if (asset == null || !mounted) return;
+    setState(() {
+      _libraryAsset = asset;
+      _media.text = asset.url;
+      _mediaType = asset.type;
+      _changed();
+    });
+  }
+
   Future<void> _pick(String type) async {
     setState(() {
       _uploading = true;
@@ -401,6 +443,7 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
       final url = await _service.upload(file.bytes, file.name, type);
       if (mounted) {
         setState(() {
+          _libraryAsset = null;
           _media.text = url;
           _mediaType = type;
           _changed();
@@ -477,6 +520,7 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
         if (!_draft) 'scheduled_at': _scheduled.toUtc().toIso8601String(),
         if (_media.text.trim().isNotEmpty) ...{
           'media_url': _media.text.trim(),
+          if (_libraryAsset != null) 'media_id': _libraryAsset!.id,
           'media_type': _mediaType,
         },
       });
@@ -549,7 +593,10 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
                     TextFormField(
                       controller: _media,
                       enabled: !_saving && !_uploading,
-                      onChanged: (_) => _changed(),
+                      onChanged: (_) => setState(() {
+                        _libraryAsset = null;
+                        _changed();
+                      }),
                       decoration: InputDecoration(
                         labelText: appTr('Media URL (optional)'),
                       ),
@@ -557,7 +604,7 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
                         if (value == null || value.trim().isEmpty) return null;
                         final url = Uri.tryParse(value.trim());
                         return url != null &&
-                                url.scheme == appTr('https') &&
+                                url.scheme == 'https' &&
                                 url.host.isNotEmpty &&
                                 url.userInfo.isEmpty
                             ? null
@@ -596,6 +643,13 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
                         TextButton.icon(
                           onPressed: _saving || _uploading
                               ? null
+                              : _openContentManager,
+                          icon: const Icon(Icons.perm_media_outlined),
+                          label: Text(appTr('Content Manager')),
+                        ),
+                        TextButton.icon(
+                          onPressed: _saving || _uploading
+                              ? null
                               : () => _pick('image'),
                           icon: const Icon(Icons.image_outlined),
                           label: Text(appTr('Attach image')),
@@ -609,6 +663,39 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
                         ),
                       ],
                     ),
+                    if (_libraryAsset != null)
+                      Card(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(12),
+                          leading: SizedBox(
+                            width: 56,
+                            height: 56,
+                            child: ContentManagerThumbnail(
+                              asset: _libraryAsset!,
+                            ),
+                          ),
+                          title: Text(_libraryAsset!.title),
+                          subtitle: Text(
+                            appTr(
+                              _libraryAsset!.type == 'video'
+                                  ? 'Video attached'
+                                  : 'Image attached',
+                            ),
+                          ),
+                          trailing: IconButton(
+                            tooltip: appTr('Remove attachment'),
+                            icon: const Icon(Icons.close),
+                            onPressed: _saving
+                                ? null
+                                : () => setState(() {
+                                    _libraryAsset = null;
+                                    _media.clear();
+                                    _changed();
+                                  }),
+                          ),
+                          onTap: _previewLibraryAsset,
+                        ),
+                      ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(appTr('Save as draft')),
