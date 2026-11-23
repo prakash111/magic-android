@@ -8,6 +8,7 @@ import '../services/content_manager_service.dart';
 import '../widgets/content_manager_picker_sheet.dart';
 import '../services/image_attachment_picker.dart';
 import '../services/social_post_service.dart';
+import 'social/social_post_report_screen.dart';
 import 'server_screen.dart' show RetryPanel;
 import 'workspace_screen.dart' show SocialAccountsScreen;
 
@@ -35,11 +36,13 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
   List<Map<String, dynamic>> _accounts = [];
   String? _error;
   bool _loading = false;
+  bool _grid = false;
   int _page = 1, _lastPage = 1, _generation = 0;
   static const _statuses = {
     'all': 'All posts',
     'draft': 'Drafts',
     'scheduled': 'Scheduled',
+    'pending': 'Pending',
     'published': 'Published',
     'failed': 'Failed',
   };
@@ -116,6 +119,14 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
       ),
     );
     if (saved == true && mounted) await _load();
+  }
+
+  Future<void> _report(Map<String, dynamic> post) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => SocialPostReportScreen(api: _api, initialPost: post),
+      ),
+    );
   }
 
   Future<void> _delete(Map post) async {
@@ -227,6 +238,20 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
                         appTr(_calendar ? 'Show all dates' : 'Calendar'),
                       ),
                     ),
+                    IconButton(
+                      tooltip: appTr('List view'),
+                      isSelected: !_grid,
+                      onPressed: () => setState(() => _grid = false),
+                      icon: const Icon(Icons.view_list_outlined),
+                      selectedIcon: const Icon(Icons.view_list),
+                    ),
+                    IconButton(
+                      tooltip: appTr('Grid view'),
+                      isSelected: _grid,
+                      onPressed: () => setState(() => _grid = true),
+                      icon: const Icon(Icons.grid_view_outlined),
+                      selectedIcon: const Icon(Icons.grid_view_rounded),
+                    ),
                   ],
                 ),
                 if (_calendar)
@@ -272,26 +297,44 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
                       ),
                     ),
                   ),
-                for (final post in _posts!)
-                  Card(
-                    child: ListTile(
-                      leading: Icon(
-                        post['mediaType'] == 'video'
-                            ? Icons.videocam_outlined
-                            : Icons.article_outlined,
+                const SizedBox(height: 16),
+                if (!_grid)
+                  for (final post in _posts!)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: SocialPostCard(
+                        key: ValueKey('social-post-${post['id']}'),
+                        post: post,
+                        onReport: () => _report(post),
+                        onDelete: _loading ? null : () => _delete(post),
                       ),
-                      title: Text('${post['caption']}'),
-                      subtitle: Text(
-                        appTr(
-                          '${post['status']} · ${(post['platforms'] as List? ?? []).join(', ')}${_postDate(post)}',
-                        ),
-                      ),
-                      trailing: IconButton(
-                        tooltip: appTr('Delete post'),
-                        onPressed: _loading ? null : () => _delete(post),
-                        icon: const Icon(Icons.delete_outline),
-                      ),
-                    ),
+                    )
+                else
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final columns = _grid && constraints.maxWidth >= 650
+                          ? 2
+                          : 1;
+                      return Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          for (final post in _posts!)
+                            SizedBox(
+                              width:
+                                  (constraints.maxWidth - (columns - 1) * 12) /
+                                  columns,
+                              child: SocialPostCard(
+                                key: ValueKey('social-post-${post['id']}'),
+                                post: post,
+                                grid: _grid,
+                                onReport: () => _report(post),
+                                onDelete: _loading ? null : () => _delete(post),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 if (_page < _lastPage)
                   OutlinedButton(
@@ -306,15 +349,6 @@ class _ServerSocialScreenState extends State<ServerSocialScreen> {
         ),
       ],
     );
-  }
-
-  String _postDate(Map post) {
-    final date = DateTime.tryParse(
-      '${post['publishedAt'] ?? post['scheduledAt']}',
-    );
-    return date == null
-        ? ''
-        : ' · ${DateFormat.yMMMd().add_jm().format(date.toLocal())}';
   }
 }
 

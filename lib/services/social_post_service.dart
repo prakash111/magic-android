@@ -93,6 +93,15 @@ class SocialPostService {
     await api.request('/social-media/posts', method: 'POST', body: payload);
   }
 
+  Future<Map<String, dynamic>> post(String id) async {
+    if (!RegExp(r'^\d+$').hasMatch(id)) throw const ApiFailure('Invalid post.');
+    final data = await api.request('/social-media/posts/$id');
+    if (data is! Map || '${data['id']}' != id) {
+      throw const ApiFailure('Unable to read the post report. Please retry.');
+    }
+    return Map<String, dynamic>.from(data);
+  }
+
   Future<String> caption(String content, String platform) async {
     final data = await api.request(
       '/social-media/caption',

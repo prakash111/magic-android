@@ -1589,6 +1589,7 @@ class _SocialAccountsScreenState extends State<SocialAccountsScreen>
   List<Map>? _accounts;
   String? _error;
   bool _busy = false;
+  int _loadGeneration = 0;
   @override
   void initState() {
     super.initState();
@@ -1608,18 +1609,21 @@ class _SocialAccountsScreenState extends State<SocialAccountsScreen>
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     try {
       final items = await (widget.api ?? MobileApi.instance).request(
         '/social-media/platforms',
       ) as List;
-      if (mounted) {
+      if (mounted && generation == _loadGeneration) {
         setState(() {
           _accounts = items.whereType<Map>().toList();
           _error = null;
         });
       }
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted && generation == _loadGeneration) {
+        setState(() => _error = error.toString());
+      }
     }
   }
 
