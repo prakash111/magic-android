@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:intl/intl.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:magicai_mobile/widgets/document_page.dart';
@@ -130,7 +132,13 @@ void main() {
       await tester.tap(find.text('View in History'));
       await tester.pumpAndSettle();
       expect(find.text('What is 2 + 2?'), findsOneWidget);
-      expect(find.text('Oct 20, 2026 • 09:42 AM'), findsOneWidget);
+      final localCreatedAt = DateTime.parse('2026-10-20T09:42:00Z').toLocal();
+      expect(
+        find.text(
+          '${DateFormat.yMMMd().format(localCreatedAt)} • ${DateFormat('hh:mm a').format(localCreatedAt)}',
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.text('What is 2 + 2?'));
       await tester.pumpAndSettle();
       expect(

@@ -6,6 +6,7 @@ import '../../services/app_localizations.dart';
 import '../../services/mobile_api.dart';
 import '../../services/social_post_service.dart';
 import '../../theme/app_colors.dart';
+import 'social_post_comments_screen.dart';
 
 String socialPlatformName(Object? value) => switch ('$value') {
   'x' || 'twitter' => 'X',
@@ -368,10 +369,12 @@ class _SocialPostMediaState extends State<SocialPostMedia> {
 class SocialPostReportScreen extends StatefulWidget {
   final MobileApi api;
   final Map<String, dynamic> initialPost;
+  final String? initialCommentId;
   const SocialPostReportScreen({
     super.key,
     required this.api,
     required this.initialPost,
+    this.initialCommentId,
   });
 
   @override
@@ -387,7 +390,9 @@ class _SocialPostReportScreenState extends State<SocialPostReportScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _load().then((_) {
+      if (mounted && widget.initialCommentId != null) _comments();
+    });
   }
 
   Future<void> _load() async {
@@ -409,6 +414,20 @@ class _SocialPostReportScreenState extends State<SocialPostReportScreen> {
         setState(() => _loading = false);
       }
     }
+  }
+
+  Future<void> _comments() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => SocialPostCommentsScreen(
+          api: widget.api,
+          postId: '${widget.initialPost['id']}',
+          commentId: widget.initialCommentId,
+        ),
+      ),
+    );
+    if (mounted) await _load();
   }
 
   Future<void> _link(bool copy) async {
@@ -663,7 +682,20 @@ class _SocialPostReportScreenState extends State<SocialPostReportScreen> {
                               ),
                             ],
                           ]),
+                          if (_post['status'] == 'published')
+                            TextButton.icon(
+                              onPressed: _comments,
+                              icon: const Icon(Icons.comment_outlined),
+                              label: Text(appTr('Comments and replies')),
+                            ),
                           section('Post analytics', [
+                            if (analytics['notice'] is String)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Text(
+                                  appTr(analytics['notice'] as String),
+                                ),
+                              ),
                             if (!hasMetrics)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 16),

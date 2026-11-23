@@ -366,7 +366,7 @@ void main() {
         await tester.pumpAndSettle();
         final button = find.widgetWithText(
           FilledButton,
-          schedule ? 'Schedule post' : 'Save draft',
+          schedule ? 'Publish now' : 'Save draft',
         );
         await tester.ensureVisible(button);
         await tester.tap(button);

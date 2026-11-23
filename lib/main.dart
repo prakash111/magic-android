@@ -8,6 +8,8 @@ import 'screens/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'services/mobile_api.dart';
 import 'services/push_notifications.dart';
+import 'services/social_notification_navigation.dart';
+import 'screens/social/social_post_report_screen.dart';
 import 'services/app_localizations.dart';
 import 'services/framework_localizations.dart';
 
@@ -58,10 +60,49 @@ class _MagicAIMobileAppState extends State<MagicAIMobileApp>
   late final ErrorWidgetBuilder _previousErrorBuilder;
   late final ErrorWidgetBuilder _toolErrorBuilder;
   final navigatorKey = GlobalKey<NavigatorState>();
+  bool _openingSocialNotification = false;
+
+  Future<void> _openSocialNotification() async {
+    if (_openingSocialNotification ||
+        !mounted ||
+        navigatorKey.currentState == null ||
+        !SocialNotificationNavigation.ready) {
+      return;
+    }
+    final target = SocialNotificationNavigation.pending.value;
+    if (target == null) return;
+    _openingSocialNotification = true;
+    try {
+      final api = widget.api ?? MobileApi.instance;
+      if (await api.store.read('access_token') == null || !mounted) return;
+      if (!identical(target, SocialNotificationNavigation.pending.value)) {
+        return;
+      }
+      SocialNotificationNavigation.pending.value = null;
+      navigatorKey.currentState?.push(
+        MaterialPageRoute<void>(
+          builder: (_) => SocialPostReportScreen(
+            api: api,
+            initialPost: {'id': target.postId},
+            initialCommentId: target.commentId,
+          ),
+        ),
+      );
+    } catch (_) {
+      // Preserve the pending comment until authentication is available.
+    } finally {
+      _openingSocialNotification = false;
+      if (SocialNotificationNavigation.pending.value != null &&
+          !identical(target, SocialNotificationNavigation.pending.value)) {
+        unawaited(_openSocialNotification());
+      }
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    SocialNotificationNavigation.pending.addListener(_openSocialNotification);
     _previousErrorBuilder = ErrorWidget.builder;
     _toolErrorBuilder = ToolRenderBoundary.errorBuilder(_previousErrorBuilder);
     ErrorWidget.builder = _toolErrorBuilder;
@@ -104,6 +145,7 @@ class _MagicAIMobileAppState extends State<MagicAIMobileApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      unawaited(_openSocialNotification());
       unawaited(_localizations.refresh());
       unawaited(PushNotifications.registerDevice());
     }
@@ -114,6 +156,9 @@ class _MagicAIMobileAppState extends State<MagicAIMobileApp>
     if (identical(ErrorWidget.builder, _toolErrorBuilder)) {
       ErrorWidget.builder = _previousErrorBuilder;
     }
+    SocialNotificationNavigation.pending.removeListener(
+      _openSocialNotification,
+    );
     WidgetsBinding.instance.removeObserver(this);
     if (identical(AppLocalizations.current, _localizations)) {
       AppLocalizations.current = _previousLocalizations;

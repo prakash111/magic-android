@@ -1,3 +1,5 @@
+import '../services/social_notification_navigation.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -55,6 +57,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) SocialNotificationNavigation.markReady();
+    });
     WidgetsBinding.instance.addObserver(this);
     _load();
     _inboxTimer = Timer.periodic(const Duration(seconds: 5), (_) {

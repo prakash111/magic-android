@@ -10,6 +10,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'mobile_api.dart';
 import 'inbox_service.dart';
+import 'social_notification_navigation.dart';
 
 @pragma('vm:entry-point')
 Future<void> handlePushInBackground(RemoteMessage message) async {
@@ -100,11 +101,19 @@ class PushNotifications {
         onError: (Object _) => _scheduleRetry(),
       );
       FirebaseMessaging.onMessage.listen((message) {
+        SocialNotificationNavigation.update(message.data);
         _showForegroundMessage(message);
         unawaited(
           InboxService.forApi(_api).onPush(message.data).catchError((_) {}),
         );
       });
+      if (!kIsWeb) {
+        FirebaseMessaging.onMessageOpenedApp.listen(
+          (message) => SocialNotificationNavigation.receive(message.data),
+        );
+        final initial = await FirebaseMessaging.instance.getInitialMessage();
+        if (initial != null) SocialNotificationNavigation.receive(initial.data);
+      }
       _available = true;
       final token = await _readAccessToken();
       if (token != null) unawaited(registerDevice());
@@ -125,7 +134,16 @@ class PushNotifications {
       iOS: darwin,
       macOS: darwin,
     );
-    await _localNotifications.initialize(settings: settings);
+    await _localNotifications.initialize(
+      settings: settings,
+      onDidReceiveNotificationResponse: (response) {
+        _openNotificationPayload(response.payload);
+      },
+    );
+    final launch = await _localNotifications.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp == true) {
+      _openNotificationPayload(launch?.notificationResponse?.payload);
+    }
     const channel = AndroidNotificationChannel(
       'magicai_updates',
       'MagicAI updates',
@@ -215,6 +233,18 @@ class PushNotifications {
           _ => 'other',
         };
 
+  static void _openNotificationPayload(String? payload) {
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final data = jsonDecode(payload);
+      if (data is Map) {
+        SocialNotificationNavigation.receive(Map<String, dynamic>.from(data));
+      }
+    } catch (_) {
+      SocialNotificationNavigation.receive({'link': payload});
+    }
+  }
+
   static Future<void> _showForegroundMessage(RemoteMessage message) async {
     if (kIsWeb) return;
     final title =
@@ -239,7 +269,7 @@ class PushNotifications {
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      payload: message.data['link']?.toString(),
+      payload: jsonEncode(message.data),
     );
   }
 }

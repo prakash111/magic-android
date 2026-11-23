@@ -1,3 +1,4 @@
+import '../services/social_notification_navigation.dart';
 import '../services/app_localizations.dart';
 
 import 'package:flutter/material.dart';
@@ -28,6 +29,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+    SocialNotificationNavigation.ready = false;
     controller = AnimationController(
       vsync: this,
       duration: PromptCreationIntro.duration,

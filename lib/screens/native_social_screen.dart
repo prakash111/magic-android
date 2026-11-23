@@ -372,7 +372,11 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
   DateTime _scheduled = DateTime.now().add(const Duration(hours: 1));
   String _mediaType = 'image', _requestId = SocialPostService.requestId();
   String? _error;
-  bool _draft = true, _saving = false, _uploading = false, _generating = false;
+  bool _draft = true,
+      _publishNow = true,
+      _saving = false,
+      _uploading = false,
+      _generating = false;
 
   Future<void> _generateCaption() async {
     final selected = _available
@@ -531,7 +535,7 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
       setState(() => _error = 'Choose at least one account or platform.');
       return;
     }
-    if (!_draft && !_scheduled.isAfter(DateTime.now())) {
+    if (!_draft && !_publishNow && !_scheduled.isAfter(DateTime.now())) {
       setState(() => _error = 'Choose a future publication time.');
       return;
     }
@@ -551,7 +555,9 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
                   : {'platform': account['platform']},
             )
             .toList(),
-        if (!_draft) 'scheduled_at': _scheduled.toUtc().toIso8601String(),
+        if (!_draft && _publishNow) 'publish_now': true,
+        if (!_draft && !_publishNow)
+          'scheduled_at': _scheduled.toUtc().toIso8601String(),
         if (_media.text.trim().isNotEmpty) ...{
           'media_url': _media.text.trim(),
           if (_libraryAsset != null) 'media_id': _libraryAsset!.id,
@@ -747,6 +753,30 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
                             }),
                     ),
                     if (!_draft)
+                      DropdownButtonFormField<bool>(
+                        initialValue: _publishNow,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: appTr('Publication time'),
+                        ),
+                        items: [
+                          DropdownMenuItem(
+                            value: true,
+                            child: Text(appTr('Publish now')),
+                          ),
+                          DropdownMenuItem(
+                            value: false,
+                            child: Text(appTr('Schedule for later')),
+                          ),
+                        ],
+                        onChanged: _saving
+                            ? null
+                            : (value) => setState(() {
+                                _publishNow = value ?? true;
+                                _changed();
+                              }),
+                      ),
+                    if (!_draft && !_publishNow)
                       OutlinedButton.icon(
                         onPressed: _saving ? null : _time,
                         icon: const Icon(Icons.schedule),
@@ -828,6 +858,8 @@ class _SocialPostComposerState extends State<SocialPostComposer> {
                           ? 'Saving…'
                           : _draft
                           ? 'Save draft'
+                          : _publishNow
+                          ? 'Publish now'
                           : 'Schedule post',
                     ),
                   ),

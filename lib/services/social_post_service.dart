@@ -93,6 +93,68 @@ class SocialPostService {
     await api.request('/social-media/posts', method: 'POST', body: payload);
   }
 
+  Future<Map<String, dynamic>> comments(
+    String postId, {
+    String? cursor,
+    String? commentId,
+    int page = 1,
+  }) async {
+    if (!RegExp(r'^\d+$').hasMatch(postId)) {
+      throw const ApiFailure('Invalid post.');
+    }
+    final query = Uri(
+      queryParameters: {
+        'page': '$page',
+        'cursor': ?cursor,
+        'comment_id': ?commentId,
+      },
+    ).query;
+    final result = await api
+        .request('/social-media/posts/$postId/comments?$query')
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => throw const ApiFailure(
+            'The request timed out. Refresh comments before retrying.',
+          ),
+        );
+    if (result is! Map || result['data'] is! List) {
+      throw const ApiFailure('Comments could not be loaded. Please retry.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> replyToComment(
+    String postId,
+    String commentId,
+    String text,
+    String requestId,
+  ) async {
+    if (!RegExp(r'^\d+$').hasMatch(postId) ||
+        !RegExp(r'^\d+$').hasMatch(commentId)) {
+      throw const ApiFailure('Invalid comment.');
+    }
+    final result = await api
+        .request(
+          '/social-media/posts/$postId/comments/$commentId/reply',
+          method: 'POST',
+          body: {'text': text, 'request_id': requestId},
+        )
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => throw const ApiFailure(
+            'The request timed out. Refresh comments before retrying.',
+          ),
+        );
+    if (result is! Map ||
+        result['data'] is! Map ||
+        result['data']['status'] != 'sent') {
+      throw const ApiFailure(
+        'The reply could not be confirmed. Refresh comments before retrying.',
+      );
+    }
+    return Map<String, dynamic>.from(result['data']);
+  }
+
   Future<Map<String, dynamic>> post(String id) async {
     if (!RegExp(r'^\d+$').hasMatch(id)) throw const ApiFailure('Invalid post.');
     final data = await api.request('/social-media/posts/$id');

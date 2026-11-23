@@ -368,12 +368,20 @@ void main() {
       await tester.ensureVisible(find.byType(SwitchListTile));
       await tester.tap(find.byType(SwitchListTile));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byType(DropdownButtonFormField<bool>));
+      await tester.tap(find.byType(DropdownButtonFormField<bool>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Schedule for later').last);
+      await tester.pumpAndSettle();
       expect(find.byType(CheckboxListTile), findsOneWidget);
       await tester.ensureVisible(find.byType(CheckboxListTile));
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(CheckboxListTile));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Schedule post'));
       await tester.pumpAndSettle();
       expect(saved!['status'], 'scheduled');
+      expect(saved!.containsKey('publish_now'), isFalse);
       expect(saved!['media_url'], 'https://example.com/photo.jpg');
       expect(saved!['media_type'], 'image');
       expect(DateTime.parse(saved!['scheduled_at']).isUtc, isTrue);
@@ -382,6 +390,39 @@ void main() {
         isTrue,
       );
       expect(find.text('Compose'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'publish now sends a server-timed request without a future date',
+    (tester) async {
+      Map? saved;
+      final api = nativeApi((path, body) async {
+        saved = body;
+        return {};
+      });
+      await tester.pumpWidget(
+        app(SocialPostComposer(api: api, accounts: accounts)),
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Post body'),
+        'Publish immediately',
+      );
+      await tester.ensureVisible(find.byType(SwitchListTile));
+      await tester.tap(find.byType(SwitchListTile));
+      await tester.pumpAndSettle();
+      expect(find.text('Publish now'), findsNWidgets(2));
+      expect(find.byIcon(Icons.schedule), findsNothing);
+      await tester.ensureVisible(find.byType(CheckboxListTile));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Publish now'));
+      await tester.pumpAndSettle();
+      expect(saved!['status'], 'scheduled');
+      expect(saved!['publish_now'], isTrue);
+      expect(saved!.containsKey('scheduled_at'), isFalse);
+      expect(tester.takeException(), isNull);
     },
   );
 
