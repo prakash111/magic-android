@@ -1719,6 +1719,13 @@ class _SocialAccountsScreenState extends State<SocialAccountsScreen>
                               )
                             : PopupMenuButton<String>(
                                 onSelected: (value) async {
+                                  if (value == 'reconnect') {
+                                    await _connect(
+                                      account['platform'].toString(),
+                                      account: account['id'].toString(),
+                                    );
+                                    return;
+                                  }
                                   if (value == 'add') {
                                     await _connect(
                                       account['platform'].toString(),
@@ -1770,6 +1777,10 @@ class _SocialAccountsScreenState extends State<SocialAccountsScreen>
                                 itemBuilder: (localizationContext) {
                                   AppLocalizations.watch(localizationContext);
                                   return [
+                                    PopupMenuItem(
+                                      value: 'reconnect',
+                                      child: Text(appTr('Reconnect')),
+                                    ),
                                     PopupMenuItem(
                                       value: 'add',
                                       child: Text(appTr('Add another account')),

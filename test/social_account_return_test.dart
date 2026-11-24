@@ -112,4 +112,36 @@ void main() {
       expect(find.text('Connect your first profile'), findsNothing);
     },
   );
+  testWidgets(
+    'reconnect preserves the selected account id without disconnecting it',
+    (tester) async {
+      Map? ticket;
+      final methods = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SecureStore.channel, (_) async => null);
+      final api = nativeApi((path, body) async {
+        methods.add(path);
+        if (path == '/social-media/platforms') return socialAccounts(true);
+        ticket = Map.from(body);
+        return {
+          'url': 'https://magicai.example.test/mobile/open/${'t' * 64}',
+          'expires_in': 60,
+        };
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.darkTheme,
+          home: SocialAccountsScreen(api: api),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(PopupMenuButton<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reconnect'));
+      await tester.pumpAndSettle();
+      expect(ticket!['account_id'], 7);
+      expect(ticket!['platform'], 'facebook');
+      expect(methods.where((path) => path.contains('/platforms/7')), isEmpty);
+    },
+  );
 }
